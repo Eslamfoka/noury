@@ -1,9 +1,411 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Filled in by Task 17.
-class SettingsScreen extends StatelessWidget {
+import '../../app.dart';
+import '../../core/format/arabic_numerals.dart';
+import '../../core/notifications/notification_status.dart';
+import '../../core/theme/nouri_colors.dart';
+import '../../core/theme/nouri_theme.dart';
+import '../../data/db/nouri_database.dart';
+import '../home/home_providers.dart';
+import '../shared/nouri_avatar.dart';
+import 'notification_status_panel.dart';
+import 'settings_controller.dart';
+
+/// Live device notification state. Never cached — the panel must show what is
+/// true right now, not what was true at launch.
+final notificationStatusProvider =
+    FutureProvider<NotificationStatus?>((ref) async {
+  final service = ref.watch(notificationServiceProvider);
+  if (service == null) return null;
+  return service.readStatus();
+});
+
+final settingsControllerProvider = Provider<SettingsController>((ref) {
+  return SettingsController(
+    db: ref.watch(databaseProvider),
+    scheduler: ref.watch(schedulerPortProvider),
+  );
+});
+
+/// Overridden in main() with the real scheduler; a no-op in tests.
+final schedulerPortProvider = Provider<SchedulerPort>((ref) => _NoopScheduler());
+
+class _NoopScheduler implements SchedulerPort {
+  @override
+  Future<void> rearm(config) async {}
+}
+
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  static const _methods = <String, String>{
+    'kuwait': 'الكويت',
+    'ummAlQura': 'أم القرى',
+    'muslimWorldLeague': 'رابطة العالم الإسلامي',
+    'egyptian': 'الهيئة المصرية',
+    'qatar': 'قطر',
+    'dubai': 'دبي',
+  };
+
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final status = ref.watch(notificationStatusProvider);
+    final controller = ref.read(settingsControllerProvider);
+    final service = ref.read(notificationServiceProvider);
+
+    return settings.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: NouriColors.gold),
+      ),
+      error: (e, _) => Center(
+        child: Text('مش قادر أفتح الإعدادات دلوقتي.',
+            style: cairo(size: 14, color: NouriColors.muted)),
+      ),
+      data: (s) => ListView(
+        padding: const EdgeInsets.fromLTRB(15, 18, 15, 24),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('الإعدادات',
+                  style: cairo(size: 17, weight: FontWeight.w700)),
+              const NouriAvatar(size: 36),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          NotificationStatusPanel(
+            status: status.value,
+            onRequestNotifications: () async {
+              await service?.requestNotificationPermission();
+              ref.invalidate(notificationStatusProvider);
+            },
+            onRequestExactAlarms: () async {
+              await service?.requestExactAlarmPermission();
+              ref.invalidate(notificationStatusProvider);
+            },
+            onRequestBattery: () async {
+              await service?.requestBatteryExemption();
+              ref.invalidate(notificationStatusProvider);
+            },
+            onSendTest: () => service?.sendTestNotification(),
+          ),
+          const SizedBox(height: 20),
+
+          _Section(title: 'الإشعارات', children: [
+            _SwitchRow(
+              label: 'الأذان',
+              value: s.notifyAdhan,
+              onChanged: (v) async {
+                await controller.toggleChannel('adhan', v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _SwitchRow(
+              label: 'الإقامة',
+              value: s.notifyIqama,
+              onChanged: (v) async {
+                await controller.toggleChannel('iqama', v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _SwitchRow(
+              label: 'الأذكار',
+              value: s.notifyAthkar,
+              onChanged: (v) async {
+                await controller.toggleChannel('athkar', v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _SwitchRow(
+              label: 'ورد القرآن',
+              value: s.notifyWird,
+              onChanged: (v) async {
+                await controller.toggleChannel('wird', v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          _Section(title: 'مواقيت الصلاة', children: [
+            _ValueRow(label: 'المدينة', value: s.cityLabel),
+            _ChoiceRow(
+              label: 'طريقة الحساب',
+              value: _methods[s.calculationMethod] ?? s.calculationMethod,
+              options: _methods,
+              onSelected: (key) async {
+                await controller.updateMethod(key);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _ChoiceRow(
+              label: 'حساب العصر',
+              value: s.madhab == 'hanafi' ? 'حنفي' : 'شافعي',
+              options: const {'shafi': 'شافعي', 'hanafi': 'حنفي'},
+              onSelected: (key) async {
+                await controller.updateMadhab(key);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _StepperRow(
+              label: 'فرق التاريخ الهجري',
+              value: toArabicDigits('${s.hijriOffsetDays}'),
+              onDecrement: () async {
+                await controller.updateHijriOffset(s.hijriOffsetDays - 1);
+                ref.invalidate(settingsProvider);
+              },
+              onIncrement: () async {
+                await controller.updateHijriOffset(s.hijriOffsetDays + 1);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          // Named distinctly from the «الإقامة» notification toggle above,
+          // so the two are never mistaken for each other.
+          _Section(title: 'فرق وقت الإقامة', children: [
+            for (final entry
+                in decodeIqamaOffsets(s.iqamaOffsetsJson).entries)
+              _StepperRow(
+                label: _prayerLabel(entry.key),
+                value: toArabicDigits('${entry.value} د'),
+                onDecrement: () async {
+                  await controller.updateIqamaOffset(
+                      entry.key, entry.value - 5);
+                  ref.invalidate(settingsProvider);
+                },
+                onIncrement: () async {
+                  await controller.updateIqamaOffset(
+                      entry.key, entry.value + 5);
+                  ref.invalidate(settingsProvider);
+                },
+              ),
+          ]),
+          const SizedBox(height: 16),
+
+          _Section(title: 'الورد', children: [
+            _StepperRow(
+              label: 'هدف التسبيح',
+              value: toArabicDigits('${s.tasbeehTarget}'),
+              onDecrement: () async {
+                await controller.updateTasbeehTarget(s.tasbeehTarget - 33);
+                ref.invalidate(settingsProvider);
+              },
+              onIncrement: () async {
+                await controller.updateTasbeehTarget(s.tasbeehTarget + 33);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _ValueRow(
+              label: 'صفحات المصحف',
+              value: toArabicDigits('${s.khatmaTotalPages}'),
+            ),
+          ]),
+          const SizedBox(height: 20),
+
+          Text(
+            'كل بياناتك متخزّنة على الجهاز ده بس. نوري مش بيبعت حاجة لأي '
+            'مكان في المرحلة دي.',
+            style: cairo(size: 11.5, color: NouriColors.muted, height: 1.8),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _prayerLabel(String key) => switch (key) {
+        'fajr' => 'الفجر',
+        'dhuhr' => 'الظهر',
+        'asr' => 'العصر',
+        'maghrib' => 'المغرب',
+        'isha' => 'العشاء',
+        _ => key,
+      };
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, right: 2),
+            child:
+                Text(title, style: cairo(size: 14, weight: FontWeight.w600)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            decoration: BoxDecoration(
+              color: NouriColors.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(children: children),
+          ),
+        ],
+      );
+}
+
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: cairo(size: 13.5))),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: NouriColors.gold,
+              inactiveThumbColor: NouriColors.muted,
+            ),
+          ],
+        ),
+      );
+}
+
+class _ValueRow extends StatelessWidget {
+  const _ValueRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: cairo(size: 13.5)),
+            Text(value, style: cairo(size: 13, color: NouriColors.muted)),
+          ],
+        ),
+      );
+}
+
+class _ChoiceRow extends StatelessWidget {
+  const _ChoiceRow({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final String label;
+  final String value;
+  final Map<String, String> options;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: () async {
+          final chosen = await showModalBottomSheet<String>(
+            context: context,
+            backgroundColor: NouriColors.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (ctx) => SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 16),
+                    Text(label,
+                        style: cairo(size: 15, weight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    for (final e in options.entries)
+                      ListTile(
+                        title: Text(e.value, style: cairo(size: 14)),
+                        onTap: () => Navigator.of(ctx).pop(e.key),
+                      ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          );
+          if (chosen != null) onSelected(chosen);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: cairo(size: 13.5)),
+              Row(
+                children: [
+                  Text(value,
+                      style: cairo(size: 13, color: NouriColors.muted)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_left,
+                      size: 18, color: NouriColors.muted),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _StepperRow extends StatelessWidget {
+  const _StepperRow({
+    required this.label,
+    required this.value,
+    required this.onDecrement,
+    required this.onIncrement,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onDecrement;
+  final VoidCallback onIncrement;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: cairo(size: 13.5))),
+            IconButton(
+              onPressed: onDecrement,
+              icon: const Icon(Icons.remove, size: 18),
+              color: NouriColors.muted,
+              visualDensity: VisualDensity.compact,
+            ),
+            SizedBox(
+              width: 52,
+              child: Text(
+                value,
+                textAlign: TextAlign.center,
+                style: cairo(size: 13.5, weight: FontWeight.w600),
+              ),
+            ),
+            IconButton(
+              onPressed: onIncrement,
+              icon: const Icon(Icons.add, size: 18),
+              color: NouriColors.gold,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      );
 }

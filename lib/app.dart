@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/l10n/app_localizations.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/theme/nouri_colors.dart';
 import 'core/theme/nouri_theme.dart';
+import 'features/home/home_providers.dart';
+import 'features/onboarding/permission_flow.dart';
+import 'features/settings/settings_screen.dart';
 import 'features/shell/app_shell.dart';
 
 /// The notification service, injected at startup.
@@ -38,7 +42,51 @@ class NouriApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const AppShell(),
+      home: const _Root(),
+    );
+  }
+}
+
+/// Shows the permission flow on first launch, then the shell.
+///
+/// Falls through to the shell whenever settings cannot be read: onboarding is
+/// a convenience, never a gate the user can get stuck behind.
+class _Root extends ConsumerWidget {
+  const _Root();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+
+    return settings.when(
+      loading: () => const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: NouriColors.gold),
+        ),
+      ),
+      error: (_, _) => const AppShell(),
+      data: (s) {
+        if (s.onboardingComplete) return const AppShell();
+
+        final service = ref.read(notificationServiceProvider);
+        return PermissionFlow(
+          steps: defaultPermissionSteps(
+            requestNotifications: () async =>
+                service?.requestNotificationPermission(),
+            requestBattery: () async => service?.requestBatteryExemption(),
+            requestLocation: () async {
+              // Location is requested here only to establish the permission;
+              // prayer times fall back to Kuwait until coordinates are set.
+            },
+          ),
+          onDone: () async {
+            await ref
+                .read(settingsControllerProvider)
+                .markOnboardingComplete();
+            ref.invalidate(settingsProvider);
+          },
+        );
+      },
     );
   }
 }
