@@ -109,17 +109,23 @@ Flutter is **not installed** on this machine. The Android SDK (`D:\dev-tools\and
 - Consumes: nothing
 - Produces: a runnable Flutter app; `flutter test` and `flutter build apk` both work
 
-- [ ] **Step 1: Install the Flutter SDK**
+- [x] **Step 1: Install the Flutter SDK** — *already present, no install needed*
 
-```bash
-git clone https://github.com/flutter/flutter.git -b stable D:/dev-tools/flutter
-```
+Flutter **3.44.6 stable** (Dart 3.12.2) is already installed at
+`D:\dev-tools\flutter`, Dart SDK cached, git checkout clean. The initial
+environment sweep missed it because it probed `D:\flutter` and not
+`D:\dev-tools\flutter`.
 
-Then add `D:\dev-tools\flutter\bin` to the user PATH (PowerShell, then restart the shell):
+It is **not on the system PATH**. Add it once:
 
 ```powershell
 [Environment]::SetEnvironmentVariable('Path', $env:Path + ';D:\dev-tools\flutter\bin', 'User')
 ```
+
+or prefix each session with `$env:PATH = 'D:\dev-tools\flutter\bin;' + $env:PATH`.
+
+Staying on 3.44.6 rather than upgrading to 3.47.2: it supports every dependency
+this slice needs, and upgrading the SDK mid-project is risk with no payoff.
 
 - [ ] **Step 2: Verify the toolchain**
 
