@@ -1,0 +1,56 @@
+{
+  "@@locale": "en",
+
+  "appName": "Nouri",
+
+  "tabToday": "Today",
+  "tabAthkar": "Athkar",
+  "tabReports": "Reports",
+  "tabFinance": "Finance",
+  "tabSettings": "Settings",
+
+  "labelNextPrayer": "Next prayer",
+  "labelIqama": "Iqama",
+  "labelTodayPrayers": "Today's prayers",
+  "labelDailyWird": "Daily wird",
+  "labelMorningAthkar": "Morning athkar",
+  "labelEveningAthkar": "Evening athkar",
+  "labelSleepAthkar": "Before-sleep athkar",
+  "labelTasbeeh": "Tasbeeh",
+  "labelQuranWird": "Qur'an wird",
+  "labelSource": "Source",
+  "labelVirtue": "Virtue",
+
+  "stateMosque": "In the mosque",
+  "stateCongregation": "In congregation",
+  "stateOnTime": "On time",
+  "stateLate": "Late",
+  "stateNotYet": "Not yet",
+
+  "prayerFajr": "Fajr",
+  "prayerDhuhr": "Dhuhr",
+  "prayerAsr": "Asr",
+  "prayerMaghrib": "Maghrib",
+  "prayerIsha": "Isha",
+
+  "nouriRemainingOnAdhan": "until the adhan",
+  "nouriPrayedAction": "Prayed",
+  "nouriComingSoon": "Coming soon",
+  "nouriFinancePlaceholder": "This part is on its way. Your expenses and budget will live here.",
+  "nouriTargetAdjustable": "you can raise it",
+
+  "nouriDidYouPray": "Did you pray {prayer}?",
+  "@nouriDidYouPray": {
+    "placeholders": {
+      "prayer": { "type": "String" }
+    }
+  },
+
+  "nouriProgress": "You've done {done} of {total}",
+  "@nouriProgress": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  }
+}

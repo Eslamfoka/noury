@@ -1,0 +1,56 @@
+{
+  "@@locale": "ar",
+
+  "appName": "نوري",
+
+  "tabToday": "النهاردة",
+  "tabAthkar": "الأذكار",
+  "tabReports": "التقارير",
+  "tabFinance": "المالية",
+  "tabSettings": "الإعدادات",
+
+  "labelNextPrayer": "الصلاة القادمة",
+  "labelIqama": "الإقامة",
+  "labelTodayPrayers": "صلوات اليوم",
+  "labelDailyWird": "الورد اليومي",
+  "labelMorningAthkar": "أذكار الصباح",
+  "labelEveningAthkar": "أذكار المساء",
+  "labelSleepAthkar": "أذكار النوم",
+  "labelTasbeeh": "التسبيح",
+  "labelQuranWird": "ورد القرآن",
+  "labelSource": "المصدر",
+  "labelVirtue": "الفضل",
+
+  "stateMosque": "في المسجد",
+  "stateCongregation": "جماعة",
+  "stateOnTime": "في الوقت",
+  "stateLate": "متأخرة",
+  "stateNotYet": "لسه",
+
+  "prayerFajr": "الفجر",
+  "prayerDhuhr": "الظهر",
+  "prayerAsr": "العصر",
+  "prayerMaghrib": "المغرب",
+  "prayerIsha": "العشاء",
+
+  "nouriRemainingOnAdhan": "باقي على الأذان",
+  "nouriPrayedAction": "صليت",
+  "nouriComingSoon": "قريباً إن شاء الله",
+  "nouriFinancePlaceholder": "الجزء ده لسه في الطريق. لما يجهز هتلاقي هنا مصاريفك وميزانيتك.",
+  "nouriTargetAdjustable": "تقدر تزوّده",
+
+  "nouriDidYouPray": "صليت {prayer}؟",
+  "@nouriDidYouPray": {
+    "placeholders": {
+      "prayer": { "type": "String" }
+    }
+  },
+
+  "nouriProgress": "خلّصت {done} من {total}",
+  "@nouriProgress": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  }
+}
