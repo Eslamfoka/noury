@@ -77,10 +77,30 @@ void main() {
     expect(offenders, isEmpty, reason: 'network access found in: $offenders');
   });
 
-  test('the android manifest requests no INTERNET permission', () {
+  test('the android manifest grants no INTERNET permission', () {
+    // A transitive dependency (package:http, pulled in by the notification
+    // plugins) would otherwise merge INTERNET into the final manifest. The
+    // manifest therefore names it explicitly with tools:node="remove", which
+    // is a stronger guarantee than mere absence: the OS itself then makes
+    // network access impossible, whatever any dependency tries to do.
     final manifest =
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
-    expect(manifest.contains('android.permission.INTERNET'), isFalse,
-        reason: 'Slice 1 has no reason to hold the INTERNET permission');
+
+    final mentions = RegExp(r'<uses-permission[^>]*android\.permission\.INTERNET[^>]*>')
+        .allMatches(manifest)
+        .map((m) => m.group(0)!)
+        .toList();
+
+    expect(mentions, hasLength(1),
+        reason: 'INTERNET should be named exactly once, to remove it');
+    expect(mentions.single.contains('tools:node="remove"'), isTrue,
+        reason: 'INTERNET must be removed, never granted: ${mentions.single}');
+  });
+
+  test('the manifest declares the tools namespace the removal needs', () {
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(manifest.contains('xmlns:tools='), isTrue,
+        reason: 'without the tools namespace, node="remove" is inert');
   });
 }

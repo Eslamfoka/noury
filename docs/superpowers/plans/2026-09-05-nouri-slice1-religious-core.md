@@ -16,7 +16,10 @@
 
 Every task's requirements implicitly include this section.
 
-- **Platform:** Android only. `minSdk 26`, `targetSdk 35`, `compileSdk 35`. JDK 17.
+- **Platform:** Android only. `minSdk 26`, `targetSdk 35`, `compileSdk 37`. JDK 17.
+  (compileSdk is 37, not the 35 first planned: `flutter_local_notifications`
+  needs 36+ and `permission_handler_android` needs 37+. Only the compile
+  target moves; `targetSdk 35` still governs runtime behaviour.)
 - **No network. At all.** This slice makes zero HTTP requests. No `http`, `dio`, `anthropic` or any network package may appear in `pubspec.yaml`. Task 4 adds a test that enforces this.
 - **Default locale is Arabic; default direction is RTL.** English is a supported alternative, never the baseline. Never hardcode a user-visible string in a widget — every string goes through the ARB files.
 - **Voice rule.** Structural text (tab names, settings labels, report labels, pillar names) is MSA. Text where Nouri speaks to the user (reminders, progress lines, questions) is Egyptian colloquial. The Home tab keeps its approved colloquial name «النهاردة».
@@ -154,7 +157,7 @@ Expected: `lib/`, `test/`, `android/`, `pubspec.yaml` appear; `Nouri_Project_Bri
 In `android/app/build.gradle.kts`, inside `android { ... }`:
 
 ```kotlin
-compileSdk = 35
+compileSdk = 37   // plugins require it; see Global Constraints
 
 defaultConfig {
     applicationId = "com.nouri.nouri"

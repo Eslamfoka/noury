@@ -9,11 +9,12 @@ void main() {
     await tester.pumpWidget(const NouriApp());
     await tester.pumpAndSettle();
 
-    final ctx = tester.element(find.text('نوري'));
+    final ctx = tester.element(find.byType(Scaffold));
     expect(Directionality.of(ctx), TextDirection.rtl,
         reason: 'RTL is the default direction, not a mode');
     expect(Localizations.localeOf(ctx), const Locale('ar'));
     expect(Theme.of(ctx).scaffoldBackgroundColor, NouriColors.background);
+    expect(find.text('نوري'), findsWidgets);
   });
 
   testWidgets('English is supported as an alternative', (tester) async {

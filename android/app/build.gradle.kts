@@ -6,7 +6,12 @@ plugins {
 
 android {
     namespace = "com.nouri.nouri"
-    compileSdk = 35
+
+    // 37, not the 35 originally planned: flutter_local_notifications requires
+    // 36+ and permission_handler_android requires 37+. compileSdk only says
+    // which APIs we compile against — targetSdk below still governs runtime
+    // behaviour, so this does not change how the app behaves on the device.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

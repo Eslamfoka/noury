@@ -59,7 +59,7 @@ dart run build_runner build --delete-conflicting-outputs
 ## Project facts worth knowing
 
 - **Application ID:** `com.nouri.nouri`
-- **minSdk 26 / targetSdk 35 / compileSdk 35**, set explicitly in
+- **minSdk 26 / targetSdk 35 / compileSdk 37**, set explicitly in
   `android/app/build.gradle.kts` — not inherited from the Flutter defaults.
 - **`pubspec.lock` is committed.** Nouri is an application, not a library; the
   lockfile keeps builds reproducible.
