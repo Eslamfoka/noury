@@ -13,11 +13,14 @@ import 'tasbeeh_controller.dart';
 import 'widgets/dhikr_card.dart';
 import 'widgets/tasbeeh_ring.dart';
 
-final athkarRepositoryProvider =
-    Provider<AthkarRepository>((ref) => AthkarRepository());
+final athkarRepositoryProvider = Provider<AthkarRepository>(
+  (ref) => AthkarRepository(),
+);
 
-final athkarSetProvider =
-    FutureProvider.family<AthkarSet, String>((ref, category) async {
+final athkarSetProvider = FutureProvider.family<AthkarSet, String>((
+  ref,
+  category,
+) async {
   return ref.watch(athkarRepositoryProvider).load(category);
 });
 
@@ -52,11 +55,15 @@ class _AthkarScreenState extends ConsumerState<AthkarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('الأذكار والتسبيح',
-                      style: cairo(size: 17, weight: FontWeight.w700)),
+                  Text(
+                    'الأذكار والتسبيح',
+                    style: cairo(size: 17, weight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 2),
-                  Text('وردك اليومي',
-                      style: cairo(size: 11.5, color: NouriColors.muted)),
+                  Text(
+                    'وردك اليومي',
+                    style: cairo(size: 11.5, color: NouriColors.muted),
+                  ),
                 ],
               ),
               const NouriAvatar(size: 36),
@@ -123,8 +130,7 @@ class _TabBar extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: cairo(
                       size: 12,
-                      weight:
-                          i == selected ? FontWeight.w700 : FontWeight.w400,
+                      weight: i == selected ? FontWeight.w700 : FontWeight.w400,
                       color: i == selected
                           ? NouriColors.background
                           : NouriColors.muted,
@@ -159,7 +165,10 @@ class _TasbeehTabState extends ConsumerState<_TasbeehTab> {
   }
 
   Future<void> _persist() async {
-    await ref.read(databaseProvider).athkarDao.upsert(
+    await ref
+        .read(databaseProvider)
+        .athkarDao
+        .upsert(
           date: DateTime.now(),
           type: 'tasbeeh',
           progress: _controller.count,
@@ -218,8 +227,7 @@ class _TasbeehTabState extends ConsumerState<_TasbeehTab> {
                 value: _controller.fraction,
                 minHeight: 6,
                 backgroundColor: NouriColors.surface,
-                valueColor:
-                    const AlwaysStoppedAnimation(NouriColors.gold),
+                valueColor: const AlwaysStoppedAnimation(NouriColors.gold),
               ),
             ),
             const SizedBox(height: 16),
@@ -239,12 +247,14 @@ class _TasbeehTabState extends ConsumerState<_TasbeehTab> {
                       _controller.increment();
                       _persist();
                     },
-                    child: Text('سبّح',
-                        style: cairo(
-                          size: 17,
-                          weight: FontWeight.w700,
-                          color: NouriColors.background,
-                        )),
+                    child: Text(
+                      'سبّح',
+                      style: cairo(
+                        size: 17,
+                        weight: FontWeight.w700,
+                        color: NouriColors.background,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -283,25 +293,25 @@ class _IconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-        message: tooltip,
-        child: Material(
-          color: NouriColors.surface,
-          borderRadius: BorderRadius.circular(15),
-          child: InkWell(
-            onTap: onTap,
+    message: tooltip,
+    child: Material(
+      color: NouriColors.surface,
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: NouriColors.border),
-              ),
-              child: Icon(icon, color: NouriColors.muted, size: 20),
-            ),
+            border: Border.all(color: NouriColors.border),
           ),
+          child: Icon(icon, color: NouriColors.muted, size: 20),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 // ------------------------------------------------------------------ athkar
@@ -325,7 +335,10 @@ class _AthkarTabState extends ConsumerState<_AthkarTab> {
   }
 
   Future<void> _persist(AthkarController c) async {
-    await ref.read(databaseProvider).athkarDao.upsert(
+    await ref
+        .read(databaseProvider)
+        .athkarDao
+        .upsert(
           date: DateTime.now(),
           type: widget.category,
           progress: c.completedItems,
@@ -356,91 +369,108 @@ class _AthkarTabState extends ConsumerState<_AthkarTab> {
         _controller ??= AthkarController(data.items);
         final c = _controller!;
 
+        // The dhikr scrolls; the action row stays pinned. A long text like
+        // آية الكرسي would otherwise push «تمّ» below the fold and make the
+        // screen's primary action unreachable without scrolling.
         return ListenableBuilder(
           listenable: c,
-          builder: (context, _) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(15, 16, 15, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+          builder: (context, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 16, 15, 0),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       toArabicDigits(
-                          'الذكر ${c.currentIndex + 1} من ${c.items.length}'),
+                        'الذكر ${c.currentIndex + 1} من ${c.items.length}',
+                      ),
                       style: cairo(size: 12, color: NouriColors.muted),
                     ),
                     _StepDots(controller: c),
                   ],
                 ),
-                const SizedBox(height: 12),
-                DhikrCard(
-                  item: c.current,
-                  repeatsDone: c.currentRepeats,
-                  onTap: () {},
-                ),
-                const SizedBox(height: 14),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: c.fraction,
-                    minHeight: 6,
-                    backgroundColor: NouriColors.surface,
-                    valueColor: AlwaysStoppedAnimation(
-                      c.isComplete ? NouriColors.success : NouriColors.gold,
-                    ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(15, 12, 15, 8),
+                  child: DhikrCard(
+                    item: c.current,
+                    repeatsDone: c.currentRepeats,
+                    onTap: () {},
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 0, 15, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _IconButton(
-                      icon: Icons.chevron_right,
-                      tooltip: 'السابق',
-                      onTap: c.previous,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: NouriColors.gold,
-                          foregroundColor: NouriColors.background,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: c.fraction,
+                        minHeight: 6,
+                        backgroundColor: NouriColors.surface,
+                        valueColor: AlwaysStoppedAnimation(
+                          c.isComplete ? NouriColors.success : NouriColors.gold,
                         ),
-                        onPressed: () {
-                          c.tap();
-                          _persist(c);
-                        },
-                        child: Text('تمّ',
-                            style: cairo(
-                              size: 17,
-                              weight: FontWeight.w700,
-                              color: NouriColors.background,
-                            )),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    _IconButton(
-                      icon: Icons.chevron_left,
-                      tooltip: 'التالي',
-                      onTap: c.next,
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        _IconButton(
+                          icon: Icons.chevron_right,
+                          tooltip: 'السابق',
+                          onTap: c.previous,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: NouriColors.gold,
+                              foregroundColor: NouriColors.background,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            onPressed: () {
+                              c.tap();
+                              _persist(c);
+                            },
+                            child: Text(
+                              'تمّ',
+                              style: cairo(
+                                size: 17,
+                                weight: FontWeight.w700,
+                                color: NouriColors.background,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        _IconButton(
+                          icon: Icons.chevron_left,
+                          tooltip: 'التالي',
+                          onTap: c.next,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      c.isComplete
+                          ? 'خلّصت الورد. تقبّل الله.'
+                          : 'لو مشغول دلوقتي، نوري هيفكّرك تاني بعدين.',
+                      textAlign: TextAlign.center,
+                      style: cairo(size: 11.5, color: NouriColors.muted),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  c.isComplete
-                      ? 'خلّصت الورد. تقبّل الله.'
-                      : 'لو مشغول دلوقتي، نوري هيفكّرك تاني بعدين.',
-                  textAlign: TextAlign.center,
-                  style: cairo(size: 11.5, color: NouriColors.muted),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
