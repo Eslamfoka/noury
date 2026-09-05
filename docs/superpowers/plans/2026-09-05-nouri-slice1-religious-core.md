@@ -987,6 +987,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/time/geo_config.dart';
 import 'package:nouri/core/time/prayer_times_service.dart';
 
+/// Kuwait is UTC+3 year-round with no DST. The test machine may be in any
+/// zone (this one is Egypt, which is +02:00 in winter and +03:00 in summer),
+/// and `adhan` returns times in the *runner's* local zone — so asserting on a
+/// raw `.hour` would make these tests pass or fail depending on where they run.
+/// Converting to Kuwait wall-clock first makes the assertions absolute.
+const _kuwaitOffset = Duration(hours: 3);
+DateTime kw(DateTime t) => t.toUtc().add(_kuwaitOffset);
+
 void main() {
   const kuwait = GeoConfig(
       latitude: 29.3759, longitude: 47.9774, method: 'kuwait', madhab: 'shafi');
@@ -1003,28 +1011,36 @@ void main() {
     }
   });
 
-  test('every prayer falls on the requested calendar day', () {
+  test('every prayer falls on the requested calendar day in Kuwait', () {
     final d = DateTime(2026, 9, 5);
     final t = service.forDate(d, kuwait);
     for (final slot in t.ordered) {
-      expect(slot.time.year, d.year);
-      expect(slot.time.month, d.month);
-      expect(slot.time.day, d.day);
+      final local = kw(slot.time);
+      expect(local.year, d.year, reason: slot.name);
+      expect(local.month, d.month, reason: slot.name);
+      expect(local.day, d.day, reason: slot.name);
     }
   });
 
   test('midsummer Kuwait times land in the expected windows', () {
     final t = service.forDate(DateTime(2026, 6, 21), kuwait);
-    expect(t.fajr.hour, inInclusiveRange(2, 4));
-    expect(t.dhuhr.hour, inInclusiveRange(11, 12));
-    expect(t.maghrib.hour, inInclusiveRange(18, 19));
-    expect(t.isha.hour, inInclusiveRange(19, 21));
+    expect(kw(t.fajr).hour, inInclusiveRange(2, 4));
+    expect(kw(t.dhuhr).hour, inInclusiveRange(11, 12));
+    expect(kw(t.maghrib).hour, inInclusiveRange(18, 19));
+    expect(kw(t.isha).hour, inInclusiveRange(19, 21));
   });
 
   test('midwinter Kuwait times shift later in the morning', () {
     final t = service.forDate(DateTime(2026, 12, 21), kuwait);
-    expect(t.fajr.hour, inInclusiveRange(4, 6));
-    expect(t.maghrib.hour, inInclusiveRange(16, 17));
+    expect(kw(t.fajr).hour, inInclusiveRange(4, 6));
+    expect(kw(t.maghrib).hour, inInclusiveRange(16, 17));
+  });
+
+  test('the same instant is returned regardless of the runner timezone', () {
+    // Guards the fix above: the absolute instant must not depend on local zone.
+    final t = service.forDate(DateTime(2026, 9, 5), kuwait);
+    expect(t.dhuhr.toUtc().hour, inInclusiveRange(8, 9),
+        reason: 'Kuwait dhuhr is around 11:50 local = 08:50 UTC');
   });
 
   test('next() returns the upcoming prayer, and null after isha', () {
@@ -1145,9 +1161,9 @@ DateTime iqamaFor(PrayerSlot slot, Map<String, int> offsetsMinutes) =>
 - [ ] **Step 5: Run the prayer-times test**
 
 Run: `flutter test test/core/time/prayer_times_service_test.dart`
-Expected: PASS (7 tests)
+Expected: PASS (8 tests)
 
-If the seasonal window assertions fail, suspect the machine timezone first: `adhan` returns times in the local zone. Confirm the test machine is on Asia/Kuwait, or convert explicitly before asserting.
+The `kw()` helper is what makes these assertions machine-independent. This development machine runs on Egypt time (UTC+2, +03:00 under DST), so asserting on a raw local `.hour` would pass in summer and fail in December. Never compare a prayer hour without converting to Kuwait wall-clock first.
 
 - [ ] **Step 6: Write the failing Hijri test**
 
