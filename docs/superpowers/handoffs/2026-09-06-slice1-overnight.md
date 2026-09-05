@@ -38,7 +38,7 @@ flutter analyze   No issues found!
 | 16 | Deterministic 7-day summary | ✅ |
 | 17 | Settings, status panel, test notification | ✅ |
 | 18 | First-launch permission flow | ✅ |
-| 19 | Build, install, verify | ✅ emulator; ❗ real device pending |
+| 19 | Build, install, verify | ✅ debug APK built, installed and verified on emulator; ❗ real device pending; release APK not built (see §6) |
 
 ---
 
@@ -184,22 +184,24 @@ code.
 ## 6. Build artefacts
 
 ```
-build/app/outputs/flutter-apk/app-debug.apk      ~184 MB, installed and verified
-build/app/outputs/flutter-apk/app-release.apk    see note below
+build/app/outputs/flutter-apk/app-debug.apk      184 MB, installed and verified
 ```
 
-The debug APK is large because debug builds bundle every ABI and skip
-minification; it is the one that was installed and exercised on the emulator.
-
-**Release build:** started at the end of the session. If `app-release.apk` is
-not present alongside the debug APK, the build had not finished — rerun:
+**There is no release APK.** The release build was started at the end of the
+session and was still running (R8 minification) when the session's background
+tasks were stopped, so it never produced an artefact. Nothing is wrong with it
+— it simply did not finish. Run it when you want one:
 
 ```powershell
 $env:PATH = 'D:\dev-tools\flutter\bin;' + $env:PATH
 flutter build apk --release
 ```
 
-**The release build currently signs with debug keys** — that is the Flutter
+The debug APK is large because debug builds bundle every ABI and skip
+minification; it is the one that was installed and exercised on the emulator,
+and it is perfectly usable on your phone.
+
+**The release build signs with debug keys** — that is the Flutter
 template default (`signingConfig = signingConfigs.getByName("debug")` in
 `android/app/build.gradle.kts`). Fine for sideloading onto your own phone,
 but a real signing config should be added before relying on it long-term,
@@ -268,9 +270,8 @@ the actual outcomes rather than in advance).
 1. Work through §7 on the phone.
 2. Review `docs/athkar-verification.md`.
 3. Supply a real adhan MP3 if you want one.
-4. Build the release APK for daily use:
-   `flutter build apk --release` — note the release build currently signs with
-   debug keys (the Flutter default); a real signing config is worth adding
-   before you rely on it long-term.
+4. Build the release APK if you want a smaller one (`flutter build apk
+   --release`) — the debug APK already works and is what was verified. Note the
+   signing caveat in §6.
 5. When Slice 1 is confirmed on the phone, merge `slice1-religious-core` into
    `master` and start Slice 2 (the scheduling engine).
