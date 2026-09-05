@@ -19,6 +19,7 @@ build/
 
 # Android
 android/.gradle/
+android/.kotlin/
 android/local.properties
 android/key.properties
 *.keystore
