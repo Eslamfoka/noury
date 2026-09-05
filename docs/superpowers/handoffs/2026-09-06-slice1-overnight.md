@@ -14,7 +14,7 @@ real HONOR VNE-N41 are listed in §7 and have deliberately **not** been claimed
 as passing.
 
 ```
-flutter test      254 passed, 0 failed
+flutter test      257 passed, 0 failed
 flutter analyze   No issues found!
 ```
 
@@ -81,8 +81,23 @@ HONOR's API level. Timezone Africa/Cairo, 1080×1920.
 | Logging a prayer updates the ring | ✅ |
 | **Persistence across force-stop + relaunch** | ✅ ring and chip both survived |
 | No crashes in logcat | ✅ |
+| Onboarding flow appears on first launch | ✅ three skippable steps |
+| Athkar tabs, Amiri naskh with full tashkeel | ✅ |
+| Tasbeeh ring: 100 beads, counts, fills gold | ✅ `٠` → `٧` |
+| Settings reads **live** device permission state | ✅ correctly detected battery optimisation still on |
+| «إرسال إشعار تجريبي» posts a notification | ✅ id 999999999 seen in `cmd notification list` |
+| All five notification channels created | ✅ adhan/iqama/athkar/wird/general |
+| **Rolling 7-day window actually armed** | ✅ **399 exact alarms**, `window=0`, `exactAllowReason=permission` |
+| Reports shows «—» not a zero for an empty week | ✅ |
 
 Screenshots were captured at each step and reviewed.
+
+### The bug this caught
+
+Comparing `dumpsys alarm` against what the app displayed revealed that the
+adhan was being **scheduled an hour late** — details in §4.7. This is the single
+most valuable thing the emulator pass produced, and it would not have been
+visible from tests or from reading code.
 
 **Not verifiable on the emulator** — anything about real-world alarm delivery
 over hours or days, Doze behaviour, OEM battery managers, or reboot survival.
@@ -116,6 +131,19 @@ code.
 6. **`الإقامة` appeared twice in Settings** — a notification toggle and the
    offsets section. Renamed the section to `فرق وقت الإقامة`; a real UI
    ambiguity fixed in the screen, not papered over in the test.
+7. **The adhan was scheduled an hour late.** `flutter_local_notifications`
+   serialises a schedule as a wall-clock string plus a zone name, and Android
+   rebuilds the instant with **its own** tz database. The Dart `timezone`
+   package knew Egypt observes DST in September 2026 (UTC+3); the Android image
+   shipped stale tzdata (UTC+2). The app displayed Fajr at 03:07 while
+   `dumpsys alarm` showed it armed for 04:07. **Fixed by scheduling in UTC**,
+   which has no transitions for the two sides to disagree about. Verified: the
+   alarms moved to 03:07 / 03:27 / 03:32. Kuwait is UTC+3 year-round so the
+   primary use case was never exposed, but OEM images routinely carry stale
+   tzdata and this would bite any user in a DST zone.
+8. **A long dhikr pushed «تمّ» below the fold.** With آية الكرسي the screen's
+   primary action required scrolling. The dhikr now scrolls inside a bounded
+   area with the action row pinned.
 
 ### Build blockers resolved (environment, not code)
 

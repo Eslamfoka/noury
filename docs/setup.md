@@ -108,3 +108,33 @@ On the phone, three permissions must be granted for prayer notifications to be
 reliable — Notifications, Alarms & reminders, and Battery set to Unrestricted.
 The app's Settings screen shows the live state of all three and can send a test
 notification. See `docs/install.md` for the full on-device checklist.
+
+## Timezone handling (important)
+
+Notifications are scheduled in **UTC**, deliberately — see `_asUtc` in
+`lib/core/notifications/local_notification_gateway.dart`.
+
+`flutter_local_notifications` serialises a schedule as a wall-clock string plus
+a zone name, and the Android side rebuilds the instant using **its own** tz
+database. That round trip is only safe when both databases agree on that zone's
+rules for that date, and they frequently do not: OEM images ship stale tzdata
+and the Dart `timezone` package updates on its own cadence.
+
+This was observed concretely during development. With the device on
+Africa/Cairo, the app displayed Fajr at 03:07 while `dumpsys alarm` showed the
+alarm armed for **04:07** — the Dart package knew Egypt observes DST in
+September 2026, the Android image did not.
+
+UTC has no transitions for the two sides to disagree about, so the instant
+survives intact. This is safe only because every notification is scheduled
+individually; `matchDateTimeComponents` (repeating schedules) would need a real
+local zone and must not be introduced without revisiting this.
+
+To verify on a device:
+
+```powershell
+adb shell dumpsys alarm | Select-String "com.nouri.nouri" -Context 0,2
+```
+
+The `origWhen=` values should match the prayer times the app displays, rendered
+in the device's local timezone.
