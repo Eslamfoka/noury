@@ -57,6 +57,27 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/athkar/
+    - assets/audio/
+
+  fonts:
+    # Cairo is declared ONCE. It is a variable font (wght, slnt axes) and
+    # Google Fonts ships no static weights. Listing the same file under several
+    # `weight:` keys would not produce different weights — Flutter would pick
+    # the file but render its default instance. Weight is applied at runtime
+    # through FontVariation, via cairo() in lib/core/theme/nouri_theme.dart.
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Variable.ttf
+
+    # Amiri ships real static weights, so it is declared normally.
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
