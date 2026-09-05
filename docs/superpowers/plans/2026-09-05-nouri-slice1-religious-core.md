@@ -181,17 +181,26 @@ git commit -m "chore: scaffold Flutter project and document toolchain setup"
 
 **Files:**
 - Create: `lib/core/theme/nouri_colors.dart`, `lib/core/theme/nouri_theme.dart`
-- Create: `assets/fonts/` (Cairo Regular/SemiBold/Bold, Amiri Regular)
+- Create: `assets/fonts/` (Cairo variable, Amiri Regular + Bold, both OFL texts)
 - Modify: `pubspec.yaml` (fonts + assets)
 - Test: `test/core/theme/nouri_theme_test.dart`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `NouriColors` (static `Color` constants), `nouriTheme()` returning `ThemeData`, and the text style getters `NouriText.dhikr` / `NouriText.counter`
+- Produces: `NouriColors` (static `Color` constants), `nouriTheme()` returning `ThemeData`, `NouriText.dhikr` / `NouriText.counter`, and `cairo({double size, FontWeight weight, Color color, double? height})` — the helper that applies the variable weight axis
 
-- [ ] **Step 1: Download the fonts**
+- [x] **Step 1: Download the fonts** *(done ahead of Task 1, while the SDK downloaded)*
 
-Fetch Cairo (Regular 400, SemiBold 600, Bold 700) and Amiri (Regular 400) from Google Fonts and place the `.ttf` files in `assets/fonts/`. Both are SIL Open Font License — record that in `assets/fonts/LICENSE.md`.
+Google Fonts ships Cairo as a **variable font only** — `Cairo[slnt,wght].ttf`, axes `slnt` and `wght`. There are no static Regular/SemiBold/Bold files, and the upstream project publishes none either. Declaring one variable file under three `weight:` entries in `pubspec.yaml` does **not** work: Flutter would pick the file but render its default instance, so "bold" would come out regular.
+
+So the font is bundled once and the weight axis is driven explicitly with `fontVariations`. Files now in `assets/fonts/`:
+
+| File | Size | Purpose |
+|---|---|---|
+| `Cairo-Variable.ttf` | 586 KB | all interface text, weight via `wght` axis |
+| `Amiri-Regular.ttf` | 421 KB | athkar and Qur'an text |
+| `Amiri-Bold.ttf` | 404 KB | emphasis within religious text |
+| `OFL-Cairo.txt`, `OFL-Amiri.txt` | 4 KB each | SIL Open Font License, both families |
 
 - [ ] **Step 2: Write the failing test**
 
@@ -224,6 +233,26 @@ void main() {
   test('religious text style uses Amiri with generous line height', () {
     expect(NouriText.dhikr.fontFamily, 'Amiri');
     expect(NouriText.dhikr.height, greaterThanOrEqualTo(1.9));
+  });
+
+  test('cairo() carries the weight on the variable wght axis', () {
+    // Cairo is a variable font: without an explicit FontVariation the engine
+    // renders the default instance and "bold" silently comes out regular.
+    final bold = cairo(size: 14, weight: FontWeight.w700);
+    expect(bold.fontFamily, 'Cairo');
+    expect(bold.fontWeight, FontWeight.w700);
+    expect(bold.fontVariations, contains(const FontVariation('wght', 700)));
+
+    final regular = cairo(size: 14);
+    expect(regular.fontVariations, contains(const FontVariation('wght', 400)));
+  });
+
+  test('every theme text style carries its wght variation', () {
+    final t = nouriTheme().textTheme;
+    for (final style in [t.titleLarge!, t.bodyMedium!, t.bodySmall!]) {
+      expect(style.fontVariations, isNotEmpty,
+          reason: 'a Cairo style without fontVariations renders at default weight');
+    }
   });
 
   test('palette contains no red', () {
@@ -278,15 +307,31 @@ abstract final class NouriRadius {
   static const chip = 20.0;
 }
 
+/// Cairo is a variable font. `fontWeight` alone selects the file but renders
+/// its default instance, so every Cairo style must also set the `wght`
+/// variation. This helper is the only sanctioned way to build one.
+TextStyle cairo({
+  double size = 14,
+  FontWeight weight = FontWeight.w400,
+  Color color = NouriColors.text,
+  double? height,
+}) =>
+    TextStyle(
+      fontFamily: 'Cairo',
+      fontSize: size,
+      fontWeight: weight,
+      fontVariations: [FontVariation('wght', weight.value.toDouble())],
+      color: color,
+      height: height,
+    );
+
 abstract final class NouriText {
-  /// Athkar and Qur'an text only — never interface chrome.
+  /// Athkar and Qur'an text only — never interface chrome. Amiri ships static
+  /// Regular and Bold, so it needs no variation axis.
   static const dhikr = TextStyle(
     fontFamily: 'Amiri', fontSize: 21, height: 2.0, color: NouriColors.text,
   );
-  static const counter = TextStyle(
-    fontFamily: 'Cairo', fontSize: 46, fontWeight: FontWeight.w700,
-    color: NouriColors.text, height: 1.0,
-  );
+  static final counter = cairo(size: 46, weight: FontWeight.w700, height: 1.0);
 }
 
 ThemeData nouriTheme() {
@@ -307,40 +352,42 @@ ThemeData nouriTheme() {
       elevation: 0,
       margin: EdgeInsets.zero,
     ),
-    textTheme: const TextTheme(
-      titleLarge: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: NouriColors.text),
-      bodyMedium: TextStyle(fontSize: 14, color: NouriColors.text),
-      bodySmall:  TextStyle(fontSize: 12, color: NouriColors.muted),
-    ).apply(fontFamily: 'Cairo'),
+    textTheme: TextTheme(
+      titleLarge: cairo(size: 19, weight: FontWeight.w700),
+      bodyMedium: cairo(size: 14),
+      bodySmall: cairo(size: 12, color: NouriColors.muted),
+    ),
   );
 }
 ```
 
 - [ ] **Step 6: Register fonts and assets in `pubspec.yaml`**
 
+One entry per family. Cairo is declared once — listing the same variable file
+under several `weight:` keys would not produce different weights.
+
 ```yaml
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - assets/athkar/
     - assets/audio/
   fonts:
     - family: Cairo
       fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
+        - asset: assets/fonts/Cairo-Variable.ttf
     - family: Amiri
       fonts:
         - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
 ```
 
 - [ ] **Step 7: Run test to verify it passes**
 
 Run: `flutter test test/core/theme/nouri_theme_test.dart`
-Expected: PASS (4 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 8: Commit**
 
