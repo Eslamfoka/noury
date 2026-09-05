@@ -184,11 +184,27 @@ code.
 ## 6. Build artefacts
 
 ```
-build/app/outputs/flutter-apk/app-debug.apk
+build/app/outputs/flutter-apk/app-debug.apk      ~184 MB, installed and verified
+build/app/outputs/flutter-apk/app-release.apk    see note below
 ```
 
-Debug APK is ~175 MB because debug builds bundle every ABI and skip
-minification. The release build is far smaller — see §8.
+The debug APK is large because debug builds bundle every ABI and skip
+minification; it is the one that was installed and exercised on the emulator.
+
+**Release build:** started at the end of the session. If `app-release.apk` is
+not present alongside the debug APK, the build had not finished — rerun:
+
+```powershell
+$env:PATH = 'D:\dev-tools\flutter\bin;' + $env:PATH
+flutter build apk --release
+```
+
+**The release build currently signs with debug keys** — that is the Flutter
+template default (`signingConfig = signingConfigs.getByName("debug")` in
+`android/app/build.gradle.kts`). Fine for sideloading onto your own phone,
+but a real signing config should be added before relying on it long-term,
+because an app signed with debug keys cannot be upgraded in place by one signed
+with release keys.
 
 Rebuild with:
 
