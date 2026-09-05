@@ -114,4 +114,36 @@ void main() {
           reason: 'one of the two must always be present');
     });
   });
+
+  testWidgets('tapping the Quran wird card logs a rub and updates the ring',
+      (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+      expect(find.text('٠/٩'), findsOneWidget);
+
+      await t.tap(find.text('ورد القرآن'));
+      await t.pumpAndSettle();
+
+      expect(find.text('١/٩'), findsOneWidget,
+          reason: 'the wird counts toward the daily nine');
+      expect(find.textContaining('الختمة'), findsOneWidget);
+    });
+  });
+
+  testWidgets('tapping the wird card again clears it', (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+
+      await t.tap(find.text('ورد القرآن'));
+      await t.pumpAndSettle();
+      expect(find.text('١/٩'), findsOneWidget);
+
+      await t.tap(find.text('ورد القرآن'));
+      await t.pumpAndSettle();
+      expect(find.text('٠/٩'), findsOneWidget,
+          reason: 'a mistap must be reversible');
+    });
+  });
 }

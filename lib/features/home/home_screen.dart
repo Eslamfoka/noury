@@ -158,14 +158,29 @@ class HomeScreen extends ConsumerWidget {
             ),
             quran: WirdState(
               label: 'ورد القرآن',
-              subtitle: 'الختمة ${khatma.percentLabel}',
+              subtitle: wirdDone
+                  ? 'الختمة ${khatma.percentLabel}'
+                  : toArabicDigits('ربع · $kDailyWirdPages صفحات'),
               fraction: khatma.fraction,
               done: wirdDone,
+              // Nouri holds no mushaf: the user reads from his own and marks
+              // the wird here. Tapping again clears it, so a mistap is
+              // reversible rather than permanent.
+              onTap: () => _toggleWird(ref, quranToday?.pagesRead ?? 0),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _toggleWird(WidgetRef ref, int currentPages) async {
+    await ref.read(databaseProvider).quranDao.upsert(
+          date: DateTime.now(),
+          pages: currentPages > 0 ? 0 : kDailyWirdPages,
+        );
+    ref.invalidate(todayQuranProvider);
+    ref.invalidate(khatmaTotalPagesProvider);
   }
 
   Future<void> _logPrayer(
