@@ -36,6 +36,22 @@ NouriDatabase inMemoryDatabase(WidgetTester tester) {
   return db;
 }
 
+/// The app's real theme, locale and delegates, without any provider scope.
+///
+/// Screens that need providers beyond the database build their own
+/// [ProviderScope] around this - `Override` is not exported by
+/// flutter_riverpod, so an overrides list can only be written inline where
+/// ProviderScope infers its type.
+Widget testShell(Widget child) {
+  return MaterialApp(
+    locale: const Locale('ar'),
+    theme: nouriTheme(),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: child,
+  );
+}
+
 /// Wraps [child] in the app's real theme, locale and delegates, with the
 /// database overridden for tests.
 Widget testApp({
@@ -44,12 +60,6 @@ Widget testApp({
 }) {
   return ProviderScope(
     overrides: [databaseProvider.overrideWithValue(db)],
-    child: MaterialApp(
-      locale: const Locale('ar'),
-      theme: nouriTheme(),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: child,
-    ),
+    child: testShell(child),
   );
 }
