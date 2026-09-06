@@ -32,6 +32,18 @@ enum NotificationSlot {
   eveningAthkar,
   sleepAthkar,
   quranWird,
+
+  // Appended, never inserted. IDs derive from `index`, so putting these
+  // anywhere but the end would renumber every alarm already on a device.
+  // 25 slots against kSlotsPerDay = 32 still leaves headroom.
+  followUp2Fajr,
+  followUp2Dhuhr,
+  followUp2Asr,
+  followUp2Maghrib,
+  followUp2Isha,
+
+  /// The end-of-day review, offering to log whatever is still unanswered.
+  dailySummary,
 }
 
 /// A notification's ID, derived purely from its date and slot.

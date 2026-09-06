@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/notifications/local_notification_gateway.dart';
+import 'core/notifications/notification_route.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/notifications/pending_route_provider.dart';
 import 'core/notifications/rolling_window_scheduler.dart';
 import 'core/time/geo_config.dart';
 import 'core/time/location_service.dart';
@@ -42,6 +44,22 @@ Future<void> main() async {
   // waits on this rather than being silently dropped.
   final schedulerReady = Completer<SchedulerPort?>();
 
+  // A tap can arrive before the ProviderScope exists — Android launches the
+  // app cold straight from the shade — so the first one is held here and
+  // handed to the container as its initial value.
+  NotificationRoute? launchRoute;
+  late final ProviderContainer container;
+  var containerReady = false;
+
+  void deliver(NotificationRoute? route) {
+    if (route == null) return;
+    if (containerReady) {
+      container.read(pendingNotificationRouteProvider.notifier).push(route);
+    } else {
+      launchRoute = route;
+    }
+  }
+
   // Only the cheap half runs before the first frame: creating the five
   // channels, measured at ~57ms. Everything expensive is deferred — see
   // [_warmUpInBackground].
@@ -50,7 +68,13 @@ Future<void> main() async {
   // and the wird all work without it, so Nouri degrades rather than refusing
   // to start.
   try {
-    await _phase('pluginInit', notifications.init);
+    await _phase(
+      'pluginInit',
+      () => notifications.init(
+        onResponse: (response) =>
+            deliver(NotificationRoute.parse(response.payload)),
+      ),
+    );
   } catch (e) {
     debugPrint('Nouri: notification setup failed, continuing without it: $e');
   }
@@ -69,15 +93,36 @@ Future<void> main() async {
     return true;
   }());
 
+  container = ProviderContainer(
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      notificationServiceProvider.overrideWithValue(notifications),
+      locationPortProvider.overrideWithValue(const GeolocatorLocationPort()),
+      schedulerPortProvider
+          .overrideWithValue(DeferredSchedulerPort(schedulerReady.future)),
+    ],
+  );
+  containerReady = true;
+
+  // A tap that launched the app from a cold start does not always reach the
+  // response callback, so ask the plugin directly what opened us.
+  try {
+    final launch = await plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      deliver(NotificationRoute.parse(launch?.notificationResponse?.payload));
+    }
+  } catch (e) {
+    debugPrint('Nouri: could not read launch details: $e');
+  }
+
+  final pending = launchRoute;
+  if (pending != null) {
+    container.read(pendingNotificationRouteProvider.notifier).push(pending);
+  }
+
   runApp(
-    ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        notificationServiceProvider.overrideWithValue(notifications),
-        locationPortProvider.overrideWithValue(const GeolocatorLocationPort()),
-        schedulerPortProvider
-            .overrideWithValue(DeferredSchedulerPort(schedulerReady.future)),
-      ],
+    UncontrolledProviderScope(
+      container: container,
       child: const NouriApp(),
     ),
   );

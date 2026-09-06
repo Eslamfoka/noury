@@ -1,15 +1,17 @@
 import '../time/geo_config.dart';
 import '../time/prayer_times_service.dart';
+import 'follow_up_plan.dart';
 import 'notification_channels_ids.dart';
 import 'notification_gateway.dart';
 import 'notification_slot.dart';
 
 /// How many days of alarms are kept armed at any time.
 ///
-/// Fourteen, measured rather than guessed: a day costs 19 alarms (five prayers
-/// x adhan/iqama/follow-up, plus three athkar and the wird), so this arms about
-/// 260 — comfortably inside Android's ~500 pending-alarm cap, with room for the
-/// user to keep every channel on.
+/// Fourteen, measured rather than guessed. A day of *core* alarms costs 14
+/// (five adhan, five iqama, three athkar, one wird), so this arms 196.
+/// Follow-ups are armed over the shorter [kFollowUpWindowDays] and add 33, for
+/// 229 — comfortably inside Android's ~500 pending-alarm cap, with room for
+/// the user to keep every channel on.
 ///
 /// The window exists so the adhan survives the app going unopened. Exact
 /// alarms live in AlarmManager and fire without the app running at all, so a
@@ -18,6 +20,19 @@ import 'notification_slot.dart';
 /// among the worst) routinely kill. See docs/setup.md for why the spec's
 /// workmanager top-up was not added.
 const kWindowDays = 14;
+
+/// How many days of follow-up questions are armed.
+///
+/// Much shorter than [kWindowDays], and deliberately so. The adhan has to
+/// survive a fortnight of the app going unopened — that is the whole point of
+/// the window. A follow-up does not: "did you pray asr?" is only worth asking
+/// of someone still using the app, and eleven days of unanswered questions
+/// waiting in the shade is exactly the nagging the brief rules out.
+///
+/// It is also what keeps the alarm count honest. Arming every slot for a
+/// fortnight would cost 350; splitting the windows costs 229
+/// (14 x 14 core alarms + 3 x 11 follow-ups), well inside Android's ~500 cap.
+const kFollowUpWindowDays = 3;
 
 class SchedulingConfig {
   const SchedulingConfig({
@@ -30,6 +45,7 @@ class SchedulingConfig {
     this.morningAthkarHour = 7,
     this.sleepAthkarHour = 22,
     this.quranWirdHour = 17,
+    this.dailySummaryHour = 22,
   });
 
   final GeoConfig geo;
@@ -42,6 +58,9 @@ class SchedulingConfig {
   final int sleepAthkarHour;
   final int quranWirdHour;
 
+  /// When the end-of-day review offers to catch up anything unlogged.
+  final int dailySummaryHour;
+
   SchedulingConfig copyWith({
     GeoConfig? geo,
     Map<String, int>? iqamaOffsets,
@@ -52,6 +71,7 @@ class SchedulingConfig {
     int? morningAthkarHour,
     int? sleepAthkarHour,
     int? quranWirdHour,
+    int? dailySummaryHour,
   }) =>
       SchedulingConfig(
         geo: geo ?? this.geo,
@@ -63,6 +83,7 @@ class SchedulingConfig {
         morningAthkarHour: morningAthkarHour ?? this.morningAthkarHour,
         sleepAthkarHour: sleepAthkarHour ?? this.sleepAthkarHour,
         quranWirdHour: quranWirdHour ?? this.quranWirdHour,
+        dailySummaryHour: dailySummaryHour ?? this.dailySummaryHour,
       );
 }
 
@@ -107,6 +128,14 @@ class RollingWindowScheduler {
     'isha': NotificationSlot.followUpIsha,
   };
 
+  static const _followUp2Slots = {
+    'fajr': NotificationSlot.followUp2Fajr,
+    'dhuhr': NotificationSlot.followUp2Dhuhr,
+    'asr': NotificationSlot.followUp2Asr,
+    'maghrib': NotificationSlot.followUp2Maghrib,
+    'isha': NotificationSlot.followUp2Isha,
+  };
+
   static const _arabicNames = {
     'fajr': 'الفجر',
     'dhuhr': 'الظهر',
@@ -114,9 +143,6 @@ class RollingWindowScheduler {
     'maghrib': 'المغرب',
     'isha': 'العشاء',
   };
-
-  /// How long after the adhan the gentle follow-up asks whether you prayed.
-  static const _followUpDelay = Duration(minutes: 25);
 
   /// Evening athkar are tied to maghrib, not to a clock hour, because sunset
   /// moves by nearly two hours across the year.
@@ -147,18 +173,45 @@ class RollingWindowScheduler {
             payload: 'prayer:${slot.name}',
           );
 
-          // A question, never an accusation — and it carries the action that
-          // logs the prayer straight from the shade.
-          await _put(
-            date,
-            _followUpSlots[slot.name]!,
-            slot.time.add(_followUpDelay),
-            now,
-            title: 'نوري',
-            body: 'صليت $name؟',
-            channel: channelGeneral,
-            payload: 'log:${slot.name}',
-          );
+          // Asked after the prayer window has actually closed, never at the
+          // adhan. Timing comes from followUpsFor, which starts from iqama
+          // rather than adhan and leaves room for the prayer itself.
+          if (i < kFollowUpWindowDays) {
+            final asks = followUpsFor(
+              slot: slot,
+              iqama: iqamaFor(slot, cfg.iqamaOffsets),
+              nextAdhan: times.next(slot.time)?.time,
+            );
+
+            // A question, never an accusation - and it carries the action
+            // that logs the prayer straight from the shade.
+            await _put(
+              date,
+              _followUpSlots[slot.name]!,
+              asks.first,
+              now,
+              title: 'نوري',
+              body: 'صليت $name؟',
+              channel: channelGeneral,
+              payload: 'log:${slot.name}',
+            );
+
+            final second = asks.second;
+            if (second != null) {
+              // Worded differently from the first. Repeating a question
+              // verbatim an hour later reads as a machine, not a companion.
+              await _put(
+                date,
+                _followUp2Slots[slot.name]!,
+                second,
+                now,
+                title: 'نوري',
+                body: 'لسه $name مش متسجلة — صليتها؟',
+                channel: channelGeneral,
+                payload: 'log:${slot.name}',
+              );
+            }
+          }
         }
 
         if (cfg.notifyIqama) {
@@ -220,6 +273,24 @@ class RollingWindowScheduler {
           body: 'ورد النهاردة — ربع من مصحفك',
           channel: channelWird,
           payload: 'quran',
+        );
+      }
+
+      // The end-of-day review. Worded so it reads correctly whether or not
+      // anything is outstanding: the alarm is set days ahead and cannot know,
+      // and a fixed «you missed prayers» would be wrong on a complete day.
+      // The sheet it opens says «كل صلوات النهاردة متسجلة» when there is
+      // nothing to do.
+      if (cfg.notifyAdhan && i < kFollowUpWindowDays) {
+        await _put(
+          date,
+          NotificationSlot.dailySummary,
+          _at(date, cfg.dailySummaryHour),
+          now,
+          title: 'نوري',
+          body: 'تحب نراجع صلوات النهاردة سوا؟',
+          channel: channelGeneral,
+          payload: 'review:daily',
         );
       }
     }

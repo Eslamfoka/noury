@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/app_localizations.dart';
+import '../../core/notifications/notification_route.dart';
+import '../../core/notifications/pending_route_provider.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../athkar/athkar_screen.dart';
 import '../finance/finance_screen.dart';
 import '../home/home_screen.dart';
+import '../prayers/daily_review_sheet.dart';
+import '../prayers/notification_log_flow.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -16,19 +21,63 @@ import '../settings/settings_screen.dart';
 /// IndexedStack rather than a rebuild-on-switch: the tasbeeh counter and the
 /// athkar stepper keep their in-progress state when the user glances at
 /// another tab and comes back.
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
+  bool _handling = false;
+
+  static const _tabForAthkar = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    // A tap that launched the app cold is already waiting by the time the
+    // shell mounts, so drain once here as well as on later changes.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _drain());
+  }
+
+  /// Acts on a tapped notification, then clears it.
+  ///
+  /// Clearing matters: without it, every rebuild would reopen the same sheet,
+  /// and the user could never get back to the app.
+  Future<void> _drain() async {
+    if (_handling || !mounted) return;
+    final route = ref.read(pendingNotificationRouteProvider);
+    if (route == null) return;
+
+    _handling = true;
+    ref.read(pendingNotificationRouteProvider.notifier).clear();
+    try {
+      switch (route) {
+        case LogPrayerRoute(:final prayer):
+          await logPrayerFromNotification(context, ref, prayer);
+        case DailyReviewRoute():
+          if (mounted) await showDailyReviewSheet(context);
+        case PrayerRoute():
+          if (mounted) setState(() => _index = 0);
+        case AthkarRoute():
+          if (mounted) setState(() => _index = _tabForAthkar);
+        case QuranRoute():
+          if (mounted) setState(() => _index = 0);
+      }
+    } finally {
+      _handling = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+
+    ref.listen(pendingNotificationRouteProvider, (_, next) {
+      if (next != null) _drain();
+    });
 
     return Scaffold(
       body: SafeArea(

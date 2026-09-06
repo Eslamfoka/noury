@@ -63,10 +63,19 @@ class LocalNotificationGateway implements NotificationGateway {
             // from the shade, without opening the app.
             actions: (n.payload?.startsWith('log:') ?? false)
                 ? const <AndroidNotificationAction>[
+                    // Opens the app on the log sheet for this prayer.
+                    //
+                    // It was `showsUserInterface: false`, meaning to write the
+                    // log straight from the shade — but that routes the tap to
+                    // a background isolate, and no background handler was ever
+                    // registered, so the button did nothing at all. Opening the
+                    // app is the honest version: one extra tap, and it also
+                    // lets the user say *how* they prayed rather than guessing
+                    // a quality on their behalf.
                     AndroidNotificationAction(
                       actionLogged,
                       'صليت',
-                      showsUserInterface: false,
+                      showsUserInterface: true,
                       cancelNotification: true,
                     ),
                   ]
