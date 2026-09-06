@@ -21,6 +21,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Home now carries the day blocks as well, so it is longer than one
+  /// viewport and its ListView builds lazily. Anything below the fold has to
+  /// be scrolled into existence before it can be found.
+  Future<void> scrollTo(WidgetTester t, Finder target) => t.scrollUntilVisible(
+        target,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+
   testWidgets('renders header, ring, prayer list and wird grid', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
@@ -30,6 +39,8 @@ void main() {
       expect(find.byType(ProgressRing), findsOneWidget);
       expect(find.byType(PrayerRow), findsNWidgets(5),
           reason: 'all five prayers are listed on Home');
+
+      await scrollTo(t, find.byType(WirdGrid));
       expect(find.byType(WirdGrid), findsOneWidget);
     });
   });
@@ -56,18 +67,59 @@ void main() {
     });
   });
 
-  testWidgets('the body pillar is visible, and honest about being early',
+  testWidgets('the day view shows the four blocks the brief names', (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+
+      expect(find.text('يومك'), findsOneWidget);
+      for (final label in ['الصباح', 'الدوام', 'بعد الدوام', 'المسا']) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+    });
+  });
+
+  testWidgets('the day view is labelled a preview, not a finished plan',
+      (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+      expect(find.text('معاينة'), findsOneWidget,
+          reason: 'it must not pretend Nouri planned this');
+      expect(find.textContaining('الشكل ده معاينة'), findsOneWidget);
+    });
+  });
+
+  testWidgets('blocks are collapsed by default, not a long checklist',
       (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
       await pumpHome(t);
 
-      // All three pillars should be findable in the app today: prayers and
-      // wird (deen), the day preview (body), and the المالية tab (wealth).
-      expect(find.text('يومك'), findsOneWidget);
-      expect(find.text('قريب'), findsOneWidget,
-          reason: 'it must not pretend to be finished');
-      expect(find.textContaining('نوري هيرتّب يومك'), findsOneWidget);
+      // The brief's rule: a long list recreates the overwhelm the app exists
+      // to remove. At most one block is open at a time.
+      final allTaskTitles = [
+        'فطار',
+        'تسبيح في البريك',
+        'مشي ٣٠ دقيقة',
+        'عشا',
+      ];
+      final visible =
+          allTaskTitles.where((x) => find.text(x).evaluate().isNotEmpty);
+      expect(visible.length, lessThanOrEqualTo(1),
+          reason: 'only the current block should be expanded');
+    });
+  });
+
+  testWidgets('tapping a block reveals its hour-by-hour detail', (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+
+      expect(find.text('فطار'), findsNothing);
+      await t.tap(find.text('الصباح'));
+      await t.pumpAndSettle();
+      expect(find.text('فطار'), findsOneWidget);
     });
   });
 
@@ -75,8 +127,8 @@ void main() {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
       await pumpHome(t);
-      // A tappable checkbox now would teach a habit the real day-blocks then
-      // take away.
+      // A tappable checkbox now would teach a habit the real planner then has
+      // to honour.
       expect(find.byType(Checkbox), findsNothing);
     });
   });
@@ -86,6 +138,7 @@ void main() {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
       await pumpHome(t);
+      await scrollTo(t, find.byType(WirdGrid));
       final grid = t.widget<WirdGrid>(find.byType(WirdGrid));
       expect(grid.morning.label, 'أذكار الصباح');
       expect(grid.tasbeeh.label, 'التسبيح');
@@ -147,10 +200,14 @@ void main() {
       await pumpHome(t);
       expect(find.text('٠/٩'), findsOneWidget);
 
+      await scrollTo(t, find.text('ورد القرآن'));
       await t.tap(find.text('ورد القرآن'));
       await t.pumpAndSettle();
 
-      expect(find.text('١/٩'), findsOneWidget,
+      // Asserted on the card rather than the ring: the ring is now above the
+      // fold after scrolling, and the card is the more direct signal anyway.
+      final grid = t.widget<WirdGrid>(find.byType(WirdGrid));
+      expect(grid.quran.done, isTrue,
           reason: 'the wird counts toward the daily nine');
       expect(find.textContaining('الختمة'), findsOneWidget);
     });
@@ -161,13 +218,14 @@ void main() {
       db = inMemoryDatabase(t);
       await pumpHome(t);
 
+      await scrollTo(t, find.text('ورد القرآن'));
       await t.tap(find.text('ورد القرآن'));
       await t.pumpAndSettle();
-      expect(find.text('١/٩'), findsOneWidget);
+      expect(t.widget<WirdGrid>(find.byType(WirdGrid)).quran.done, isTrue);
 
       await t.tap(find.text('ورد القرآن'));
       await t.pumpAndSettle();
-      expect(find.text('٠/٩'), findsOneWidget,
+      expect(t.widget<WirdGrid>(find.byType(WirdGrid)).quran.done, isFalse,
           reason: 'a mistap must be reversible');
     });
   });

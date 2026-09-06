@@ -10,6 +10,10 @@ import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
 // For the TipPillar.arabicLabel extension used by the daily tip line.
 import '../../data/tips/daily_tip.dart';
+import '../planner/day_plan.dart';
+import '../planner/shift.dart';
+import '../planner/example_day.dart';
+import '../planner/widgets/day_blocks.dart';
 import '../prayers/prayer_log_sheet.dart';
 import '../prayers/prayer_row.dart';
 import '../quran/khatma.dart';
@@ -148,7 +152,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 14),
 
-          _BodyPreview(),
+          _DayPreview(plan: exampleDayPlan(date: now, prayers: t), now: now),
           const SizedBox(height: 14),
 
           _SectionLabel(text: 'الورد اليومي'),
@@ -218,15 +222,17 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// A first sight of the body pillar, before the Slice 2 scheduler exists.
+/// A preview of the Slice 2 day view, on real prayer anchors.
 ///
-/// Deliberately not interactive: these rows are placed by the scheduling
-/// engine once shift input lands, and a tappable checkbox now would teach a
-/// habit that the real day-blocks then take away. It exists so the holistic
-/// shape — deen, body, wealth — is visible in the app today rather than
-/// promised, and it says plainly that it is not finished.
-class _BodyPreview extends StatelessWidget {
-  const _BodyPreview();
+/// The blocks and their layout are the approved design; the tasks inside them
+/// are a hand-written fixture from the worked example, not something Nouri
+/// decided. It is marked «معاينة» and is not interactive, because tapping a
+/// task would teach a habit the real planner then has to honour.
+class _DayPreview extends StatelessWidget {
+  const _DayPreview({required this.plan, required this.now});
+
+  final DayPlan plan;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
@@ -237,8 +243,7 @@ class _BodyPreview extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 9, right: 2),
           child: Row(
             children: [
-              Text('يومك',
-                  style: cairo(size: 14, weight: FontWeight.w600)),
+              Text('يومك', style: cairo(size: 14, weight: FontWeight.w600)),
               const SizedBox(width: 8),
               Container(
                 padding:
@@ -247,56 +252,21 @@ class _BodyPreview extends StatelessWidget {
                   color: NouriColors.surfaceActive,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text('قريب',
+                child: Text('معاينة',
                     style: cairo(size: 9.5, color: NouriColors.muted)),
               ),
+              const Spacer(),
+              Text(plan.shift.type.arabicLabel,
+                  style: cairo(size: 11, color: NouriColors.muted)),
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: NouriColors.surface,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Opacity(
-                opacity: 0.55,
-                child: Row(
-                  children: [
-                    Text(toArabicDigits('٤:١٥'),
-                        style:
-                            cairo(size: 11, color: NouriColors.muted)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text('مشي ٣٠ دقيقة',
-                          style: cairo(size: 13)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: NouriColors.border),
-                      ),
-                      child: Text('ثقيل',
-                          style: cairo(
-                              size: 9.5, color: NouriColors.muted)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 11),
-              Text(
-                'لما تدخل مواعيد الورديات، نوري هيرتّب يومك هنا: مشي، أكل، '
-                'نوم، وقت قراية — كل واحد في وقته المناسب.',
-                style:
-                    cairo(size: 11.5, color: NouriColors.muted, height: 1.8),
-              ),
-            ],
-          ),
+        DayBlocks(plan: plan, now: now),
+        const SizedBox(height: 8),
+        Text(
+          'الشكل ده معاينة. لما تدخل مواعيد ورديّاتك، نوري هيرتّب يومك '
+          'الحقيقي بنفس الطريقة.',
+          style: cairo(size: 11, color: NouriColors.muted, height: 1.75),
         ),
       ],
     );
