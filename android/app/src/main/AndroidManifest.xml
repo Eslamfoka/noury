@@ -15,6 +15,15 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!--
+      Lets the adhan light a locked screen instead of waiting silently in the
+      shade. Granted at install through Android 13. From Android 14 it is
+      granted automatically only to calling and alarm-clock apps; everything
+      else must send the user to Settings, so treat it as a request that can
+      be refused rather than a capability that is simply present.
+    -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 

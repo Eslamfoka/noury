@@ -55,6 +55,12 @@ class NotificationService {
       onDidReceiveNotificationResponse: onResponse,
     );
 
+    // Delete superseded channels before creating the current ones, so the
+    // settings screen never shows two «الأذان» rows with only one of them live.
+    for (final id in retiredChannelIds) {
+      await _android?.deleteNotificationChannel(channelId: id);
+    }
+
     for (final channel in nouriChannels) {
       await _android?.createNotificationChannel(channel);
     }

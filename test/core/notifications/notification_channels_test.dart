@@ -15,7 +15,8 @@ void main() {
     test('carries the bundled chime, not the system default', () {
       final sound = channel(channelAdhan).sound;
       expect(sound, isA<RawResourceAndroidNotificationSound>());
-      expect((sound as RawResourceAndroidNotificationSound).sound, 'chime');
+      expect((sound as RawResourceAndroidNotificationSound).sound,
+          adhanSoundResource);
       expect(channel(channelAdhan).playSound, isTrue);
     });
 
@@ -30,10 +31,6 @@ void main() {
 
     test('is the most important channel', () {
       expect(channel(channelAdhan).importance, Importance.max);
-      // Note: an OEM may downgrade this on the device. HONOR/MagicOS was
-      // observed running it at HIGH with mUserLockedFields=importance. HIGH
-      // still sounds and shows a heads-up, so this is a degradation rather
-      // than a failure — and it cannot be overridden from code once locked.
     });
   });
 
@@ -80,5 +77,98 @@ void main() {
     for (final id in allChannelIds) {
       expect(id, matches(RegExp(r'_v\d+$')), reason: id);
     }
+  });
+
+  group('notification details derived from the channel', () {
+    // These exist because the two were once written out separately and
+    // drifted: the channel carried the chime at alarm volume while the
+    // notification carried nothing but an id. On a device where the channel
+    // did not yet exist, the receiver would have created a permanently silent
+    // adhan channel from those empty details.
+
+    test('the adhan notification carries the sound, not just the channel id',
+        () {
+      final d = androidDetailsFor(channelAdhan);
+      expect(d.sound, isA<RawResourceAndroidNotificationSound>());
+      expect((d.sound! as RawResourceAndroidNotificationSound).sound,
+          adhanSoundResource);
+      expect(d.playSound, isTrue);
+    });
+
+    test('the adhan notification keeps alarm usage and max importance', () {
+      final d = androidDetailsFor(channelAdhan);
+      expect(d.audioAttributesUsage, AudioAttributesUsage.alarm);
+      expect(d.importance, Importance.max);
+      expect(d.priority, Priority.max);
+    });
+
+    test('the adhan can light a locked screen', () {
+      expect(androidDetailsFor(channelAdhan).fullScreenIntent, isTrue);
+      expect(androidDetailsFor(channelAdhan).category,
+          AndroidNotificationCategory.alarm);
+    });
+
+    test('nothing but the adhan gets a full-screen intent', () {
+      for (final id in [
+        channelIqama,
+        channelAthkar,
+        channelWird,
+        channelGeneral,
+      ]) {
+        expect(androidDetailsFor(id).fullScreenIntent, isFalse, reason: id);
+        expect(androidDetailsFor(id).audioAttributesUsage,
+            isNot(AudioAttributesUsage.alarm),
+            reason: id);
+      }
+    });
+
+    test('every channel presents a human name, never its raw id', () {
+      // The id leaked into the name field before. A user looking for the
+      // adhan in system settings would have found a row called "adhan_v1".
+      for (final id in allChannelIds) {
+        final d = androidDetailsFor(id);
+        expect(d.channelName, isNot(id), reason: id);
+        expect(d.channelName, isNotEmpty, reason: id);
+      }
+    });
+
+    test('details agree with the channel they came from', () {
+      for (final c in nouriChannels) {
+        final d = androidDetailsFor(c.id);
+        expect(d.channelId, c.id);
+        expect(d.channelName, c.name);
+        expect(d.importance, c.importance, reason: c.id);
+        expect(d.audioAttributesUsage, c.audioAttributesUsage, reason: c.id);
+        expect(d.sound, c.sound, reason: c.id);
+      }
+    });
+  });
+
+  group('retired channels', () {
+    test('adhan_v1 is retired so its locked importance is abandoned', () {
+      // MagicOS downgraded adhan_v1 to IMPORTANCE_DEFAULT and set
+      // mUserLockedFields, which no API can undo. Only a fresh id starts
+      // clean, and the old row has to go or the user sees two «الأذان» rows.
+      expect(retiredChannelIds, contains('adhan_v1'));
+      expect(channelAdhan, isNot('adhan_v1'));
+    });
+
+    test('a retired id is never also a live one', () {
+      for (final id in retiredChannelIds) {
+        expect(allChannelIds, isNot(contains(id)), reason: id);
+      }
+    });
+
+    test('the adhan sound and the channel version move together', () {
+      // A tripwire, not a rule: Android ignores a new sound on an existing
+      // channel, so changing the resource without bumping the id would
+      // silently keep the old audio. Changing either half must fail here and
+      // force the other half to be considered.
+      expect(
+        [channelAdhan, adhanSoundResource],
+        ['adhan_v2', 'chime'],
+        reason: 'changing the adhan audio requires a new channel version',
+      );
+    });
   });
 }

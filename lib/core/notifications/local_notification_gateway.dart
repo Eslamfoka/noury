@@ -57,12 +57,8 @@ class LocalNotificationGateway implements NotificationGateway {
         androidScheduleMode: _scheduleMode,
         payload: n.payload,
         notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
+          android: androidDetailsFor(
             n.channelId,
-            n.channelId,
-            category: n.channelId == channelAdhan
-                ? AndroidNotificationCategory.alarm
-                : AndroidNotificationCategory.reminder,
             // Only the follow-up gets an action: logging the prayer straight
             // from the shade, without opening the app.
             actions: (n.payload?.startsWith('log:') ?? false)
@@ -94,7 +90,7 @@ class LocalNotificationGateway implements NotificationGateway {
         title: title,
         body: body,
         notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(channelId, channelId),
+          android: androidDetailsFor(channelId),
         ),
       );
 }
