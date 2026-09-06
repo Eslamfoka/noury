@@ -97,6 +97,20 @@ class SettingsScreen extends ConsumerWidget {
               ref.invalidate(notificationStatusProvider);
             },
             onSendTest: () => service?.sendTestNotification(),
+            onScheduleTestAdhan: () async {
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              final when = await service?.scheduleTestAdhan();
+              if (when == null) return;
+              messenger?.showSnackBar(SnackBar(
+                duration: const Duration(seconds: 6),
+                backgroundColor: NouriColors.surfaceActive,
+                content: Text(
+                  'الأذان التجريبي هيجي ${formatClock(when)}. '
+                  'اقفل التطبيق دلوقتي.',
+                  style: cairo(size: 13),
+                ),
+              ));
+            },
           ),
           const SizedBox(height: 20),
 

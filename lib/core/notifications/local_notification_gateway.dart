@@ -102,6 +102,7 @@ class LocalNotificationGateway implements NotificationGateway {
 /// Action id on the prayer follow-up notification.
 const actionLogged = 'logged';
 
-/// Reserved id for the "send test notification" action. Kept far outside the
-/// scheduled-ID space so it can never collide with a real alarm.
+/// Reserved ids for the two test actions. Both sit far outside the
+/// scheduled-ID space so they can never collide with a real alarm.
 const testNotificationId = 999999999;
+const testAdhanNotificationId = 999999998;

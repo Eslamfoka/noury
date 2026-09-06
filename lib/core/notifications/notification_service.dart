@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'local_notification_gateway.dart';
 import 'notification_channels.dart';
+import 'notification_slot.dart';
 import 'notification_status.dart';
 
 /// Owns the plugin: initialisation, channels, permissions, and reading the
@@ -88,5 +89,34 @@ class NotificationService {
       body: 'كده هيبقى شكل تنبيه الأذان وصوته.',
       channelId: channelAdhan,
     );
+  }
+
+  /// Schedules a real adhan-style alarm a couple of minutes out.
+  ///
+  /// This is the only way to honestly test the thing that matters: not
+  /// "can the app show a notification while it is open", but "does an alarm
+  /// the app scheduled earlier fire while the app is closed". It goes through
+  /// the same gateway, the same channel and the same AlarmManager path as a
+  /// real adhan — only the time and the wording differ.
+  ///
+  /// It deliberately does **not** re-arm the window afterwards, so a test can
+  /// never disturb the real schedule.
+  Future<DateTime> scheduleTestAdhan({
+    Duration delay = const Duration(minutes: 2),
+  }) async {
+    final status = await readStatus();
+    final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
+    final when = DateTime.now().add(delay);
+
+    await gateway.schedule(ScheduledNotification(
+      id: testAdhanNotificationId,
+      slot: NotificationSlot.adhanFajr, // only used for logging
+      when: when,
+      title: 'نوري — تجربة الأذان',
+      body: 'لو سمعت ده والتطبيق مقفول، يبقى الأذان هيوصلك في وقته.',
+      channelId: channelAdhan,
+    ));
+
+    return when;
   }
 }

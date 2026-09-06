@@ -21,11 +21,30 @@ void main() {
                   onRequestExactAlarms: () {},
                   onRequestBattery: () {},
                   onSendTest: () {},
+                  onScheduleTestAdhan: () {},
                 ),
               ),
             ),
           ),
         ));
+
+    testWidgets('offers a scheduled adhan test, not just an instant one',
+        (t) async {
+      // The instant test proves notifications work at all; only a scheduled
+      // one proves an alarm fires while the app is closed, which is the
+      // property that actually matters.
+      await pumpPanel(
+        t,
+        const NotificationStatus(
+          notificationsEnabled: true,
+          exactAlarmsAllowed: true,
+          batteryOptimised: false,
+        ),
+      );
+      expect(find.text('جرّب الأذان بعد دقيقتين'), findsOneWidget);
+      expect(find.textContaining('اقفل التطبيق'), findsOneWidget,
+          reason: 'the user must be told to close the app for it to mean much');
+    });
 
     testWidgets('shows all three checks and the test action', (t) async {
       await pumpPanel(
@@ -138,6 +157,13 @@ void main() {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
+        // The privacy note lives at the bottom of a lazily-built ListView, so
+        // it has to be scrolled into existence before it can be found.
+        await t.scrollUntilVisible(
+          find.textContaining('على الجهاز ده بس'),
+          400,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(find.textContaining('على الجهاز ده بس'), findsOneWidget);
       });
     });

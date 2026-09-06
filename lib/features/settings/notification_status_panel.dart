@@ -18,6 +18,7 @@ class NotificationStatusPanel extends StatelessWidget {
     required this.onRequestExactAlarms,
     required this.onRequestBattery,
     required this.onSendTest,
+    required this.onScheduleTestAdhan,
   });
 
   final NotificationStatus? status;
@@ -25,6 +26,10 @@ class NotificationStatusPanel extends StatelessWidget {
   final VoidCallback onRequestExactAlarms;
   final VoidCallback onRequestBattery;
   final VoidCallback onSendTest;
+
+  /// Schedules a real alarm a couple of minutes out, so the user can close the
+  /// app and confirm it still fires.
+  final VoidCallback onScheduleTestAdhan;
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +111,25 @@ class NotificationStatusPanel extends StatelessWidget {
             ),
             child: Text('إرسال إشعار تجريبي',
                 style: cairo(size: 13.5, color: NouriColors.gold)),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: onScheduleTestAdhan,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: NouriColors.border),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(13),
+              ),
+            ),
+            child: Text('جرّب الأذان بعد دقيقتين',
+                style: cairo(size: 13.5, color: NouriColors.gold)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'اقفل التطبيق بعد ما تدوس، وشوف الأذان هيوصلك ولا لأ.',
+            textAlign: TextAlign.center,
+            style: cairo(size: 11, color: NouriColors.muted),
           ),
         ],
       ),
