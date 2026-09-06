@@ -16,6 +16,22 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin;
 
+  /// Completes once the timezone database is loaded.
+  ///
+  /// Timezone init is deferred off the startup path (it cost 1.5s of blank
+  /// screen), but nothing may schedule before it finishes or every TZDateTime
+  /// would resolve against UTC. Scheduling paths await this rather than
+  /// assuming it is done.
+  Future<void>? _warmUp;
+
+  // ignore: use_setters_to_change_properties
+  void attachWarmUp(Future<void> warmUp) => _warmUp = warmUp;
+
+  Future<void> _ensureReady() async {
+    final w = _warmUp;
+    if (w != null) await w;
+  }
+
   AndroidFlutterLocalNotificationsPlugin? get _android =>
       _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -82,6 +98,7 @@ class NotificationService {
   /// practice: it played the plain system beep and looked like the chime had
   /// failed.
   Future<void> sendTestNotification() async {
+    await _ensureReady();
     final status = await readStatus();
     final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
     await gateway.showNow(
@@ -104,6 +121,7 @@ class NotificationService {
   Future<DateTime> scheduleTestAdhan({
     Duration delay = const Duration(minutes: 2),
   }) async {
+    await _ensureReady();
     final status = await readStatus();
     final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
     final when = DateTime.now().add(delay);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,48 +16,117 @@ import 'features/home/home_providers.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_screen.dart';
 
+/// Times a startup phase and reports it, so "the app feels slow" becomes a
+/// number per phase instead of a guess. Costs nothing in release, where
+/// `assert` is stripped.
+Future<T> _phase<T>(String name, Future<T> Function() body) async {
+  final sw = Stopwatch()..start();
+  final result = await body();
+  sw.stop();
+  assert(() {
+    debugPrint('NOURI_STARTUP $name ${sw.elapsedMilliseconds}ms');
+    return true;
+  }());
+  return result;
+}
+
 Future<void> main() async {
+  final total = Stopwatch()..start();
   WidgetsFlutterBinding.ensureInitialized();
 
   final db = NouriDatabase();
   final plugin = FlutterLocalNotificationsPlugin();
   final notifications = NotificationService(plugin);
 
-  RollingWindowScheduler? scheduler;
+  // Resolves once the scheduler exists. A settings change made before then
+  // waits on this rather than being silently dropped.
+  final schedulerReady = Completer<SchedulerPort?>();
 
+  // Only the cheap half runs before the first frame: creating the five
+  // channels, measured at ~57ms. Everything expensive is deferred — see
+  // [_warmUpInBackground].
+  //
   // Notification setup must never stop the app: logging, athkar, the tasbeeh
   // and the wird all work without it, so Nouri degrades rather than refusing
   // to start.
   try {
-    await NotificationService.initTimezone();
-    await notifications.init();
-
-    final status = await notifications.readStatus();
-    scheduler = RollingWindowScheduler(
-      gateway: LocalNotificationGateway(plugin, mode: status.mode),
-      prayerTimes: const PrayerTimesService(),
-      clock: DateTime.now,
-    );
-
-    await _armWindow(db, scheduler);
+    await _phase('pluginInit', notifications.init);
   } catch (e) {
     debugPrint('Nouri: notification setup failed, continuing without it: $e');
   }
+
+  final warmUp = _warmUpInBackground(
+    db: db,
+    plugin: plugin,
+    notifications: notifications,
+    schedulerReady: schedulerReady,
+    total: total,
+  );
+  notifications.attachWarmUp(warmUp);
+
+  assert(() {
+    debugPrint('NOURI_STARTUP beforeRunApp ${total.elapsedMilliseconds}ms');
+    return true;
+  }());
 
   runApp(
     ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
         notificationServiceProvider.overrideWithValue(notifications),
-        locationPortProvider
-            .overrideWithValue(const GeolocatorLocationPort()),
-        if (scheduler != null)
-          schedulerPortProvider
-              .overrideWithValue(RollingWindowSchedulerPort(scheduler)),
+        locationPortProvider.overrideWithValue(const GeolocatorLocationPort()),
+        schedulerPortProvider
+            .overrideWithValue(DeferredSchedulerPort(schedulerReady.future)),
       ],
       child: const NouriApp(),
     ),
   );
+}
+
+/// The expensive half of startup, moved off the critical path.
+///
+/// Measured on a HONOR VNE-N41 before this change: loading the timezone
+/// database took 1.5s and arming the 14-day window took **11.7s** — 262
+/// sequential platform-channel round-trips — all of it before Flutter was
+/// allowed to draw a single pixel. The app took over 20 seconds to appear.
+///
+/// Nothing here needs to block the UI. The alarms from the previous run are
+/// still live in AlarmManager, so there is no window in which the user is
+/// unprotected: re-arming refreshes them rather than creating them, and is
+/// idempotent by design.
+///
+/// Started but deliberately not awaited by `main`, so the first frame renders
+/// while this runs.
+Future<void> _warmUpInBackground({
+  required NouriDatabase db,
+  required FlutterLocalNotificationsPlugin plugin,
+  required NotificationService notifications,
+  required Completer<SchedulerPort?> schedulerReady,
+  required Stopwatch total,
+}) async {
+  try {
+    await _phase('timezone', NotificationService.initTimezone);
+
+    final status = await _phase('readStatus', notifications.readStatus);
+    final scheduler = RollingWindowScheduler(
+      gateway: LocalNotificationGateway(plugin, mode: status.mode),
+      prayerTimes: const PrayerTimesService(),
+      clock: DateTime.now,
+    );
+
+    // Unblock anything waiting to re-arm before starting the slow pass.
+    schedulerReady.complete(RollingWindowSchedulerPort(scheduler));
+
+    await _phase('armWindow', () => _armWindow(db, scheduler));
+
+    assert(() {
+      debugPrint('NOURI_STARTUP warmUpComplete ${total.elapsedMilliseconds}ms');
+      return true;
+    }());
+  } catch (e) {
+    debugPrint('Nouri: background warm-up failed: $e');
+    if (!schedulerReady.isCompleted) schedulerReady.complete(null);
+  }
 }
 
 /// Builds the rolling window from current settings.

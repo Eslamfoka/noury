@@ -13,6 +13,25 @@ abstract class SchedulerPort {
   Future<void> rearm(SchedulingConfig config);
 }
 
+/// A [SchedulerPort] whose real implementation arrives later.
+///
+/// Arming the alarm window costs ~11.7s on a mid-range device (262 sequential
+/// platform-channel calls), so it is deferred until after the first frame. A
+/// settings change made during that gap must not be silently dropped, so this
+/// simply waits for the real scheduler and then forwards — the re-arm happens
+/// a moment late instead of never.
+class DeferredSchedulerPort implements SchedulerPort {
+  DeferredSchedulerPort(this._ready);
+
+  final Future<SchedulerPort?> _ready;
+
+  @override
+  Future<void> rearm(SchedulingConfig config) async {
+    final real = await _ready;
+    await real?.rearm(config);
+  }
+}
+
 class RollingWindowSchedulerPort implements SchedulerPort {
   RollingWindowSchedulerPort(this._scheduler);
   final RollingWindowScheduler _scheduler;
