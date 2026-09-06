@@ -189,15 +189,14 @@ code.
 ## 6. Build artefacts
 
 ```
-build/app/outputs/flutter-apk/app-debug.apk      175 MB — STALE, see below
+build/app/outputs/flutter-apk/app-debug.apk      180 MB — current, built from HEAD
 ```
 
-**⚠ The APK on disk is four commits behind.** It was built at 01:23; the
-device-location wiring and the 14-day alarm window landed at ~05:20. Everything
-verified on the emulator was verified against that older build, which is why the
-emulator table below does not cover either feature. **Rebuild before installing.**
+Current as of the dual-date commit: includes the device-location wiring, the
+14-day alarm window, and the Hijri + Gregorian header. Installed on the emulator
+and verified.
 
-**There is no release APK.** The release build was started at the end of the
+**There is no release APK yet.** The release build was started at the end of the
 session and was still running (R8 minification) when the session's background
 tasks were stopped, so it never produced an artefact. Nothing is wrong with it
 — it simply did not finish. Run it when you want one:

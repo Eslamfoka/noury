@@ -1,18 +1,5 @@
 # Nouri — build, install, and on-device verification
 
-> ## ⚠ Build before you install
->
-> The APK currently sitting in `build/app/outputs/flutter-apk/` was built at
-> **01:23 on 6 Sep** and is **four commits stale**. It does *not* contain the
-> device-location wiring or the 14-day alarm window, both of which landed at
-> ~05:20. There is **no release APK at all** — that build was interrupted.
->
-> **Run `flutter build apk --debug` (or `--release`) before installing**, or you
-> will be testing older code and wondering why Settings → المدينة → حدّد does
-> nothing.
->
-> Nothing is wrong with the build; it was simply stopped part-way.
-
 ## Building
 
 ```powershell
