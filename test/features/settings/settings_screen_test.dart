@@ -153,6 +153,22 @@ void main() {
       });
     });
 
+    testWidgets('carries the slogan in About, not on a splash screen',
+        (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+        await t.scrollUntilVisible(
+          find.text('عن نوري'),
+          400,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.textContaining('من الفجر للعشاء'), findsOneWidget);
+        expect(find.textContaining('الديني والبدني والمالي'), findsOneWidget,
+            reason: 'the three pillars are named where identity lives');
+      });
+    });
+
     testWidgets('states the privacy position plainly', (t) async {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);

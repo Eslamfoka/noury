@@ -14,6 +14,9 @@ Color chipColorFor(PrayerState s) => switch (s) {
       PrayerState.congregation => NouriColors.success,
       PrayerState.onTime => NouriColors.muted,
       PrayerState.late_ => NouriColors.attention,
+      // Deliberately identical to «متأخرة». It is the only label that names a
+      // failure, so it must not look like one.
+      PrayerState.missed => NouriColors.attention,
       PrayerState.none => NouriColors.muted,
     };
 
@@ -23,6 +26,7 @@ String chipLabelFor(PrayerState s) => switch (s) {
       PrayerState.congregation => 'جماعة',
       PrayerState.onTime => 'في الوقت',
       PrayerState.late_ => 'متأخرة',
+      PrayerState.missed => 'فاتتني',
       PrayerState.none => 'لسه',
     };
 
@@ -33,6 +37,7 @@ const loggablePrayerStates = <PrayerState>[
   PrayerState.congregation,
   PrayerState.onTime,
   PrayerState.late_,
+  PrayerState.missed,
 ];
 
 /// The average score of the prayers that were actually logged.

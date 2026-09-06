@@ -49,15 +49,37 @@ void main() {
     expect(PrayerState.none.score, 0);
   });
 
-  test('the loggable states are the four ratings, best first', () {
+  test('the loggable states run best to worst', () {
     expect(loggablePrayerStates, [
       PrayerState.mosque,
       PrayerState.congregation,
       PrayerState.onTime,
       PrayerState.late_,
+      PrayerState.missed,
     ]);
     expect(loggablePrayerStates.contains(PrayerState.none), isFalse,
         reason: 'clearing an entry is not a rating');
+  });
+
+  test('«فاتتني» looks exactly like «متأخرة»', () {
+    // It is the only label that names a failure. The brief's firmest rule is
+    // that Nouri never shows failure marks, so it must not stand out.
+    expect(chipColorFor(PrayerState.missed), chipColorFor(PrayerState.late_));
+    expect(PrayerState.missed.score, PrayerState.late_.score,
+        reason: 'scored as qada, not as a lower grade');
+  });
+
+  test('the enum is append-only, so stored rows keep their meaning', () {
+    // drift persists these by index. Reordering would silently rewrite every
+    // prayer the user has already logged.
+    expect(PrayerState.values.map((e) => e.name).toList(), [
+      'mosque',
+      'congregation',
+      'onTime',
+      'late_',
+      'none',
+      'missed',
+    ]);
   });
 
   test('an unlogged prayer is excluded from the average, not zeroed', () {

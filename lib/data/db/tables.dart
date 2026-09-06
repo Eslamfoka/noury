@@ -4,7 +4,9 @@ import 'package:drift/drift.dart';
 ///
 /// Ordered best to worst, but note that [none] is **not** a failure — it simply
 /// has not been logged yet, and it is never counted against the user.
-enum PrayerState { mosque, congregation, onTime, late_, none }
+/// Appended, never reordered: drift stores these by index, so inserting a
+/// value in the middle would silently rewrite every logged prayer.
+enum PrayerState { mosque, congregation, onTime, late_, none, missed }
 
 extension PrayerStateScore on PrayerState {
   int get score => switch (this) {
@@ -12,6 +14,9 @@ extension PrayerStateScore on PrayerState {
         PrayerState.congregation => 85,
         PrayerState.onTime => 70,
         PrayerState.late_ => 40,
+        // Scored as qada, like a late prayer. Honest self-reporting, not a
+        // lower grade -- and Nouri never assigns it, the user chooses it.
+        PrayerState.missed => 40,
         PrayerState.none => 0,
       };
 }

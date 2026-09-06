@@ -247,6 +247,35 @@ class SettingsScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: 20),
 
+          _Section(title: 'عن نوري', children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const NouriAvatar(size: 54),
+                  const SizedBox(height: 14),
+                  // The slogan lives here rather than on a splash screen: a
+                  // splash would cost ~2s of held screen on every launch to
+                  // show something the user reads once.
+                  Text(
+                    'نوري — من الفجر للعشاء: صلاة، حركة، وبركة',
+                    textAlign: TextAlign.center,
+                    style: cairo(size: 13.5, weight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'رفيقك اليومي في الديني والبدني والمالي.',
+                    textAlign: TextAlign.center,
+                    style:
+                        cairo(size: 12, color: NouriColors.muted, height: 1.7),
+                  ),
+                ],
+              ),
+            ),
+          ]),
+          const SizedBox(height: 16),
+
           Text(
             'كل بياناتك متخزّنة على الجهاز ده بس. نوري مش بيبعت حاجة لأي '
             'مكان في المرحلة دي.',
