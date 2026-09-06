@@ -167,12 +167,17 @@ code.
   offline by `tool/generate_chime.py`. To swap it in: drop `adhan.mp3` into
   `android/app/src/main/res/raw/` and bump the channel id to `adhan_v2` in
   `notification_channels.dart` (Android freezes channel sound at creation).
-- **Location is not yet wired to `geolocator`.** The permission step exists, but
-  coordinates stay at the Kuwait default. Prayer times are correct for Kuwait;
-  they will not follow you if you travel. Small, isolated follow-up.
-- **The daily background top-up (`workmanager`) is not implemented.** Two of the
-  three re-arm triggers are live — app resume and the boot receiver. The third
-  is a robustness layer, not a requirement for correctness.
+- ~~Location is not yet wired to `geolocator`.~~ **Done.** Coordinates now come
+  from the device with Kuwait as the fallback, and a failure keeps whatever is
+  already stored rather than clearing it. Settings → المدينة → حدّد triggers it;
+  the onboarding location step stores coordinates on grant.
+- ~~The daily background top-up (`workmanager`) is not implemented.~~
+  **Deliberately not added.** The alarm window was widened from 7 days to 14
+  instead — a measured 19 alarms/day, so ~260 against Android's ~500 cap, pinned
+  by a test. Exact alarms fire without the app running, so a longer window is a
+  more reliable form of the same guarantee than a background task an OEM power
+  manager will kill. Full reasoning in `docs/setup.md`; overrule it knowingly if
+  a fortnight proves insufficient.
 - **Generated code is gitignored** (`*.g.dart`). A fresh clone must run
   `dart run build_runner build` before `flutter test`. Documented in
   `docs/setup.md`.
