@@ -75,8 +75,11 @@ class _Root extends ConsumerWidget {
                 service?.requestNotificationPermission(),
             requestBattery: () async => service?.requestBatteryExemption(),
             requestLocation: () async {
-              // Location is requested here only to establish the permission;
-              // prayer times fall back to Kuwait until coordinates are set.
+              // Asks for the permission and, if granted, stores the
+              // coordinates straight away — so prayer times are right from
+              // the first launch rather than after a later visit to Settings.
+              await ref.read(settingsControllerProvider).detectLocation();
+              ref.invalidate(settingsProvider);
             },
           ),
           onDone: () async {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app.dart';
 import '../../core/format/arabic_numerals.dart';
 import '../../core/notifications/notification_status.dart';
+import '../../core/time/location_service.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
@@ -25,8 +26,13 @@ final settingsControllerProvider = Provider<SettingsController>((ref) {
   return SettingsController(
     db: ref.watch(databaseProvider),
     scheduler: ref.watch(schedulerPortProvider),
+    location: ref.watch(locationPortProvider),
   );
 });
+
+/// Overridden in main() with the real geolocator port; null in tests, where
+/// there is no platform channel to ask.
+final locationPortProvider = Provider<LocationPort?>((ref) => null);
 
 /// Overridden in main() with the real scheduler; a no-op in tests.
 final schedulerPortProvider = Provider<SchedulerPort>((ref) => _NoopScheduler());
@@ -131,7 +137,27 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           _Section(title: 'مواقيت الصلاة', children: [
-            _ValueRow(label: 'المدينة', value: s.cityLabel),
+            _ActionRow(
+              label: 'المدينة',
+              value: s.cityLabel,
+              action: 'حدّد',
+              onTap: () async {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                final result = await controller.detectLocation();
+                ref.invalidate(settingsProvider);
+                // Says plainly what happened. A refusal is not an error, and
+                // the app keeps working on the coordinates it already has.
+                messenger?.showSnackBar(SnackBar(
+                  backgroundColor: NouriColors.surfaceActive,
+                  content: Text(
+                    result.isFallback
+                        ? 'مقدرتش أوصل لموقعك. هفضل على اللي متسجّل.'
+                        : 'اتحدّث الموقع. المواقيت اتظبطت عليه.',
+                    style: cairo(size: 13),
+                  ),
+                ));
+              },
+            ),
             _ChoiceRow(
               label: 'طريقة الحساب',
               value: _methods[s.calculationMethod] ?? s.calculationMethod,
@@ -296,6 +322,42 @@ class _ValueRow extends StatelessWidget {
           children: [
             Text(label, style: cairo(size: 13.5)),
             Text(value, style: cairo(size: 13, color: NouriColors.muted)),
+          ],
+        ),
+      );
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.label,
+    required this.value,
+    required this.action,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final String action;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: cairo(size: 13.5))),
+            Text(value, style: cairo(size: 13, color: NouriColors.muted)),
+            const SizedBox(width: 6),
+            TextButton(
+              onPressed: onTap,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(action,
+                  style: cairo(size: 12.5, color: NouriColors.gold)),
+            ),
           ],
         ),
       );

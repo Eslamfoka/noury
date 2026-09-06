@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 
 import '../../core/notifications/rolling_window_scheduler.dart';
 import '../../core/time/geo_config.dart';
+import '../../core/time/location_service.dart';
 import '../../data/db/nouri_database.dart';
 
 /// Anything that can rebuild the alarm window.
@@ -27,10 +28,17 @@ class RollingWindowSchedulerPort implements SchedulerPort {
 /// the rolling window immediately. Changes that cannot affect alarms — the
 /// tasbeeh target, the khatma length — deliberately do not.
 class SettingsController {
-  SettingsController({required this.db, required this.scheduler});
+  SettingsController({
+    required this.db,
+    required this.scheduler,
+    this.location,
+  });
 
   final NouriDatabase db;
   final SchedulerPort scheduler;
+
+  /// Null when the platform cannot provide location at all (widget tests).
+  final LocationPort? location;
 
   Future<SettingsRow> read() => db.settingsDao.get();
 
@@ -62,6 +70,40 @@ class SettingsController {
       cityLabel: Value(cityLabel),
     ));
     await _rearmFromSettings();
+  }
+
+  /// Asks the device where it is and stores the result.
+  ///
+  /// Returns the location actually in use afterwards. A failure is not an
+  /// error: Nouri keeps the coordinates it already has (Kuwait by default) and
+  /// reports that it fell back, so the UI can say so plainly rather than
+  /// pretending the update worked.
+  Future<ResolvedLocation> detectLocation() async {
+    // Defensive even though GeolocatorLocationPort already swallows its own
+    // failures: a location lookup must never be able to take Settings down,
+    // whatever port is injected.
+    ResolvedLocation? found;
+    try {
+      found = await location?.current();
+    } catch (_) {
+      found = null;
+    }
+
+    if (found == null) {
+      final s = await db.settingsDao.get();
+      return ResolvedLocation(
+        latitude: s.latitude,
+        longitude: s.longitude,
+        source: 'fallback',
+      );
+    }
+
+    await updateLocation(
+      latitude: found.latitude,
+      longitude: found.longitude,
+      cityLabel: 'موقعك الحالي',
+    );
+    return found;
   }
 
   Future<void> updateMethod(String method) async {

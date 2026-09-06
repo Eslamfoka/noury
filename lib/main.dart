@@ -7,6 +7,7 @@ import 'core/notifications/local_notification_gateway.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/notifications/rolling_window_scheduler.dart';
 import 'core/time/geo_config.dart';
+import 'core/time/location_service.dart';
 import 'core/time/prayer_times_service.dart';
 import 'data/db/nouri_database.dart';
 import 'features/home/home_providers.dart';
@@ -46,6 +47,8 @@ Future<void> main() async {
       overrides: [
         databaseProvider.overrideWithValue(db),
         notificationServiceProvider.overrideWithValue(notifications),
+        locationPortProvider
+            .overrideWithValue(const GeolocatorLocationPort()),
         if (scheduler != null)
           schedulerPortProvider
               .overrideWithValue(RollingWindowSchedulerPort(scheduler)),

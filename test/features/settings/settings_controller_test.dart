@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/rolling_window_scheduler.dart';
+import 'package:nouri/core/time/location_service.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 import 'package:nouri/features/settings/settings_controller.dart';
 
@@ -14,6 +15,26 @@ class RecordingScheduler implements SchedulerPort {
     rearmCount++;
     last = config;
   }
+}
+
+/// Returns whatever it is told to, including nothing.
+class StubLocation implements LocationPort {
+  StubLocation(this.result);
+  final ResolvedLocation? result;
+  int calls = 0;
+
+  @override
+  Future<ResolvedLocation?> current() async {
+    calls++;
+    return result;
+  }
+}
+
+/// Every failure mode of the real port surfaces as null, so one throwing stub
+/// covers permission denial, services off, and timeouts alike.
+class ThrowingLocation implements LocationPort {
+  @override
+  Future<ResolvedLocation?> current() async => throw StateError('no gps');
 }
 
 void main() {
@@ -125,5 +146,85 @@ void main() {
     expect((await db.settingsDao.get()).onboardingComplete, isFalse);
     await controller.markOnboardingComplete();
     expect((await db.settingsDao.get()).onboardingComplete, isTrue);
+  });
+
+  group('detectLocation', () {
+    test('stores device coordinates and reschedules', () async {
+      final c = SettingsController(
+        db: db,
+        scheduler: scheduler,
+        location: StubLocation(const ResolvedLocation(
+          latitude: 30.0444,
+          longitude: 31.2357,
+          source: 'device',
+        )),
+      );
+
+      final result = await c.detectLocation();
+
+      expect(result.source, 'device');
+      expect(result.isFallback, isFalse);
+      final s = await db.settingsDao.get();
+      expect(s.latitude, closeTo(30.0444, 0.0001));
+      expect(scheduler.rearmCount, 1,
+          reason: 'new coordinates change every prayer time');
+    });
+
+    test('a refusal keeps the existing coordinates and says so', () async {
+      final c = SettingsController(
+        db: db,
+        scheduler: scheduler,
+        location: StubLocation(null),
+      );
+
+      final result = await c.detectLocation();
+
+      expect(result.isFallback, isTrue);
+      expect(result.latitude, closeTo(29.3759, 0.0001),
+          reason: 'still Kuwait, untouched');
+      expect(scheduler.rearmCount, 0,
+          reason: 'nothing changed, so nothing to reschedule');
+    });
+
+    test('no location port at all falls back rather than throwing', () async {
+      final result = await controller.detectLocation();
+      expect(result.isFallback, isTrue);
+      expect(result.latitude, closeTo(29.3759, 0.0001));
+    });
+
+    test('a port that throws falls back instead of taking Settings down',
+        () async {
+      final c = SettingsController(
+        db: db,
+        scheduler: scheduler,
+        location: ThrowingLocation(),
+      );
+
+      final result = await c.detectLocation();
+
+      expect(result.isFallback, isTrue);
+      expect(result.latitude, closeTo(29.3759, 0.0001));
+    });
+
+    test('a fallback never overwrites coordinates the user already set',
+        () async {
+      await controller.updateLocation(
+        latitude: 25.2048,
+        longitude: 55.2708,
+        cityLabel: 'دبي',
+      );
+      scheduler.rearmCount = 0;
+
+      final c = SettingsController(
+        db: db,
+        scheduler: scheduler,
+        location: StubLocation(null),
+      );
+      final result = await c.detectLocation();
+
+      expect(result.latitude, closeTo(25.2048, 0.0001));
+      expect((await db.settingsDao.get()).cityLabel, 'دبي');
+      expect(scheduler.rearmCount, 0);
+    });
   });
 }
