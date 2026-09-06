@@ -189,8 +189,13 @@ code.
 ## 6. Build artefacts
 
 ```
-build/app/outputs/flutter-apk/app-debug.apk      184 MB, installed and verified
+build/app/outputs/flutter-apk/app-debug.apk      175 MB — STALE, see below
 ```
+
+**⚠ The APK on disk is four commits behind.** It was built at 01:23; the
+device-location wiring and the 14-day alarm window landed at ~05:20. Everything
+verified on the emulator was verified against that older build, which is why the
+emulator table below does not cover either feature. **Rebuild before installing.**
 
 **There is no release APK.** The release build was started at the end of the
 session and was still running (R8 minification) when the session's background
