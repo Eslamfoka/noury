@@ -9,6 +9,7 @@ import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
 import '../home/home_providers.dart';
 import '../shared/nouri_avatar.dart';
+import 'log_prayer.dart';
 import 'prayer_log_sheet.dart';
 import 'prayer_names.dart';
 import 'prayer_scoring.dart';
@@ -139,13 +140,12 @@ class _DailyReview extends ConsumerWidget {
         await showPrayerLogSheet(context, slot.name, PrayerState.none);
     if (chosen == null) return;
 
-    await ref.read(databaseProvider).prayerDao.upsertLog(
-          date: DateTime.now(),
-          prayer: slot.name,
-          scheduledTime: slot.time,
-          state: chosen,
-        );
-    ref.invalidate(todayPrayerLogsProvider);
+    await logPrayer(
+      ref,
+      prayer: slot.name,
+      scheduledTime: slot.time,
+      state: chosen,
+    );
   }
 }
 

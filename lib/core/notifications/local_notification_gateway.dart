@@ -85,6 +85,9 @@ class LocalNotificationGateway implements NotificationGateway {
       );
 
   @override
+  Future<void> cancel(int id) => _plugin.cancel(id: id);
+
+  @override
   Future<List<int>> pendingIds() async =>
       (await _plugin.pendingNotificationRequests()).map((r) => r.id).toList();
 

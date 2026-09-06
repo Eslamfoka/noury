@@ -16,6 +16,7 @@ import '../planner/shift.dart';
 import '../planner/example_day.dart';
 import '../planner/widgets/day_blocks.dart';
 import '../prayers/daily_review_sheet.dart';
+import '../prayers/log_prayer.dart';
 import '../prayers/prayer_log_sheet.dart';
 import '../prayers/prayer_row.dart';
 import '../quran/khatma.dart';
@@ -215,13 +216,12 @@ class HomeScreen extends ConsumerWidget {
     final chosen = await showPrayerLogSheet(context, slot.name, current);
     if (chosen == null) return;
 
-    await ref.read(databaseProvider).prayerDao.upsertLog(
-          date: DateTime.now(),
-          prayer: slot.name,
-          scheduledTime: slot.time,
-          state: chosen,
-        );
-    ref.invalidate(todayPrayerLogsProvider);
+    await logPrayer(
+      ref,
+      prayer: slot.name,
+      scheduledTime: slot.time,
+      state: chosen,
+    );
   }
 }
 

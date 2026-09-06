@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
 import '../home/home_providers.dart';
+import 'log_prayer.dart';
 import 'prayer_log_sheet.dart';
 
 /// Opens the log sheet for [prayerName] after the user taps a follow-up.
@@ -38,11 +39,10 @@ Future<void> logPrayerFromNotification(
   final chosen = await showPrayerLogSheet(context, prayerName, current);
   if (chosen == null) return;
 
-  await ref.read(databaseProvider).prayerDao.upsertLog(
-        date: DateTime.now(),
-        prayer: prayerName,
-        scheduledTime: slot.time,
-        state: chosen,
-      );
-  ref.invalidate(todayPrayerLogsProvider);
+  await logPrayer(
+    ref,
+    prayer: prayerName,
+    scheduledTime: slot.time,
+    state: chosen,
+  );
 }

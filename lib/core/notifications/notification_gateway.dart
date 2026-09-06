@@ -12,6 +12,14 @@ abstract class NotificationGateway {
 
   Future<void> schedule(ScheduledNotification n);
 
+  /// Cancels one pending notification by id.
+  ///
+  /// Used when a prayer is logged: the follow-ups asking about it were armed
+  /// hours earlier and cannot know they have been answered, so the answer has
+  /// to reach back and cancel them. Deterministic ids are what make this
+  /// possible without storing anything.
+  Future<void> cancel(int id);
+
   Future<List<int>> pendingIds();
 
   /// Fires immediately — used by the "send test notification" action.

@@ -66,6 +66,14 @@ class NotificationService {
     }
   }
 
+  /// Cancels one pending notification by id.
+  ///
+  /// Used to silence the follow-ups for a prayer once it has been logged.
+  Future<void> cancel(int id) async {
+    await _ensureReady();
+    await _plugin.cancel(id: id);
+  }
+
   /// Reads the live device state. Nothing here is cached — the settings panel
   /// must show what is true right now, not what was true at launch.
   Future<NotificationStatus> readStatus() async {
