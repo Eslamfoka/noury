@@ -211,3 +211,70 @@ Do it **after** a prayer rather than just before one.
 - Slice 2 planner design — `docs/superpowers/specs/slice2-worked-example.md` has
   6 implied rules and 6 open questions.
 - Prayer duplication on Home (blocks vs list vs separate tab) — still undecided.
+
+---
+
+# Addendum — same day, on device and emulator
+
+## adhan_v2 on the HONOR VNE-N41
+
+Installed after asr, verified before the UI tests.
+
+```
+adhan_v1  mDeleted=true                                    (retired)
+adhan_v2  mOriginalImp=5  mImportance=4  mUserLockedFields=4
+```
+
+**MagicOS re-locks the channel within seconds of creation.** A version bump is a
+reset, not a defeat — a future bump would land at HIGH again. But v1 was locked
+at DEFAULT and v2 at HIGH, and HIGH is the threshold that matters: Android only
+fires a full-screen intent at HIGH or above.
+
+Check 44 passed. The device honoured it —
+`NotificationClickHandler: Notification has fullScreenIntent; sending
+fullScreenIntent, entry.importance=4`, then `TaskLaunchParamsModifier` launching
+MainActivity full-screen. **The screen lit and the adhan sounded**, the
+notification appeared on the lock screen, and the app opened only after
+unlocking. That last part is the wanted behaviour, not a shortfall — see the
+Slice 2 note on why MainActivity stays behind the keyguard.
+
+The follow-up redesign is live on the real schedule: asr 15:18 → iqama 15:33 →
+**ask 1 at 15:53**, where the old build had 15:43, i.e. ten minutes into the
+congregation.
+
+## Schema v3 migration, against real v2 data
+
+Upgraded in place on the emulator over a populated v2 database:
+
+```
+PRAGMA user_version -> 3
+tables: athkar_logs budgets expenses meals prayer_logs quran_logs
+        settings_rows weights
+prayer_logs=1  athkar_logs=2      (survived)
+eating_window_start_hour=12  target_weight_grams=74000
+financial_month_start_day=25     (v2 value untouched)
+```
+
+## Follow-up cancellation, end to end
+
+The fix no test can prove. Logged isha through the UI and watched AlarmManager:
+
+```
+before  18:58 and 19:58 armed, 222 alarms
+after   both gone, 220 alarms          (delta exactly 2)
+isha adhan 18:23 and iqama 18:38 still armed
+prayer_logs -> isha|0                  (في المسجد)
+```
+
+Answers silence questions and never silence announcements, on a device rather
+than in a fake.
+
+## Six tabs
+
+Screenshotted: النهاردة · الأذكار · التقارير · البدن · المالية · الإعدادات all
+render without overflow or ellipsis at 720px. One past Material's recommended
+five — deliberate, since each pillar needs a home, but worth revisiting in the
+Slice 2 structure.
+
+The Home catch-up card reads «٣ صلوات لسه متسجلتش» and correctly excludes عشاء,
+which had not happened yet.
