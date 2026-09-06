@@ -86,23 +86,41 @@ Record the outcome next to each item as you go.
 | 19 | Reports shows «—» not a zero for an empty week | ✅ |
 | 20 | No crashes in logcat | ✅ |
 
-### Still to do on the HONOR VNE-N41
-
-None of these are verifiable on an emulator. **Nothing below has been tested.**
+### Verified on the HONOR VNE-N41 (Android 12, Asia/Kuwait)
 
 | # | Check | Result |
 |---|---|---|
-| 21 | Prayer times match your local Kuwait timetable (±1–2 min) | ☐ |
-| 22 | Test notification arrives | ☐ |
-| 23 | **The adhan fires at the right minute with the app swiped away** | ☐ |
-| 24 | The chime plays (not silent) | ☐ |
-| 25 | The iqama notification follows at the configured offset | ☐ |
-| 26 | «صليت» on the follow-up logs the prayer without opening the app | ☐ |
-| 27 | **After a reboot**, the next adhan still fires without opening the app | ☐ |
-| 28 | **After a full day untouched**, notifications are still arriving | ☐ |
-| 29 | **After several days untouched** — catches OEM battery-kill | ☐ |
-| 30 | Airplane mode changes nothing (the app makes no network calls) | ☐ |
-| 31 | Location detection in Settings → المدينة → حدّد | ☐ |
+| 21 | Installed and launches | ✅ |
+| 22 | Notifications + exact alarms granted at install | ✅ `SCHEDULE_EXACT_ALARM granted=true` |
+| 23 | HONOR App launch set to manual, all three toggles on | ✅ (set by hand; not adb-readable) |
+| 24 | Exempt from battery optimisation | ✅ in `deviceidle whitelist`, not background-restricted |
+| 25 | 14-day window armed on the real device | ✅ **262 alarms**, all `window=0`, `exactAllowReason=permission` |
+| 26 | Alarm times match Kuwait prayer times | ✅ 11:46 / 15:18 / 18:04 / 19:23 + correct iqama offsets |
+| 27 | Instant test notification | ✅ |
+| 28 | Adhan channel carries the chime at alarm volume | ✅ audibly louder and longer than a normal beep |
+| 29 | **Scheduled adhan fires with the app swiped away and screen locked** | ✅ **posted at 08:49:43 for 08:49:43** |
+| 30 | Swiping from Recents does **not** cancel alarms | ✅ 262 → 262, `stopped=false` |
+
+**Note:** `Settings → Force stop` *does* cancel every alarm (`262 → 0`) and puts the
+app in `stopped=true`, where it receives no broadcasts at all. That is standard
+Android behaviour, not specific to Nouri. Swiping from Recents is safe; force-stopping
+is not. After a force-stop, opening Nouri once re-arms everything.
+
+### Still to do on the HONOR VNE-N41
+
+**Nothing below has been tested** — each needs real elapsed time.
+
+| # | Check | Result |
+|---|---|---|
+| 31 | Prayer times match your printed Kuwait timetable (±1–2 min) | ☐ |
+| 32 | A **real** adhan fires at dhuhr/asr/maghrib/isha | ☐ |
+| 33 | The iqama notification follows at the configured offset | ☐ |
+| 34 | «صليت» on the follow-up logs the prayer without opening the app | ☐ |
+| 35 | **After a reboot**, the next adhan still fires without opening the app | ☐ |
+| 36 | **After a full day untouched**, notifications still arrive | ☐ |
+| 37 | **After several days untouched** — catches OEM battery-kill | ☐ |
+| 38 | Airplane mode changes nothing (the app makes no network calls) | ☐ |
+| 39 | Location detection in Settings → المدينة → حدّد | ☐ |
 
 If 21 is off by more than a minute or two, change the calculation method in
 Settings → مواقيت الصلاة → طريقة الحساب.
