@@ -142,6 +142,18 @@ had its importance locked to DEFAULT by MagicOS, which no API can undo — see
 Check 44 is the point of the change: on `adhan_v1` the locked importance meant
 the adhan could only wait silently in the shade.
 
+**Verified on the HONOR VNE-N41, 6 September 2026.** MagicOS re-locked the new
+channel within seconds of creation — `mImportance=4 mOriginalImp=5
+mUserLockedFields=4` — so a version bump resets the lock but does not defeat it,
+and `adhan_v2` sits at HIGH rather than MAX. HIGH is the threshold that matters:
+Android only fires a full-screen intent at HIGH or above, and the device honoured
+it (`sending fullScreenIntent, entry.importance=4`). The screen lit, the adhan
+sounded, the notification appeared **on the lock screen**, and the app itself
+opened only after unlocking.
+
+Expect a future channel bump to land at HIGH again. That is a device policy, not
+a bug, and HIGH is sufficient.
+
 To confirm the channel state from a computer:
 
 ```powershell

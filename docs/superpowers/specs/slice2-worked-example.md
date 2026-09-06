@@ -104,3 +104,37 @@ come straight from the brief, so they should survive the design session.
 
 **Nothing places a task.** That algorithm is deliberately absent rather than
 guessed at, because it is the whole design question.
+
+---
+
+## Deferred from Slice 1: the dedicated adhan screen
+
+**Decided 6 September 2026, on the device.** `adhan_v2` fires a full-screen
+intent and MagicOS honours it: the screen lights, the adhan sounds, the
+notification appears on the lock screen, and the app opens only after unlocking.
+That is the behaviour we keep for now.
+
+The obvious "improvement" is `android:showWhenLocked="true"` on `MainActivity`,
+so Nouri appears over the keyguard like a clock alarm. **We deliberately did not
+do that.** It would put the full UI over the lock screen at every adhan —
+including fajr, on a phone anyone can pick up — and Home shows the prayer log
+while the tab bar is one tap from المالية with income and spending on it. That
+turns a locked phone into an unlocked one for exactly the data the brief says
+stays private. A flag that convenient is worth refusing.
+
+The right shape, if we want the alarm-clock feel:
+
+- A separate, minimal activity — prayer name, time, a dismiss action, nothing
+  else — carrying **no personal data**, so showing it over the keyguard costs
+  nothing.
+- `showWhenLocked` + `turnScreenOn` on **that** activity only, never on
+  `MainActivity`.
+- The full-screen intent points at it instead of `MainActivity`.
+- It pairs naturally with the foreground-service adhan player (see the adhan
+  sound section in `docs/setup.md`): the same screen that shows the prayer is
+  the obvious place for the stop button a two-minute recitation needs.
+
+Open question for the design session: should this screen also carry the log
+buttons («في المسجد» / «جماعة» / …), or is logging from the lock screen a
+privacy leak of the same kind? Leaning no — the prayer name is not sensitive,
+but a visible history is.
