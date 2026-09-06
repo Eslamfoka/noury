@@ -51,6 +51,16 @@ class SettingsRows extends Table {
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
 
+  /// Payday. The brief says the salary lands between the 20th and the 25th,
+  /// so the financial month starts there rather than on the 1st.
+  IntColumn get financialMonthStartDay =>
+      integer().withDefault(const Constant(25))();
+
+  /// Monthly income in fils. Zero means "not set" — Nouri shows a dash for
+  /// the savings rate rather than inventing one.
+  IntColumn get monthlyIncomeFils =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -95,5 +105,29 @@ class QuranLogs extends Table {
   @override
   List<Set<Column>> get uniqueKeys => [
         {date}
+      ];
+}
+
+/// A single logged spend. Amounts are stored in the smallest unit (fils) as
+/// integers -- money must never be a double.
+class Expenses extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get category => text()();
+  IntColumn get amountFils => integer()();
+  TextColumn get note => text().nullable()();
+}
+
+/// A monthly limit per category, keyed by the financial month's start date so
+/// last month's budget is preserved when this month's changes.
+class Budgets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get monthStart => dateTime()();
+  TextColumn get category => text()();
+  IntColumn get limitFils => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {monthStart, category}
       ];
 }

@@ -62,17 +62,29 @@ void main() {
     });
   });
 
-  testWidgets('the finance tab reads as coming soon, never as broken',
+  testWidgets('the finance tab is a real pillar, not a placeholder',
       (tester) async {
     await withLargeSurface(tester, () async {
       await pumpShell(tester);
       await tester.tap(find.text('المالية'));
       await tester.pumpAndSettle();
 
-      expect(find.text('قريباً إن شاء الله'), findsOneWidget);
+      // The wealth pillar is present in the app today, not promised.
+      expect(find.text('قريباً إن شاء الله'), findsNothing);
+      expect(find.text('سجّل مصروف'), findsOneWidget);
+      expect(find.text('اتصرف الشهر ده'), findsOneWidget);
       expect(find.byIcon(Icons.error), findsNothing);
       expect(find.byIcon(Icons.warning), findsNothing);
-      expect(find.byIcon(Icons.error_outline), findsNothing);
+    });
+  });
+
+  testWidgets('an empty finance tab invites a first entry rather than '
+      'showing an error', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.text('المالية'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ابدأ بتسجيل أول مصروف'), findsOneWidget);
     });
   });
 

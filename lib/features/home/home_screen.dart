@@ -148,6 +148,9 @@ class HomeScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 14),
 
+          _BodyPreview(),
+          const SizedBox(height: 14),
+
           _SectionLabel(text: 'الورد اليومي'),
           WirdGrid(
             morning: WirdState(
@@ -212,6 +215,91 @@ class HomeScreen extends ConsumerWidget {
           state: chosen,
         );
     ref.invalidate(todayPrayerLogsProvider);
+  }
+}
+
+/// A first sight of the body pillar, before the Slice 2 scheduler exists.
+///
+/// Deliberately not interactive: these rows are placed by the scheduling
+/// engine once shift input lands, and a tappable checkbox now would teach a
+/// habit that the real day-blocks then take away. It exists so the holistic
+/// shape — deen, body, wealth — is visible in the app today rather than
+/// promised, and it says plainly that it is not finished.
+class _BodyPreview extends StatelessWidget {
+  const _BodyPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 9, right: 2),
+          child: Row(
+            children: [
+              Text('يومك',
+                  style: cairo(size: 14, weight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: NouriColors.surfaceActive,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('قريب',
+                    style: cairo(size: 9.5, color: NouriColors.muted)),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: NouriColors.surface,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Opacity(
+                opacity: 0.55,
+                child: Row(
+                  children: [
+                    Text(toArabicDigits('٤:١٥'),
+                        style:
+                            cairo(size: 11, color: NouriColors.muted)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('مشي ٣٠ دقيقة',
+                          style: cairo(size: 13)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: NouriColors.border),
+                      ),
+                      child: Text('ثقيل',
+                          style: cairo(
+                              size: 9.5, color: NouriColors.muted)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 11),
+              Text(
+                'لما تدخل مواعيد الورديات، نوري هيرتّب يومك هنا: مشي، أكل، '
+                'نوم، وقت قراية — كل واحد في وقته المناسب.',
+                style:
+                    cairo(size: 11.5, color: NouriColors.muted, height: 1.8),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../athkar/athkar_screen.dart';
-import '../finance/finance_placeholder.dart';
+import '../finance/finance_screen.dart';
 import '../home/home_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
@@ -39,7 +39,7 @@ class _AppShellState extends State<AppShell> {
             HomeScreen(),
             AthkarScreen(),
             ReportsScreen(),
-            FinancePlaceholder(),
+            FinanceScreen(),
             SettingsScreen(),
           ],
         ),

@@ -22,18 +22,37 @@ Map<String, int> decodeIqamaOffsets(String json) =>
 
 String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
 
-@DriftDatabase(tables: [SettingsRows, PrayerLogs, AthkarLogs, QuranLogs])
+@DriftDatabase(
+  tables: [SettingsRows, PrayerLogs, AthkarLogs, QuranLogs, Expenses, Budgets],
+)
 class NouriDatabase extends _$NouriDatabase {
   NouriDatabase() : super(_open());
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          // v2 adds the financial pillar. Existing prayer, athkar and wird
+          // rows are untouched -- an upgrade must never cost the user data.
+          if (from < 2) {
+            await m.createTable(expenses);
+            await m.createTable(budgets);
+            await m.addColumn(
+                settingsRows, settingsRows.financialMonthStartDay);
+            await m.addColumn(settingsRows, settingsRows.monthlyIncomeFils);
+          }
+        },
+      );
 
   late final settingsDao = SettingsDao(this);
   late final prayerDao = PrayerDao(this);
   late final athkarDao = AthkarDao(this);
   late final quranDao = QuranDao(this);
+  late final financeDao = FinanceDao(this);
 
   static QueryExecutor _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
@@ -190,5 +209,68 @@ class QuranDao {
   Future<int> totalPages() async {
     final rows = await _db.select(_db.quranLogs).get();
     return rows.fold<int>(0, (a, r) => a + r.pagesRead);
+  }
+}
+
+class FinanceDao {
+  FinanceDao(this._db);
+  final NouriDatabase _db;
+
+  Future<void> addExpense({
+    required DateTime date,
+    required String category,
+    required int amountFils,
+    String? note,
+  }) =>
+      _db.into(_db.expenses).insert(ExpensesCompanion.insert(
+            date: dayOf(date),
+            category: category,
+            amountFils: amountFils,
+            note: Value(note),
+          ));
+
+  Future<void> deleteExpense(int id) =>
+      (_db.delete(_db.expenses)..where((t) => t.id.equals(id))).go();
+
+  Future<List<Expense>> expensesBetween(DateTime from, DateTime to) =>
+      (_db.select(_db.expenses)
+            ..where((t) => t.date.isBetweenValues(dayOf(from), dayOf(to)))
+            ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          .get();
+
+  /// Total spent per category within the range, in fils.
+  Future<Map<String, int>> spendByCategory(DateTime from, DateTime to) async {
+    final rows = await expensesBetween(from, to);
+    final totals = <String, int>{};
+    for (final r in rows) {
+      totals[r.category] = (totals[r.category] ?? 0) + r.amountFils;
+    }
+    return totals;
+  }
+
+  Future<void> setBudget({
+    required DateTime monthStart,
+    required String category,
+    required int limitFils,
+  }) async {
+    final row = BudgetsCompanion.insert(
+      monthStart: dayOf(monthStart),
+      category: category,
+      limitFils: limitFils,
+    );
+    await _db.into(_db.budgets).insert(
+          row,
+          onConflict: DoUpdate(
+            (_) => row,
+            target: [_db.budgets.monthStart, _db.budgets.category],
+          ),
+        );
+  }
+
+  Future<Map<String, int>> budgetsFor(DateTime monthStart) async {
+    final rows = await (_db.select(_db.budgets)
+          ..where((t) => t.monthStart.equals(dayOf(monthStart))))
+        .get();
+    return {for (final r in rows) r.category: r.limitFils};
   }
 }

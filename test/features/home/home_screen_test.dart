@@ -56,6 +56,31 @@ void main() {
     });
   });
 
+  testWidgets('the body pillar is visible, and honest about being early',
+      (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+
+      // All three pillars should be findable in the app today: prayers and
+      // wird (deen), the day preview (body), and the المالية tab (wealth).
+      expect(find.text('يومك'), findsOneWidget);
+      expect(find.text('قريب'), findsOneWidget,
+          reason: 'it must not pretend to be finished');
+      expect(find.textContaining('نوري هيرتّب يومك'), findsOneWidget);
+    });
+  });
+
+  testWidgets('the day preview is not interactive yet', (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpHome(t);
+      // A tappable checkbox now would teach a habit the real day-blocks then
+      // take away.
+      expect(find.byType(Checkbox), findsNothing);
+    });
+  });
+
   testWidgets('the wird grid lists the four cards in the approved order',
       (t) async {
     await withLargeSurface(t, () async {
