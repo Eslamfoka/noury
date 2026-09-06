@@ -53,9 +53,19 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- Restores scheduled notifications after a reboot or an app update.
-             This is one of the three independent re-arm triggers; the others
-             are app resume and the daily background top-up. -->
+        <!-- Delivers a scheduled notification when its alarm comes due.
+             WITHOUT THIS, NOTHING SCHEDULED EVER APPEARS: AlarmManager fires
+             on time, finds no such component, and drops it silently — no
+             error, no log. Every alarm is registered against this exact class
+             name (visible as *walarm*:…/ScheduledNotificationReceiver in
+             `dumpsys alarm`), so the two must match.
+             The plugin's own manifest declares no receivers at all; the app is
+             required to declare both. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false"/>
+
+        <!-- Restores scheduled notifications after a reboot or an app update. -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
             android:exported="false">
