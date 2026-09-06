@@ -24,6 +24,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tabFinance => 'المالية';
 
   @override
+  String get tabBody => 'البدن';
+
+  @override
   String get tabSettings => 'الإعدادات';
 
   @override

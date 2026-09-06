@@ -6,6 +6,7 @@ import '../../core/notifications/notification_route.dart';
 import '../../core/notifications/pending_route_provider.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../athkar/athkar_screen.dart';
+import '../body/body_screen.dart';
 import '../finance/finance_screen.dart';
 import '../home/home_screen.dart';
 import '../prayers/daily_review_sheet.dart';
@@ -33,6 +34,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _handling = false;
 
   static const _tabForAthkar = 1;
+
+  // Six destinations is one past Material's recommended five. The three
+  // pillars each need a home and none of them is optional, so the crowding is
+  // deliberate rather than accidental -- worth revisiting alongside the Slice 2
+  // structure, where الأذكار arguably belongs inside the religious pillar
+  // rather than beside it.
 
   @override
   void initState() {
@@ -88,6 +95,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             HomeScreen(),
             AthkarScreen(),
             ReportsScreen(),
+            BodyScreen(),
             FinanceScreen(),
             SettingsScreen(),
           ],
@@ -139,6 +147,11 @@ class _AppShellState extends ConsumerState<AppShell> {
               icon: const Icon(Icons.bar_chart_outlined),
               selectedIcon: const Icon(Icons.bar_chart),
               label: l.tabReports,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.favorite_outline),
+              selectedIcon: const Icon(Icons.favorite),
+              label: l.tabBody,
             ),
             NavigationDestination(
               icon: const Icon(Icons.account_balance_wallet_outlined),

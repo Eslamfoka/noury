@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'المالية'**
   String get tabFinance;
 
+  /// No description provided for @tabBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'البدن'**
+  String get tabBody;
+
   /// No description provided for @tabSettings.
   ///
   /// In ar, this message translates to:

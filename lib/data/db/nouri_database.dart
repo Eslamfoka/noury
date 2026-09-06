@@ -23,14 +23,23 @@ Map<String, int> decodeIqamaOffsets(String json) =>
 String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
 
 @DriftDatabase(
-  tables: [SettingsRows, PrayerLogs, AthkarLogs, QuranLogs, Expenses, Budgets],
+  tables: [
+    SettingsRows,
+    PrayerLogs,
+    AthkarLogs,
+    QuranLogs,
+    Expenses,
+    Budgets,
+    Meals,
+    Weights,
+  ],
 )
 class NouriDatabase extends _$NouriDatabase {
   NouriDatabase() : super(_open());
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +54,15 @@ class NouriDatabase extends _$NouriDatabase {
                 settingsRows, settingsRows.financialMonthStartDay);
             await m.addColumn(settingsRows, settingsRows.monthlyIncomeFils);
           }
+
+          // v3 adds the physical pillar. Same rule: additive only.
+          if (from < 3) {
+            await m.createTable(meals);
+            await m.createTable(weights);
+            await m.addColumn(
+                settingsRows, settingsRows.eatingWindowStartHour);
+            await m.addColumn(settingsRows, settingsRows.targetWeightGrams);
+          }
         },
       );
 
@@ -53,6 +71,7 @@ class NouriDatabase extends _$NouriDatabase {
   late final athkarDao = AthkarDao(this);
   late final quranDao = QuranDao(this);
   late final financeDao = FinanceDao(this);
+  late final bodyDao = BodyDao(this);
 
   static QueryExecutor _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
@@ -273,4 +292,59 @@ class FinanceDao {
         .get();
     return {for (final r in rows) r.category: r.limitFils};
   }
+}
+
+/// Meals and weight readings.
+class BodyDao {
+  BodyDao(this._db);
+  final NouriDatabase _db;
+
+  Future<void> addMeal({
+    required DateTime at,
+    required MealFeeling feeling,
+    String? description,
+  }) =>
+      _db.into(_db.meals).insert(MealsCompanion.insert(
+            at: at,
+            feeling: feeling,
+            description: Value(description),
+          ));
+
+  Future<void> deleteMeal(int id) =>
+      (_db.delete(_db.meals)..where((t) => t.id.equals(id))).go();
+
+  /// Meals logged on the calendar day containing [day].
+  ///
+  /// Stored with the full timestamp, not the date alone: when a meal happened
+  /// is the whole point of the log, and rounding it to a day would throw away
+  /// the pattern the user wants to show a doctor.
+  Future<List<Meal>> mealsOn(DateTime day) {
+    final from = DateTime(day.year, day.month, day.day);
+    final to = DateTime(day.year, day.month, day.day + 1);
+    return (_db.select(_db.meals)
+          ..where((t) => t.at.isBiggerOrEqualValue(from))
+          ..where((t) => t.at.isSmallerThanValue(to))
+          ..orderBy([(t) => OrderingTerm.desc(t.at)]))
+        .get();
+  }
+
+  /// The most recent meals, newest first — the window the pattern reading uses.
+  Future<List<Meal>> recentMeals({int limit = 7}) => (_db.select(_db.meals)
+        ..orderBy([(t) => OrderingTerm.desc(t.at)])
+        ..limit(limit))
+      .get();
+
+  Future<void> addWeight({required DateTime at, required int grams}) =>
+      _db.into(_db.weights).insert(WeightsCompanion.insert(at: at, grams: grams));
+
+  Future<Weight?> latestWeight() => (_db.select(_db.weights)
+        ..orderBy([(t) => OrderingTerm.desc(t.at)])
+        ..limit(1))
+      .getSingleOrNull();
+
+  Future<List<Weight>> recentWeights({int limit = 30}) =>
+      (_db.select(_db.weights)
+            ..orderBy([(t) => OrderingTerm.desc(t.at)])
+            ..limit(limit))
+          .get();
 }

@@ -24,6 +24,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabFinance => 'Finance';
 
   @override
+  String get tabBody => 'Body';
+
+  @override
   String get tabSettings => 'Settings';
 
   @override

@@ -61,6 +61,17 @@ class SettingsRows extends Table {
   IntColumn get monthlyIncomeFils =>
       integer().withDefault(const Constant(0))();
 
+  /// When the 8-hour eating window opens. Noon by default, giving 12:00-20:00;
+  /// a night-shift worker will want it later.
+  IntColumn get eatingWindowStartHour =>
+      integer().withDefault(const Constant(12))();
+
+  /// The brief's target: 87 kg now, 74 kg goal. Stored in grams, like money in
+  /// fils -- a trend built from accumulated floating-point error is worse than
+  /// no trend at all.
+  IntColumn get targetWeightGrams =>
+      integer().withDefault(const Constant(74000))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -130,4 +141,37 @@ class Budgets extends Table {
   List<Set<Column>> get uniqueKeys => [
         {monthStart, category}
       ];
+}
+
+/// How the stomach felt after a meal.
+///
+/// The brief is explicit that this matters more than the weight: the user has
+/// post-meal pain, bloating and gas, and the log exists to surface patterns for
+/// him and his doctor. Calorie counting is deliberately absent.
+///
+/// Appended, never reordered -- stored by index, like [PrayerState].
+/// Reordering these would silently rewrite the user's medical history.
+enum MealFeeling { good, bloating, pain, gas }
+
+/// A logged meal and how the stomach felt afterwards.
+///
+/// No calories, by design: the brief rules calorie counting out and says
+/// calming the stomach matters more than the number. [feeling] is stored as an
+/// enum index, so [MealFeeling] is append-only.
+class Meals extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get at => dateTime()();
+  TextColumn get description => text().nullable()();
+  IntColumn get feeling => intEnum<MealFeeling>()();
+}
+
+/// A weight reading, in grams.
+///
+/// Integer grams rather than a double: the same reason money is stored in
+/// fils. A trend built from accumulated floating-point error is worse than no
+/// trend at all.
+class Weights extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get at => dateTime()();
+  IntColumn get grams => integer()();
 }

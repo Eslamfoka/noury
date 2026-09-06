@@ -12,7 +12,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows five tabs in the approved order', (tester) async {
+  testWidgets('shows a tab per pillar, in the approved order', (tester) async {
     await withLargeSurface(tester, () async {
       await pumpShell(tester);
       // Scoped to the nav bar: «النهاردة» legitimately appears twice on
@@ -24,10 +24,15 @@ void main() {
       );
       final labels =
           tester.widgetList<Text>(inNav).map((w) => w.data).toList();
+      // البدن was inserted before المالية when the physical pillar was built.
+      // Six destinations is one past Material's recommended five; each of the
+      // three pillars needs a home and none is optional, so the crowding is
+      // deliberate. Worth revisiting alongside the Slice 2 structure.
       expect(labels, [
         'النهاردة',
         'الأذكار',
         'التقارير',
+        'البدن',
         'المالية',
         'الإعدادات',
       ]);
