@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/time/geo_config.dart';
 import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
+import '../../data/tips/daily_tip.dart';
 
 /// The app database. Overridden in tests with an in-memory instance.
 final databaseProvider = Provider<NouriDatabase>((ref) {
@@ -71,3 +72,15 @@ final todayQuranProvider = FutureProvider<QuranLog?>(
 final khatmaTotalPagesProvider = FutureProvider<int>(
   (ref) => ref.watch(databaseProvider).quranDao.totalPages(),
 );
+
+final tipRepositoryProvider = Provider<TipRepository>((ref) => TipRepository());
+
+/// Today's rotating deen/body/wealth line.
+///
+/// Loaded lazily, after the first frame: the Home header and ring render
+/// immediately and the line appears when the three small JSON files are read.
+/// It can never delay startup.
+final dailyTipProvider = FutureProvider<Tip?>((ref) async {
+  final sets = await ref.watch(tipRepositoryProvider).loadAll();
+  return tipForDay(DateTime.now(), sets);
+});

@@ -79,6 +79,7 @@ flutter:
   assets:
     - assets/athkar/
     - assets/audio/
+    - assets/tips/
 
   fonts:
     # Cairo is declared ONCE. It is a variable font (wght, slnt axes) and

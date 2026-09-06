@@ -99,19 +99,26 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 18),
 
-          // Progress ring + Nouri's line.
+          // Progress ring + Nouri's line, with today's rotating tip beneath it.
           Row(
             children: [
               ProgressRing(done: count.done, total: count.total),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  nouriProgressLine(count),
-                  style: cairo(
-                    size: 13,
-                    color: NouriColors.muted,
-                    height: 1.65,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      nouriProgressLine(count),
+                      style: cairo(
+                        size: 13,
+                        color: NouriColors.muted,
+                        height: 1.65,
+                      ),
+                    ),
+                    const _DailyTipLine(),
+                  ],
                 ),
               ),
             ],
@@ -203,6 +210,50 @@ class HomeScreen extends ConsumerWidget {
           state: chosen,
         );
     ref.invalidate(todayPrayerLogsProvider);
+  }
+}
+
+/// The rotating deen / body / wealth line.
+///
+/// Renders nothing at all until the tips have loaded, so it cannot hold up the
+/// first frame — and nothing shifts on screen when it arrives, because it sits
+/// at the end of a column that is already laid out.
+class _DailyTipLine extends ConsumerWidget {
+  const _DailyTipLine();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tip = ref.watch(dailyTipProvider).value;
+    if (tip == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            width: 4,
+            height: 4,
+            decoration: const BoxDecoration(
+              color: NouriColors.gold,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              tip.text,
+              style: cairo(
+                size: 11.5,
+                color: NouriColors.muted,
+                height: 1.7,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
