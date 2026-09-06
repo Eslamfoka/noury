@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/theme/nouri_colors.dart';
+import 'package:nouri/core/time/date_formats.dart';
 import 'package:nouri/core/time/hijri_date.dart';
 import 'package:nouri/core/time/prayer_times_service.dart';
 import 'package:nouri/features/home/widgets/home_header.dart';
@@ -50,17 +51,59 @@ void main() {
   });
 
   group('HomeHeader', () {
-    testWidgets('shows greeting, Hijri date and the Nouri mark', (t) async {
-      await pump(
-        t,
-        HomeHeader(
-          hijri: hijriFor(DateTime(2026, 9, 5)),
-          greeting: 'صباح الخير',
-        ),
-      );
+    final sunday = DateTime(2026, 9, 6);
+
+    Future<void> pumpHeader(WidgetTester t, {bool arabic = true}) => pump(
+          t,
+          HomeHeader(
+            hijri: hijriFor(sunday, arabic: arabic),
+            gregorian: formatGregorianLong(sunday, arabic: arabic),
+            greeting: arabic ? 'صباح الخير' : 'Good morning',
+          ),
+        );
+
+    testWidgets('shows greeting, both dates and the Nouri mark', (t) async {
+      await pumpHeader(t);
       expect(find.text('صباح الخير'), findsOneWidget);
       expect(find.text('نوري'), findsOneWidget);
       expect(find.textContaining('هـ'), findsOneWidget);
+      expect(find.text('الأحد، ٦ سبتمبر ٢٠٢٦'), findsOneWidget);
+    });
+
+    testWidgets('the Hijri date is visually primary over the Gregorian',
+        (t) async {
+      await pumpHeader(t);
+
+      final hijriStyle =
+          t.widget<Text>(find.textContaining('هـ')).style!;
+      final gregorianStyle =
+          t.widget<Text>(find.text('الأحد، ٦ سبتمبر ٢٠٢٦')).style!;
+
+      expect(hijriStyle.fontSize! > gregorianStyle.fontSize!, isTrue,
+          reason: 'Hijri is larger');
+      expect(hijriStyle.color, NouriColors.text);
+      expect(gregorianStyle.color, NouriColors.muted,
+          reason: 'Gregorian is present but quieter');
+    });
+
+    testWidgets('renders both dates in English too', (t) async {
+      await pumpHeader(t, arabic: false);
+      expect(find.text('Sunday, 6 September 2026'), findsOneWidget);
+      expect(find.textContaining('AH'), findsOneWidget);
+    });
+
+    testWidgets('a long date does not overflow the header', (t) async {
+      // «الأربعاء، ٣٠ سبتمبر ٢٠٢٦» next to the avatar is about the widest
+      // this row ever gets.
+      await pump(
+        t,
+        HomeHeader(
+          hijri: hijriFor(DateTime(2026, 9, 30)),
+          gregorian: formatGregorianLong(DateTime(2026, 9, 30)),
+          greeting: 'مساء الخير',
+        ),
+      );
+      expect(t.takeException(), isNull);
     });
   });
 

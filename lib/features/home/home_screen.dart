@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
+import '../../core/time/date_formats.dart';
 import '../../core/time/hijri_date.dart';
 import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
@@ -34,6 +35,7 @@ class HomeScreen extends ConsumerWidget {
     final quran = ref.watch(todayQuranProvider);
     final khatmaPages = ref.watch(khatmaTotalPagesProvider);
     final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     if (settings.isLoading || times.isLoading) {
       return const Center(
@@ -90,7 +92,9 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
         children: [
           HomeHeader(
-            hijri: hijriFor(now, offsetDays: s.hijriOffsetDays),
+            hijri: hijriFor(now,
+                offsetDays: s.hijriOffsetDays, arabic: isArabic),
+            gregorian: formatGregorianLong(now, arabic: isArabic),
             greeting: greetingFor(now),
           ),
           const SizedBox(height: 18),
