@@ -103,4 +103,34 @@ void main() {
     expect(manifest.contains('xmlns:tools='), isTrue,
         reason: 'without the tools namespace, node="remove" is inert');
   });
+
+  test('only the debug and profile manifests may add INTERNET', () {
+    // Checking the main manifest alone gave false confidence: a debug APK
+    // really does ship INTERNET, because Flutter's own debug source set
+    // declares it for hot reload and the VM service, and debug/profile
+    // outrank main in manifest merging.
+    //
+    // That is correct and must not be "fixed" -- removing it breaks
+    // `flutter run`. What matters is that no OTHER source set adds it, so the
+    // release APK goes out without it.
+    final offenders = <String>[];
+    for (final entry
+        in Directory('android/app/src').listSync().whereType<Directory>()) {
+      final sourceSet = entry.path.split(RegExp(r'[/\\]')).last;
+      final manifest = File('${entry.path}/AndroidManifest.xml');
+      if (!manifest.existsSync()) continue;
+
+      final declaresInternet = manifest
+          .readAsStringSync()
+          .contains(RegExp(r'<uses-permission[^>]*INTERNET(?![^>]*node="remove")'));
+
+      if (declaresInternet && sourceSet != 'debug' && sourceSet != 'profile') {
+        offenders.add(sourceSet);
+      }
+    }
+
+    expect(offenders, isEmpty,
+        reason: 'these source sets would put INTERNET in a release APK: '
+            '$offenders');
+  });
 }
