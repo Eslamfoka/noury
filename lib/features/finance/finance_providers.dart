@@ -114,3 +114,24 @@ final budgetStatusesProvider =
 /// feature's imports explicit about what it reaches for.
 final settingsControllerForFinanceProvider =
     Provider<SettingsController>((ref) => ref.watch(settingsControllerProvider));
+
+/// Expenses hidden from the list the instant they are swiped away.
+///
+/// Dismissible requires its child to leave the tree as soon as the dismiss
+/// animation ends, but deleting the row and refreshing the query is async —
+/// so without this the widget is still mounted when the animation completes
+/// and Flutter throws "a dismissed Dismissible widget is still part of the
+/// tree". Hiding is synchronous, so the list rebuilds without the row in the
+/// same frame; the database catches up a moment later.
+///
+/// Ids are never reused, so an id left here after its row is really gone is
+/// harmless — and an undo inserts a new row with a new id.
+class HiddenExpenses extends Notifier<Set<int>> {
+  @override
+  Set<int> build() => const {};
+
+  void hide(int id) => state = {...state, id};
+}
+
+final hiddenExpensesProvider =
+    NotifierProvider<HiddenExpenses, Set<int>>(HiddenExpenses.new);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/arabic_numerals.dart';
+import '../../core/format/arabic_plurals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../core/time/date_formats.dart';
@@ -14,6 +15,7 @@ import '../planner/day_plan.dart';
 import '../planner/shift.dart';
 import '../planner/example_day.dart';
 import '../planner/widgets/day_blocks.dart';
+import '../prayers/daily_review_sheet.dart';
 import '../prayers/prayer_log_sheet.dart';
 import '../prayers/prayer_row.dart';
 import '../quran/khatma.dart';
@@ -150,6 +152,7 @@ class HomeScreen extends ConsumerWidget {
               onTap: () => _logPrayer(context, ref, slot,
                   logMap[slot.name] ?? PrayerState.none),
             ),
+          const _CatchUpCard(),
           const SizedBox(height: 14),
 
           _DayPreview(plan: exampleDayPlan(date: now, prayers: t), now: now),
@@ -376,4 +379,57 @@ class _HomeUnavailable extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Offers the end-of-day review when prayers are sitting unlogged.
+///
+/// The 22:00 notification opens the same sheet, but a notification is easy to
+/// miss or dismiss, and until now that was the only door — the review existed
+/// with no way in from the app itself.
+///
+/// Hidden entirely when there is nothing outstanding. A permanent «catch up»
+/// button on a complete day would be a reproach for no reason.
+class _CatchUpCard extends ConsumerWidget {
+  const _CatchUpCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(unansweredPrayersProvider);
+    if (pending.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Material(
+        color: NouriColors.surface,
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          onTap: () => showDailyReviewSheet(context),
+          borderRadius: BorderRadius.circular(15),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            child: Row(
+              children: [
+                const Icon(Icons.history_toggle_off,
+                    size: 18, color: NouriColors.gold),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${countPrayers(pending.length)} لسه متسجلتش',
+                    style: cairo(size: 13),
+                  ),
+                ),
+                Text('سجّلها',
+                    style: cairo(
+                        size: 12,
+                        weight: FontWeight.w600,
+                        color: NouriColors.gold)),
+                const Icon(Icons.chevron_left,
+                    size: 16, color: NouriColors.gold),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

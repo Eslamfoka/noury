@@ -8,6 +8,7 @@ import '../../data/db/nouri_database.dart';
 import '../shared/nouri_avatar.dart';
 import 'add_expense_sheet.dart';
 import 'budget_editor_sheet.dart';
+import '../home/home_providers.dart';
 import 'budget_categories.dart';
 import 'finance_providers.dart';
 import 'financial_month.dart';
@@ -32,6 +33,7 @@ class FinanceScreen extends ConsumerWidget {
     final savings = ref.watch(savingsSnapshotProvider);
     final spent = ref.watch(monthTotalSpentProvider);
     final expenses = ref.watch(monthExpensesProvider).value ?? const [];
+    final hiddenExpenses = ref.watch(hiddenExpensesProvider);
     final now = DateTime.now();
 
     return Scaffold(
@@ -103,7 +105,10 @@ class FinanceScreen extends ConsumerWidget {
             Text('آخر المصاريف',
                 style: cairo(size: 14, weight: FontWeight.w600)),
             const SizedBox(height: 10),
-            for (final e in expenses.take(8)) _ExpenseRow(expense: e),
+            for (final e in expenses
+                .where((e) => !hiddenExpenses.contains(e.id))
+                .take(8))
+              _ExpenseRow(expense: e, ref: ref),
           ],
 
           const SizedBox(height: 20),
@@ -272,14 +277,75 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
+/// One logged expense, removable by swiping.
+///
+/// Deletion is offered because the amount is typed by hand and a slip is
+/// ordinary — without this, a mistyped figure would distort every report for
+/// the rest of the cycle with no way to correct it.
+///
+/// It undoes rather than confirms. A confirmation dialog on every swipe would
+/// punish the common case to guard the rare one; an undo leaves the fast path
+/// fast and still makes the mistake recoverable.
 class _ExpenseRow extends StatelessWidget {
-  const _ExpenseRow({required this.expense});
+  const _ExpenseRow({required this.expense, required this.ref});
 
   final Expense expense;
+  final WidgetRef ref;
+
+  Future<void> _delete(BuildContext context) async {
+    // Synchronous, before any await: the row must leave the list in the same
+    // frame the dismiss animation ends.
+    ref.read(hiddenExpensesProvider.notifier).hide(expense.id);
+
+    final db = ref.read(databaseProvider);
+    await db.financeDao.deleteExpense(expense.id);
+    ref
+      ..invalidate(monthExpensesProvider)
+      ..invalidate(monthSpendByCategoryProvider);
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: NouriColors.surface,
+        content: Text('اتشال ${formatMoney(expense.amountFils)}',
+            style: cairo(size: 13)),
+        action: SnackBarAction(
+          label: 'رجّعه',
+          textColor: NouriColors.gold,
+          onPressed: () async {
+            await db.financeDao.addExpense(
+              date: expense.date,
+              category: expense.category,
+              amountFils: expense.amountFils,
+              note: expense.note,
+            );
+            ref
+              ..invalidate(monthExpensesProvider)
+              ..invalidate(monthSpendByCategoryProvider);
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final category = categoryFromName(expense.category);
+    return Dismissible(
+      key: ValueKey(expense.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => _delete(context),
+      background: Container(
+        alignment: AlignmentDirectional.centerStart,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: const Icon(Icons.delete_outline,
+            size: 18, color: NouriColors.muted),
+      ),
+      child: _row(category),
+    );
+  }
+
+  Widget _row(BudgetCategory? category) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
