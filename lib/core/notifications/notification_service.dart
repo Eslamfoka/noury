@@ -72,13 +72,21 @@ class NotificationService {
 
   /// Fires immediately, so the whole chain can be verified on the real device
   /// in seconds rather than by waiting for a prayer.
+  ///
+  /// Deliberately sent on the **adhan** channel, not the general one. The
+  /// point of a test is to hear what the adhan will actually sound like — its
+  /// bundled chime, at alarm volume, with the adhan channel's importance. A
+  /// test on the general channel only proves that notifications work at all,
+  /// which is the least interesting thing about them, and it was misleading in
+  /// practice: it played the plain system beep and looked like the chime had
+  /// failed.
   Future<void> sendTestNotification() async {
     final status = await readStatus();
     final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
     await gateway.showNow(
-      title: 'نوري',
-      body: 'التنبيهات شغّالة. ده إشعار تجريبي.',
-      channelId: channelGeneral,
+      title: 'نوري — تجربة الأذان',
+      body: 'كده هيبقى شكل تنبيه الأذان وصوته.',
+      channelId: channelAdhan,
     );
   }
 }
