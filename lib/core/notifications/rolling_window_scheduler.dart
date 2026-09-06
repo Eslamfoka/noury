@@ -6,10 +6,18 @@ import 'notification_slot.dart';
 
 /// How many days of alarms are kept armed at any time.
 ///
-/// Seven is comfortably inside Android's ~500 pending-alarm cap (this uses
-/// about 100) and long enough that the app can go a week unopened without the
-/// adhan going quiet.
-const kWindowDays = 7;
+/// Fourteen, measured rather than guessed: a day costs 19 alarms (five prayers
+/// x adhan/iqama/follow-up, plus three athkar and the wird), so this arms about
+/// 260 — comfortably inside Android's ~500 pending-alarm cap, with room for the
+/// user to keep every channel on.
+///
+/// The window exists so the adhan survives the app going unopened. Exact
+/// alarms live in AlarmManager and fire without the app running at all, so a
+/// longer window is the most reliable form of that guarantee — more reliable
+/// than a background top-up task, which aggressive OEM power managers (HONOR
+/// among the worst) routinely kill. See docs/setup.md for why the spec's
+/// workmanager top-up was not added.
+const kWindowDays = 14;
 
 class SchedulingConfig {
   const SchedulingConfig({
@@ -60,10 +68,10 @@ class SchedulingConfig {
 
 /// Rebuilds the entire alarm window from scratch on every call.
 ///
-/// Cheap — about 100 alarms — and it makes re-arming trivially correct: there
+/// Cheap — about 260 alarms — and it makes re-arming trivially correct: there
 /// is no incremental state to get wrong after a reboot, a settings change, or
-/// a week with the app unopened. Combined with deterministic IDs, running this
-/// twice is indistinguishable from running it once.
+/// a fortnight with the app unopened. Combined with deterministic IDs, running
+/// this twice is indistinguishable from running it once.
 class RollingWindowScheduler {
   RollingWindowScheduler({
     required this.gateway,

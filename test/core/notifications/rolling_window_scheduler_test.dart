@@ -35,7 +35,7 @@ void main() {
     );
   });
 
-  test('schedules a full seven-day window', () async {
+  test('schedules a full window, one entry per day', () async {
     await scheduler.rearm(config);
     final days = gateway.scheduled
         .map((n) => DateTime(n.when.year, n.when.month, n.when.day))
@@ -75,6 +75,17 @@ void main() {
     expect(second, equals(first));
     expect(second.toSet().length, second.length, reason: 'duplicate IDs');
     expect(gateway.cancelAllCount, 2, reason: 'each rearm clears first');
+  });
+
+  test('the window stays inside the Android pending-alarm budget', () async {
+    // Android caps pending alarms per app at roughly 500. A day costs 19
+    // alarms, so the window length is bounded by that budget -- this is the
+    // test that fails if someone widens the window without checking.
+    await scheduler.rearm(config);
+    expect(gateway.scheduled.length, lessThan(400),
+        reason: 'leaves headroom below the ~500 cap');
+    expect(gateway.scheduled.length, greaterThan(kWindowDays * 15),
+        reason: 'every day should be fully populated');
   });
 
   test('every ID in the window is unique', () async {

@@ -138,3 +138,35 @@ adb shell dumpsys alarm | Select-String "com.nouri.nouri" -Context 0,2
 
 The `origWhen=` values should match the prayer times the app displays, rendered
 in the device's local timezone.
+
+## Why there is no background top-up task
+
+The approved spec called for three independent re-arm triggers: app resume,
+device boot, and a **daily background top-up** via `workmanager`. Two are
+implemented. The third was deliberately **not** added, and the alarm window was
+widened from 7 days to 14 instead.
+
+The reasoning, so this can be overruled knowingly rather than rediscovered:
+
+- The top-up exists to stop the alarm window running dry while the app goes
+  unopened. Exact alarms live in Android's `AlarmManager` and fire **without the
+  app running at all**, so simply arming more of them achieves the same end.
+- A `workmanager` periodic task is exactly the kind of background execution that
+  aggressive OEM power managers kill first. HONOR/MagicOS — the target device —
+  is among the worst for this. A top-up that silently stops running is worse
+  than no top-up, because it produces false confidence.
+- A day costs **19 alarms** (five prayers × adhan/iqama/follow-up, plus three
+  athkar and the wird), measured on-device via `dumpsys alarm`. Fourteen days is
+  about 260, comfortably inside Android's ~500 pending-alarm cap.
+  `rolling_window_scheduler_test.dart` pins that budget, so widening the window
+  further fails a test rather than silently exceeding the cap.
+- The background isolate a top-up requires needs its own plugin registration and
+  database handle, and is the hardest part of Flutter to debug — real cost for a
+  redundancy that the OS may refuse to run.
+
+**Net effect:** the app can go a fortnight unopened without the adhan going
+quiet, versus a week before. If Nouri is opened even once a fortnight — and it
+is a daily companion — the window never depletes.
+
+Add `workmanager` if a fortnight proves insufficient in practice. It is a
+supplement to this, not a replacement for it.
