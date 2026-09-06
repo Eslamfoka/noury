@@ -43,6 +43,17 @@ final clockProvider = StreamProvider<DateTime>((ref) async* {
   yield* Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
 });
 
+/// A coarse clock, for anything that only cares about the minute.
+///
+/// Prayer times have minute resolution, so "has this prayer passed?" gains
+/// nothing from a per-second tick and pays for it in rebuilds and allocations.
+/// The per-second [clockProvider] stays for the next-prayer countdown, which
+/// genuinely displays seconds.
+final coarseClockProvider = StreamProvider<DateTime>((ref) async* {
+  yield DateTime.now();
+  yield* Stream.periodic(const Duration(seconds: 30), (_) => DateTime.now());
+});
+
 /// Today's prayer times.
 final todayPrayerTimesProvider = Provider<AsyncValue<DailyPrayerTimes>>((ref) {
   final geo = ref.watch(geoConfigProvider);

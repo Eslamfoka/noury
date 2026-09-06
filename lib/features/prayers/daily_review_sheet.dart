@@ -49,7 +49,7 @@ final unansweredPrayersProvider = Provider<List<UnansweredPrayer>>((ref) {
   return unansweredFrom(
     times: times,
     logs: ref.watch(todayPrayerLogsProvider).value ?? const {},
-    now: ref.watch(clockProvider).value ?? DateTime.now(),
+    now: ref.watch(coarseClockProvider).value ?? DateTime.now(),
   );
 });
 

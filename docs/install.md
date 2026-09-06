@@ -115,12 +115,43 @@ is not. After a force-stop, opening Nouri once re-arms everything.
 | 31 | Prayer times match your printed Kuwait timetable (±1–2 min) | ☐ |
 | 32 | A **real** adhan fires at dhuhr/asr/maghrib/isha | ☐ |
 | 33 | The iqama notification follows at the configured offset | ☐ |
-| 34 | «صليت» on the follow-up logs the prayer without opening the app | ☐ |
+| 34 | «صليت» on the follow-up opens the log sheet for that prayer | ☐ |
 | 35 | **After a reboot**, the next adhan still fires without opening the app | ☐ |
 | 36 | **After a full day untouched**, notifications still arrive | ☐ |
 | 37 | **After several days untouched** — catches OEM battery-kill | ☐ |
 | 38 | Airplane mode changes nothing (the app makes no network calls) | ☐ |
 | 39 | Location detection in Settings → المدينة → حدّد | ☐ |
+
+### After the adhan_v2 change (test these first)
+
+The adhan channel was recreated as `adhan_v2`. The old `adhan_v1` on this phone
+had its importance locked to DEFAULT by MagicOS, which no API can undo — see
+`docs/setup.md`. These confirm the new channel came up clean.
+
+| # | Check | ✅ |
+|---|-------|----|
+| 40 | Settings → Apps → Nouri → Notifications lists **الأذان** (not `adhan_v1`) | ☐ |
+| 41 | Only **one** الأذان row — the old channel was deleted, not left behind | ☐ |
+| 42 | Its importance is not reduced; it may show as «عاجل» / heads-up | ☐ |
+| 43 | «جرّب الأذان بعد دقيقتين» still plays the chime at alarm volume | ☐ |
+| 44 | With the screen **locked**, the test adhan lights the screen | ☐ |
+| 45 | Tapping a follow-up opens the log sheet for that prayer | ☐ |
+| 46 | The 22:00 summary opens the review sheet listing unlogged prayers | ☐ |
+| 47 | Home shows «… لسه متسجلتش» when a past prayer is unlogged | ☐ |
+
+Check 44 is the point of the change: on `adhan_v1` the locked importance meant
+the adhan could only wait silently in the shade.
+
+To confirm the channel state from a computer:
+
+```powershell
+adb shell dumpsys notification | Select-String "adhan_v"
+```
+
+Expect `mId='adhan_v2'` with `mImportance=5` and `mUserLockedFields=0`, and
+`adhan_v1` either absent or `mDeleted=true`. If `adhan_v2` shows a lower
+importance with `mUserLockedFields` set, MagicOS has downgraded it again —
+that is worth knowing, and it is a device-policy problem rather than a bug.
 
 If 21 is off by more than a minute or two, change the calculation method in
 Settings → مواقيت الصلاة → طريقة الحساب.

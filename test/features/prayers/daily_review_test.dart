@@ -128,7 +128,7 @@ void main() {
             todayPrayerTimesProvider
                 .overrideWithValue(AsyncValue.data(_times(now))),
             todayPrayerLogsProvider.overrideWith((ref) async => logged),
-            clockProvider.overrideWith((ref) => Stream.value(now)),
+            coarseClockProvider.overrideWith((ref) => Stream.value(now)),
           ],
           child: testShell(
             Builder(
