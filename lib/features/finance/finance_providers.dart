@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db/nouri_database.dart';
 import '../home/home_providers.dart';
+import '../settings/settings_controller.dart';
+import '../settings/settings_screen.dart';
 import 'budget_categories.dart';
 import 'financial_month.dart';
 
@@ -105,3 +107,10 @@ final budgetStatusesProvider =
         ),
   };
 });
+
+/// The settings controller, reachable from the finance screens.
+///
+/// Separate name from `settingsControllerProvider` only to keep the finance
+/// feature's imports explicit about what it reaches for.
+final settingsControllerForFinanceProvider =
+    Provider<SettingsController>((ref) => ref.watch(settingsControllerProvider));

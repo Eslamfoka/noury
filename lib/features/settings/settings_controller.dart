@@ -181,6 +181,17 @@ class SettingsController {
     );
   }
 
+  /// Does **not** rearm: money has no bearing on any alarm.
+  Future<void> updateMonthlyIncome(int fils) => db.settingsDao.update(
+        SettingsRowsCompanion(monthlyIncomeFils: Value(fils.clamp(0, 1 << 40))),
+      );
+
+  /// Does **not** rearm. Clamped to 1–28 so February always has the day.
+  Future<void> updateFinancialMonthStartDay(int day) => db.settingsDao.update(
+        SettingsRowsCompanion(
+            financialMonthStartDay: Value(day.clamp(1, 28))),
+      );
+
   Future<void> markOnboardingComplete() => db.settingsDao
       .update(const SettingsRowsCompanion(onboardingComplete: Value(true)));
 }

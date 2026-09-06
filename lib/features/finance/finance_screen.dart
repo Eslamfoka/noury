@@ -7,6 +7,7 @@ import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
 import '../shared/nouri_avatar.dart';
 import 'add_expense_sheet.dart';
+import 'budget_editor_sheet.dart';
 import 'budget_categories.dart';
 import 'finance_providers.dart';
 import 'financial_month.dart';
@@ -72,11 +73,27 @@ class FinanceScreen extends ConsumerWidget {
           _CycleCard(month: month, now: now, spent: spent, savings: savings),
           const SizedBox(height: 18),
 
+          Row(
+            children: [
+              Text('البنود', style: cairo(size: 14, weight: FontWeight.w600)),
+              const Spacer(),
+              TextButton(
+                onPressed: () => showBudgetEditorSheet(context, ref),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text('عدّل الميزانية',
+                    style: cairo(size: 12, color: NouriColors.gold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
           if (statuses.isEmpty)
             const _NoBudgetsYet()
           else ...[
-            Text('البنود', style: cairo(size: 14, weight: FontWeight.w600)),
-            const SizedBox(height: 10),
             for (final entry in statuses.entries)
               _CategoryRow(category: entry.key, status: entry.value),
           ],
