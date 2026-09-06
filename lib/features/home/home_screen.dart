@@ -8,6 +8,8 @@ import '../../core/time/date_formats.dart';
 import '../../core/time/hijri_date.dart';
 import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
+// For the TipPillar.arabicLabel extension used by the daily tip line.
+import '../../data/tips/daily_tip.dart';
 import '../prayers/prayer_log_sheet.dart';
 import '../prayers/prayer_row.dart';
 import '../quran/khatma.dart';
@@ -231,13 +233,24 @@ class _DailyTipLine extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // The pillar is named, not just implied. Without it the
+          // deen/body/wealth structure is invisible and Nouri reads as a
+          // prayer app with a tip attached.
           Container(
-            margin: const EdgeInsets.only(top: 6),
-            width: 4,
-            height: 4,
-            decoration: const BoxDecoration(
-              color: NouriColors.gold,
-              shape: BoxShape.circle,
+            margin: const EdgeInsets.only(top: 1),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: NouriColors.surfaceActive,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              tip.pillar.arabicLabel,
+              style: cairo(
+                size: 9.5,
+                weight: FontWeight.w600,
+                color: NouriColors.gold,
+              ),
             ),
           ),
           const SizedBox(width: 7),

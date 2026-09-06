@@ -8,12 +8,15 @@ enum TipPillar { deen, body, wealth }
 extension TipPillarAsset on TipPillar {
   String get asset => 'assets/tips/$name.json';
 
-  /// Shown as a small label beside the line, so the user can see which part of
-  /// their life Nouri is nudging.
+  /// Shown as a small label beside the line.
+  ///
+  /// Deliberately visible rather than implicit: without it the holistic
+  /// deen/body/wealth structure is invisible and Nouri reads as a prayer app
+  /// with a tip. Short forms so the label never competes with the tip itself.
   String get arabicLabel => switch (this) {
-        TipPillar.deen => 'الديني',
-        TipPillar.body => 'البدني',
-        TipPillar.wealth => 'المالي',
+        TipPillar.deen => 'دين',
+        TipPillar.body => 'بدن',
+        TipPillar.wealth => 'مال',
       };
 }
 

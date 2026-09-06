@@ -64,6 +64,17 @@ void main() {
     });
   });
 
+  test('every pillar has a short visible label', () {
+    // The label is what makes the holistic structure legible on Home.
+    expect(TipPillar.deen.arabicLabel, 'دين');
+    expect(TipPillar.body.arabicLabel, 'بدن');
+    expect(TipPillar.wealth.arabicLabel, 'مال');
+    for (final p in TipPillar.values) {
+      expect(p.arabicLabel.length, lessThanOrEqualTo(4),
+          reason: 'a long label would compete with the tip itself');
+    }
+  });
+
   group('rotation', () {
     test('cycles deen, body, wealth across consecutive days', () {
       final start = DateTime(2026, 9, 6);
