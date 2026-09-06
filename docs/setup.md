@@ -83,18 +83,63 @@ committed alongside them):
 
 ## Adhan sound
 
-The app ships a short, calm chime. To use a real adhan or takbir recording
-instead:
+The app currently ships **`chime.wav` — 1.90 s, mono 44.1 kHz 16-bit**. It is a
+placeholder, not an adhan. Replacing it with a real recitation is a deliberate
+two-part change.
 
-1. Put the file at `android/app/src/main/res/raw/adhan.mp3` (Android resolves
-   channel sounds from `res/raw`, not from Flutter assets — lowercase name, no
-   dashes).
-2. Bump the adhan channel ID from `adhan_v1` to `adhan_v2` in
-   `lib/core/notifications/notification_channels.dart` and point it at the new
-   resource.
+### Getting a file
 
-The version bump is required, not optional: Android freezes a channel's sound at
-creation time and ignores later changes to the same channel ID.
+Nouri does not bundle a recitation, because almost every well-known adhan
+recording is a copyrighted performance by a named muezzin. Use one you have the
+right to ship: a recording you made, one released under a permissive licence, or
+one you have licensed. Check the terms before committing audio to this repo.
+
+### Format
+
+**Use OGG Vorbis, not WAV.** The arithmetic is not close: the current file runs
+at 88,200 bytes/second, so a two-minute adhan in the same encoding would add
+**10.1 MB** to the APK. The same audio as mono OGG at ~64 kbps is roughly 1 MB.
+
+- Container: `.ogg` (Vorbis) — Android plays it from `res/raw` natively
+- Mono, 44.1 kHz
+- Filename lowercase, no dashes or spaces: Android resource names allow
+  `[a-z0-9_]` only, and the name is what the channel URI resolves at playback
+
+### Installing it
+
+```
+tool/install_adhan_sound.sh path/to/your-adhan.ogg
+```
+
+The script validates the format, installs it to `res/raw/`, and tells you the
+exact two-line source change to make. Both halves are required:
+
+1. `adhanSoundResource` in `lib/core/notifications/notification_channels.dart`
+2. `channelAdhan` in `lib/core/notifications/notification_channels_ids.dart`,
+   bumped to the next version, with the old id appended to `retiredChannelIds`
+
+**The version bump is not optional.** Android freezes a channel's sound at
+creation and silently ignores a later change to the same id — you would ship new
+audio and keep hearing the old. A guard test in
+`test/core/notifications/notification_channels_test.dart` fails if one half
+changes without the other.
+
+### A caveat on long audio as a channel sound
+
+A channel sound is the simplest thing that works, and it is what Nouri does
+today. It has real limits for a full-length adhan, which are worth knowing
+before committing to it:
+
+- The system stops the sound when the notification is dismissed, and there is no
+  other stop control. A user who wants to silence a two-minute adhan has to find
+  and swipe the notification.
+- The audio is welded to the channel id, so changing muezzin later means another
+  version bump and another new channel.
+
+If a full recitation with a proper stop button becomes the goal, the shape that
+fits is a foreground service owning a `MediaPlayer`, with the channel itself
+silent (`playSound: false`) and the notification carrying a stop action. That is
+a larger change and is not built yet.
 
 ## Device testing
 
