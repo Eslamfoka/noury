@@ -5,6 +5,18 @@ import '../../../core/theme/nouri_colors.dart';
 import '../../../core/theme/nouri_theme.dart';
 import '../day_plan.dart';
 
+/// The colour a pillar reads as in the block strip.
+///
+/// Drawn from the existing palette rather than four new hues: the strip is a
+/// glance-level cue, not a legend, and four saturated colours on one row would
+/// compete with the gold that marks the current block.
+Color pillarColour(TaskPillar p) => switch (p) {
+      TaskPillar.deen => NouriColors.gold,
+      TaskPillar.body => NouriColors.success,
+      TaskPillar.mind => NouriColors.border,
+      TaskPillar.wealth => NouriColors.attention,
+    };
+
 /// The four big day blocks.
 ///
 /// Collapsed by default, one expandable at a time. The brief is explicit about
@@ -63,6 +75,7 @@ class _DayBlocksState extends State<DayBlocks> {
             isCurrent: block.kind == current?.kind,
             isPast: _isPast(block),
             isExpanded: _expanded == block.kind,
+            now: widget.now,
             onTap: () => setState(
               () => _expanded = _expanded == block.kind ? null : block.kind,
             ),
@@ -78,6 +91,7 @@ class _BlockCard extends StatelessWidget {
     required this.isCurrent,
     required this.isPast,
     required this.isExpanded,
+    required this.now,
     required this.onTap,
   });
 
@@ -85,7 +99,22 @@ class _BlockCard extends StatelessWidget {
   final bool isCurrent;
   final bool isPast;
   final bool isExpanded;
+  final DateTime now;
   final VoidCallback onTap;
+
+  /// A count tells you almost nothing about a block you are standing in. When
+  /// this is the current block, name the next task instead — that is the
+  /// question the user actually has.
+  String get subtitle {
+    final range = '${formatClock(block.start)} – ${formatClock(block.end)}';
+    if (!isCurrent) {
+      return '$range · ${toArabicDigits('${block.tasks.length}')} مهام';
+    }
+    for (final t in block.tasks) {
+      if (t.start.isAfter(now)) return 'الجاي: ${t.task.title}';
+    }
+    return range;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +141,10 @@ class _BlockCard extends StatelessWidget {
                         style: cairo(size: 14.5, weight: FontWeight.w600)),
                     const SizedBox(height: 3),
                     Text(
-                      '${formatClock(block.start)} – ${formatClock(block.end)}'
-                      ' · ${toArabicDigits('${block.tasks.length}')} مهام',
+                      subtitle,
                       style: cairo(size: 11.5, color: NouriColors.muted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -129,6 +159,10 @@ class _BlockCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (!isExpanded && block.tasks.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            _PillarStrip(tasks: block.tasks),
+          ],
           if (isExpanded && block.tasks.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(top: 11),
@@ -209,4 +243,41 @@ class _Tag extends StatelessWidget {
         child: Text(text,
             style: cairo(size: 9, color: NouriColors.muted)),
       );
+}
+
+/// A one-line read of what a collapsed block is made of.
+///
+/// One segment per task, coloured by pillar and widened by the task's length,
+/// so a block that is three hours of work and ten minutes of athkar looks like
+/// that rather than like "4 مهام". It is the smallest thing that makes the
+/// deen/body/mind/wealth balance visible without opening anything.
+class _PillarStrip extends StatelessWidget {
+  const _PillarStrip({required this.tasks});
+
+  final List<ScheduledTask> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: SizedBox(
+        height: 4,
+        child: Row(
+          children: [
+            for (final t in tasks)
+              Expanded(
+                // A one-minute task would otherwise vanish; a three-hour one
+                // would swallow the row. Clamping keeps every task visible
+                // and keeps the proportions honest enough to read.
+                flex: t.end.difference(t.start).inMinutes.clamp(10, 120),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 1.5),
+                  child: ColoredBox(color: pillarColour(t.task.pillar)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
