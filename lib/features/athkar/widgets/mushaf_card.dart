@@ -102,7 +102,8 @@ class MushafCard extends StatelessWidget {
               border: Border.all(color: NouriColors.border),
             ),
             child: Text(
-              toArabicDigits('$repeatsDone / ${item.count}'),
+              // «من», not a slash — see _RepeatPill in dhikr_card.dart.
+              toArabicDigits('$repeatsDone من ${item.count}'),
               style: cairo(size: 13, weight: FontWeight.w600),
             ),
           ),

@@ -259,7 +259,7 @@ void main() {
       await t.pumpAndSettle();
 
       expect(find.text('سورة الإخلاص'), findsWidgets);
-      expect(find.text('٢ / ٣'), findsOneWidget);
+      expect(find.text('٢ من ٣'), findsOneWidget);
     });
   });
 
@@ -280,7 +280,7 @@ void main() {
 
       expect(find.byType(MushafCard), findsNothing);
       expect(find.text('سُبْحَانَ اللهِ وَبِحَمْدِهِ'), findsOneWidget);
-      expect(find.text('٠ / ١٠٠'), findsOneWidget);
+      expect(find.text('٠ من ١٠٠'), findsOneWidget);
     });
   });
 }

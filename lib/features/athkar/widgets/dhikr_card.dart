@@ -142,7 +142,11 @@ class _RepeatPill extends StatelessWidget {
         border: Border.all(color: NouriColors.border),
       ),
       child: Text(
-        toArabicDigits('$done / $total'),
+        // «من», not a slash. A counter renders left-to-right even in an RTL
+        // layout, so «٠ / ٣» comes out with the numbers swapped and reads as
+        // three of zero. This is the form the athkar stepper directly above
+        // it already uses.
+        toArabicDigits('$done من $total'),
         style: cairo(size: 13, weight: FontWeight.w600),
       ),
     );

@@ -48,7 +48,7 @@ void main() {
           onTap: () {},
         ),
       );
-      expect(find.text('١ / ٣'), findsOneWidget);
+      expect(find.text('١ من ٣'), findsOneWidget);
     });
 
     testWidgets('the virtue is hidden until tapped', (t) async {

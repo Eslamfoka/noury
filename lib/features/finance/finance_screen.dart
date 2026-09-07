@@ -242,8 +242,12 @@ class _CategoryRow extends StatelessWidget {
                       style: cairo(size: 13.5, weight: FontWeight.w600)),
                 ),
                 Text(
+                  // «من», not a slash: the numbers swap in an RTL layout, and
+                  // spent-and-limit read backwards is worse than most —
+                  // «٦٠ د.ك / ٣٫٥ د.ك» looks like a budget already blown.
                   status.limit > 0
-                      ? '${formatMoney(status.spent)} / ${formatMoney(status.limit)}'
+                      ? '${formatMoney(status.spent)} من '
+                          '${formatMoney(status.limit)}'
                       : formatMoney(status.spent),
                   style: cairo(size: 11.5, color: NouriColors.muted),
                 ),
