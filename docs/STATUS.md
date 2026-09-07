@@ -5,11 +5,11 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `3aa1993`, working tree clean |
-| Tests | **705 passing**, `flutter analyze` clean |
+| Head | `c266383`, working tree clean |
+| Tests | **764 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
-| Schema | v5 |
+| Schema | v6 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
 
@@ -23,7 +23,7 @@ Last updated **7 September 2026**, overnight session.
 | **البدني** physical | Built. 16/8 window, meal log with symptom, weight, **walking sessions**, **guided home workouts**, **sunnah fasting reminders**. No planner integration yet. |
 | **المالي** financial | Built. Pay-cycle month, budgets, expenses, savings rate. |
 | **تطوير الذات** self-development | **Not started.** §5.3 of the brief. |
-| **الوقت والدوام** time & duty | Models only, plus **calendar reminders**. The planner itself is Slice 2. |
+| **الوقت والدوام** time & duty | **Built.** The planner places the day from the shift and the prayer times; Home shows it. Calendar reminders too. |
 | **المتابعة والذكاء** tracking & AI | Reports now cover **all three logged pillars** plus **challenges**. The Claude layer is Slice 5, unstarted. |
 
 ## What runs today
@@ -39,6 +39,8 @@ Last updated **7 September 2026**, overnight session.
 - **Sunnah fasting** — Mondays, Thursdays and the white days, offered at 20:00
   the evening before, with the prohibited days excluded
 - **Reports across البدن والمالية** as well as the religious summary
+- **The planned day** — blocks, times and what sits in them, decided by
+  `planDay` from the shift and the day's prayers, re-planned from now
 - Finance and body tabs, both writing to the local database
 - No network calls at all — `INTERNET` is removed from the manifest
 
@@ -60,7 +62,13 @@ Last updated **7 September 2026**, overnight session.
   there is no foreground service and a killed app loses the session.
 - **Six bottom tabs**, one past Material's recommendation. Nothing was added
   tonight: the calendar opens from the Home header, walking and workouts sit
-  inside البدن, challenges inside التقارير.
+  inside البدن, challenges inside التقارير, the planned day inside Home.
+- **The shift is a single setting, not a rota.** The brief describes a rotating
+  pattern; guessing at one would put wrong times in front of the user daily.
+  Set today's shift in الإعدادات → الدوام.
+- **The planned day is read-only.** Blocks expand to show their hours; nothing
+  is tapped done from there yet. Prayers are still logged from Home and from
+  the notification.
 - **Untested on real hardware:** reboot survival, battery-kill, multi-day
   reliability, and every one of tonight's five features. Emulator results say
   nothing about MagicOS.
@@ -93,6 +101,9 @@ Last updated **7 September 2026**, overnight session.
 - No calorie counting for food, and no naming a cause for a symptom. The
   walking estimate is a different thing and is labelled «تقريبية».
 - Challenge progress is **derived, never stored**.
+- **The planner's six open questions are answered** in
+  `docs/planner-decisions.md`, each the safest reversible way, each a setting
+  or a constant away from changing.
 - Nothing is ever marked failed, and nothing is ever red.
 
 ## Where things live
@@ -102,6 +113,8 @@ docs/setup.md          toolchain, timezone handling, adhan sound swap
 docs/install.md        device checks; 40-47 are the adhan_v2 ones, 48-56 Slice 1b
 docs/STATUS.md         this file
 docs/superpowers/handoffs/    dated session handoffs
+docs/planner-decisions.md     the six Slice 2 answers, and why each is reversible
+docs/fasting-verification.md  the sunnah fasting days, awaiting a human read
 docs/superpowers/plans/       2026-09-07-slice1b-five-features.md is tonight's
 docs/superpowers/specs/       slice2-worked-example.md holds the open questions
 tool/install_adhan_sound.sh   validates and installs an adhan recording
