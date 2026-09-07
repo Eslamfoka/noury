@@ -5,11 +5,11 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `b4950d9`, working tree clean |
-| Tests | **668 passing**, `flutter analyze` clean |
+| Head | `3aa1993`, working tree clean |
+| Tests | **705 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
-| Schema | v4 |
+| Schema | v5 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
 
@@ -20,11 +20,11 @@ Last updated **7 September 2026**, overnight session.
 | Pillar | State |
 |---|---|
 | **الديني** religious | Built. Prayers, athkar, tasbeeh, wird, adhan + iqama alarms, follow-ups, daily review. Qur'anic athkar now set as a mushaf page. |
-| **البدني** physical | Built. 16/8 window, meal log with symptom, weight, **walking sessions**, **guided home workouts**. No planner integration yet. |
+| **البدني** physical | Built. 16/8 window, meal log with symptom, weight, **walking sessions**, **guided home workouts**, **sunnah fasting reminders**. No planner integration yet. |
 | **المالي** financial | Built. Pay-cycle month, budgets, expenses, savings rate. |
 | **تطوير الذات** self-development | **Not started.** §5.3 of the brief. |
 | **الوقت والدوام** time & duty | Models only, plus **calendar reminders**. The planner itself is Slice 2. |
-| **المتابعة والذكاء** tracking & AI | Reports are religious-only, plus **challenges**. The Claude layer is Slice 5, unstarted. |
+| **المتابعة والذكاء** tracking & AI | Reports now cover **all three logged pillars** plus **challenges**. The Claude layer is Slice 5, unstarted. |
 
 ## What runs today
 
@@ -36,6 +36,9 @@ Last updated **7 September 2026**, overnight session.
 - **Walking sessions** — steps, distance, pace and calories, live
 - **Home workouts** — three routines, work/rest intervals, animated figures
 - **Challenges** — seven, evaluated from the logs already kept
+- **Sunnah fasting** — Mondays, Thursdays and the white days, offered at 20:00
+  the evening before, with the prohibited days excluded
+- **Reports across البدن والمالية** as well as the religious summary
 - Finance and body tabs, both writing to the local database
 - No network calls at all — `INTERNET` is removed from the manifest
 
@@ -64,8 +67,10 @@ Last updated **7 September 2026**, overnight session.
 - **`docs/athkar-verification.md` has not been checked by a human** against a
   printed حصن المسلم. The mushaf rendering did not change a letter of it —
   enforced by a test — so that review is still valid and still outstanding.
-- Reports covers the religious pillar plus challenges; body and wealth still
-  appear nowhere in it.
+- **The sunnah fasting days have not been reviewed by a person.**
+  `docs/fasting-verification.md` lists what is and is not covered and asks for
+  that review. عرفة, عاشوراء and الست من شوال are deliberately absent — the
+  brief does not name them and choosing which to add is a religious judgement.
 - A counter like the athkar repeat pill reads «٣ / ٠» at zero of three,
   because RTL lays the slash form out right to left. Pre-existing, app-wide,
   and left alone rather than fixed on one screen — see the handoff.
