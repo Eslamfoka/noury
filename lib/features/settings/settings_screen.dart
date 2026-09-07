@@ -150,6 +150,38 @@ class SettingsScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: 16),
 
+          _Section(title: 'البدن والمشي', children: [
+            _ActionRow(
+              label: 'طول الخطوة',
+              value: toArabicDigits('${s.strideCm} سم'),
+              action: 'غيّر',
+              onTap: () async {
+                final cm = await _askStride(context, s.strideCm);
+                if (cm == null) return;
+                await controller.updateStrideCm(cm);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _SwitchRow(
+              key: const ValueKey('allow-simulated-steps'),
+              label: 'خطوات تجريبية (للتجربة بس)',
+              value: s.allowSimulatedSteps,
+              onChanged: (v) async {
+                await controller.setAllowSimulatedSteps(v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'المسافة محسوبة من طول خطوتك، فكل ما يكون مضبوط تكون '
+                'المسافة أقرب للحقيقة.',
+                style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 16),
+
           _Section(title: 'مواقيت الصلاة', children: [
             _ActionRow(
               label: 'المدينة',
@@ -325,6 +357,7 @@ class _Section extends StatelessWidget {
 
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({
+    super.key,
     required this.label,
     required this.value,
     required this.onChanged,
@@ -513,4 +546,42 @@ class _StepperRow extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Asks for a stride in centimetres.
+///
+/// A plain number field rather than a slider: the user is copying a figure
+/// they measured, not exploring a range.
+Future<int?> _askStride(BuildContext context, int current) async {
+  final controller = TextEditingController(text: '$current');
+  final value = await showDialog<int>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: NouriColors.surface,
+      title: Text('طول الخطوة بالسنتيمتر',
+          style: cairo(size: 15, weight: FontWeight.w700)),
+      content: TextField(
+        key: const ValueKey('stride-field'),
+        controller: controller,
+        keyboardType: TextInputType.number,
+        autofocus: true,
+        style: cairo(size: 15),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text('إلغاء', style: cairo(size: 13)),
+        ),
+        TextButton(
+          key: const ValueKey('stride-save'),
+          onPressed: () =>
+              Navigator.of(ctx).pop(int.tryParse(controller.text.trim())),
+          child: Text('احفظ',
+              style: cairo(size: 13, color: NouriColors.gold)),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  return value;
 }

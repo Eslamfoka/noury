@@ -31,6 +31,18 @@
          and the app is fully usable without ever granting this. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
+    <!-- The hardware step counter. Required from API 29; on older releases the
+         sensor is readable without it. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+
+    <!-- Declared android:required="false" on purpose. Plenty of devices — and
+         nearly every emulator image — have no step-counter hardware, and Nouri
+         is a prayer companion first: it must still install and run on them.
+         The walk screen says so plainly rather than inventing steps. -->
+    <uses-feature
+        android:name="android.hardware.sensor.stepcounter"
+        android:required="false"/>
+
     <!-- Slice 1 is entirely offline. A dependency pulls package:http in
          transitively, which would otherwise merge INTERNET into the manifest;
          removing it here means the OS itself makes network access impossible. -->

@@ -12,6 +12,7 @@ import 'fasting_window.dart';
 import 'log_meal_sheet.dart';
 import 'log_weight_sheet.dart';
 import 'meal.dart';
+import '../steps/walk_screen.dart';
 
 /// The physical pillar.
 ///
@@ -73,6 +74,28 @@ class BodyScreen extends ConsumerWidget {
                 onTap: () => showLogWeightSheet(context, ref),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 9),
+
+        // Movement lives inside البدن rather than behind a seventh bottom tab.
+        // The shell already carries six destinations, one past Material's
+        // recommendation, and walking and workouts are the physical pillar --
+        // this is where a user would look for them.
+        Row(
+          children: [
+            Expanded(
+              child: _Action(
+                key: const ValueKey('open-walk'),
+                label: 'امشي',
+                icon: Icons.directions_walk,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const WalkScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(width: 9),
+            const Expanded(child: SizedBox()),
           ],
         ),
         const SizedBox(height: 20),
@@ -290,6 +313,7 @@ class _PatternNote extends StatelessWidget {
 
 class _Action extends StatelessWidget {
   const _Action({
+    super.key,
     required this.label,
     required this.icon,
     required this.onTap,

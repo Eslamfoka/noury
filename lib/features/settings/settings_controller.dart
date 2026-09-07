@@ -192,6 +192,21 @@ class SettingsController {
             financialMonthStartDay: Value(day.clamp(1, 28))),
       );
 
+  /// Does **not** rearm: walking has no bearing on any alarm.
+  ///
+  /// Clamped to a stride a human actually has. A mistyped 5 or 500 would make
+  /// every distance the app ever shows wrong, and silently.
+  Future<void> updateStrideCm(int cm) => db.settingsDao.update(
+        SettingsRowsCompanion(strideCm: Value(cm.clamp(30, 120))),
+      );
+
+  /// Does **not** rearm. Off by default and opt-in: a walk that quietly
+  /// invented steps on a real phone would be the app lying about the user's
+  /// own body.
+  Future<void> setAllowSimulatedSteps(bool allow) => db.settingsDao.update(
+        SettingsRowsCompanion(allowSimulatedSteps: Value(allow)),
+      );
+
   Future<void> markOnboardingComplete() => db.settingsDao
       .update(const SettingsRowsCompanion(onboardingComplete: Value(true)));
 }

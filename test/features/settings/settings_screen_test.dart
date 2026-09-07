@@ -132,14 +132,35 @@ void main() {
       await t.pumpAndSettle();
     }
 
+    /// Brings [target] fully into view.
+    ///
+    /// scrollUntilVisible stops as soon as the target is *built*, and a lazy
+    /// ListView builds 250px (the default cacheExtent) past the viewport — so
+    /// on its own it can leave the target just off screen, where a tap misses
+    /// it and silently does nothing. ensureVisible is what actually brings it
+    /// into view. Same helper, same reason, as in home_screen_test.
+    Future<void> scrollTo(WidgetTester t, Finder target) async {
+      await t.scrollUntilVisible(
+        target,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.ensureVisible(target);
+      await t.pumpAndSettle();
+    }
+
     testWidgets('renders every section', (t) async {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
 
         expect(find.text('الإشعارات'), findsOneWidget);
+        expect(find.text('البدن والمشي'), findsOneWidget);
         expect(find.text('مواقيت الصلاة'), findsOneWidget);
         expect(find.text('فرق وقت الإقامة'), findsOneWidget);
+
+        // Below the fold now that البدن والمشي sits above it.
+        await scrollTo(t, find.text('الورد'));
         expect(find.text('الورد'), findsOneWidget);
       });
     });
@@ -189,7 +210,10 @@ void main() {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
 
+        await scrollTo(t, find.text('الورد'));
         expect(find.text('١٠٠'), findsWidgets);
+
+        await scrollTo(t, find.byIcon(Icons.add).last);
         await t.tap(find.byIcon(Icons.add).last);
         await t.pumpAndSettle();
 

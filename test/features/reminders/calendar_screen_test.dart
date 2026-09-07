@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 import 'package:nouri/features/home/home_providers.dart';
 import 'package:nouri/features/reminders/calendar_screen.dart';
-import 'package:nouri/features/reminders/reminder.dart';
 import 'package:nouri/features/reminders/reminder_providers.dart';
 
 import '../../support/harness.dart';
