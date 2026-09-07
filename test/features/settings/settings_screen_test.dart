@@ -155,13 +155,43 @@ void main() {
         await pumpSettings(t);
 
         expect(find.text('الإشعارات'), findsOneWidget);
+        expect(find.text('الدوام'), findsOneWidget);
         expect(find.text('البدن والمشي'), findsOneWidget);
+
+        // Below the fold now that الدوام sits above them.
+        await scrollTo(t, find.text('مواقيت الصلاة'));
         expect(find.text('مواقيت الصلاة'), findsOneWidget);
+        await scrollTo(t, find.text('فرق وقت الإقامة'));
         expect(find.text('فرق وقت الإقامة'), findsOneWidget);
 
         // Below the fold now that البدن والمشي sits above it.
         await scrollTo(t, find.text('الورد'));
         expect(find.text('الورد'), findsOneWidget);
+      });
+    });
+
+    testWidgets('picking a shift persists it and re-plans the day', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+
+        expect((await db.settingsDao.get()).shiftType, 'morning');
+
+        await scrollTo(t, find.byKey(const ValueKey('shift-night')));
+        await t.tap(find.byKey(const ValueKey('shift-night')));
+        await t.pumpAndSettle();
+
+        expect((await db.settingsDao.get()).shiftType, 'night');
+      });
+    });
+
+    testWidgets('all four shifts are offered', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+        for (final k in ['morning', 'evening', 'night', 'off']) {
+          expect(find.byKey(ValueKey('shift-$k')), findsOneWidget, reason: k);
+        }
       });
     });
 

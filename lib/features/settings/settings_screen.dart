@@ -159,6 +159,59 @@ class SettingsScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: 16),
 
+          _Section(title: 'الدوام', children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'نوري بيرتّب يومك حوالين ورديتك. غيّرها لما تتغيّر.',
+                style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final entry in const {
+                  'morning': 'صباحي',
+                  'evening': 'مسائي',
+                  'night': 'ليلي',
+                  'off': 'راحة',
+                }.entries)
+                  GestureDetector(
+                    key: ValueKey('shift-${entry.key}'),
+                    onTap: () async {
+                      await controller.updateShift(entry.key);
+                      ref.invalidate(settingsProvider);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: s.shiftType == entry.key
+                            ? NouriColors.gold
+                            : NouriColors.surfaceActive,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: NouriColors.border),
+                      ),
+                      child: Text(
+                        entry.value,
+                        style: cairo(
+                          size: 12.5,
+                          weight: s.shiftType == entry.key
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                          color: s.shiftType == entry.key
+                              ? NouriColors.background
+                              : NouriColors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 16),
+
           _Section(title: 'البدن والمشي', children: [
             _ActionRow(
               label: 'طول الخطوة',

@@ -105,6 +105,17 @@ class ShiftPattern {
 
   static const dayOff = ShiftPattern(type: ShiftType.off);
 
+  /// Parses the stored settings value, falling back to the morning shift.
+  ///
+  /// Falls back rather than throwing: an unrecognised value should give the
+  /// user a plausible day, not an error screen where their day should be.
+  static ShiftPattern fromName(String name) => switch (name) {
+        'evening' => evening,
+        'night' => night,
+        'off' => dayOff,
+        _ => morning,
+      };
+
   static ShiftPattern forType(ShiftType type) => switch (type) {
         ShiftType.morning => morning,
         ShiftType.evening => evening,

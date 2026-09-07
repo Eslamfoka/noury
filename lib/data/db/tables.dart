@@ -53,6 +53,14 @@ class SettingsRows extends Table {
   BoolColumn get notifyFasting =>
       boolean().withDefault(const Constant(true))();
 
+  /// Today's duty pattern: morning | evening | night | off.
+  ///
+  /// A single current shift rather than a rota. The brief describes a rotating
+  /// pattern, but a rota is a Slice 2 design question of its own and guessing
+  /// at one would put wrong times in front of the user every day. Setting
+  /// today's shift is honest, reversible, and enough for the planner to work.
+  TextColumn get shiftType => text().withDefault(const Constant('morning'))();
+
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
 

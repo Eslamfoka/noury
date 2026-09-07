@@ -1,3 +1,4 @@
+import 'day_planner.dart';
 import 'shift.dart';
 
 /// The four big sections the brief asks Home to show by default.
@@ -71,8 +72,16 @@ class PrayerAnchor extends TaskAnchor {
 
 /// Nouri decides where this goes, within the block.
 class FlexibleAnchor extends TaskAnchor {
-  const FlexibleAnchor({this.preferredBlock});
+  const FlexibleAnchor({this.preferredBlock, this.preferLatest = false});
+
   final DayBlockKind? preferredBlock;
+
+  /// Take the *last* place it fits rather than the first.
+  ///
+  /// أذكار النوم are the reason this exists: they belong immediately before
+  /// bed, and a first-fit search puts them in the first free minute after
+  /// maghrib — hours too early, and before isha, which reads as nonsense.
+  final bool preferLatest;
 }
 
 /// One thing to do, before it has been given a time.
@@ -132,19 +141,31 @@ class DayBlock {
 
 /// A whole planned day.
 ///
-/// SCAFFOLDING: nothing builds one of these yet. The algorithm that turns a
-/// shift plus a task list into blocks is the open design question, and it is
-/// deliberately absent rather than guessed at.
+/// Built by `planDay` in `day_planner.dart`. The algorithm was the open design
+/// question through Slice 1; the answers it takes to the six questions in
+/// `docs/superpowers/specs/slice2-worked-example.md` are recorded in
+/// `docs/planner-decisions.md`.
 class DayPlan {
   const DayPlan({
     required this.date,
     required this.shift,
     required this.blocks,
+    this.sleep,
+    this.deferred = const [],
   });
 
   final DateTime date;
   final ShiftPattern shift;
   final List<DayBlock> blocks;
+
+  /// The night's sleep, sized before anything else was placed.
+  final SleepWindow? sleep;
+
+  /// What did not fit, and why.
+  ///
+  /// Never empty-by-hiding. The day is always told what it dropped: silently
+  /// shortening the plan would be the app deciding something did not matter.
+  final List<DeferredTask> deferred;
 
   Iterable<ScheduledTask> get allTasks => blocks.expand((b) => b.tasks);
 

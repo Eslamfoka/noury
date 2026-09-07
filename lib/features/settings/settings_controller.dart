@@ -210,6 +210,12 @@ class SettingsController {
         SettingsRowsCompanion(allowSimulatedSteps: Value(allow)),
       );
 
+  /// Does **not** rearm: the shift shapes the planned day, not the alarms.
+  /// Prayer times come from the sun, and they do not care what shift it is.
+  Future<void> updateShift(String shiftType) => db.settingsDao.update(
+        SettingsRowsCompanion(shiftType: Value(shiftType)),
+      );
+
   Future<void> markOnboardingComplete() => db.settingsDao
       .update(const SettingsRowsCompanion(onboardingComplete: Value(true)));
 }

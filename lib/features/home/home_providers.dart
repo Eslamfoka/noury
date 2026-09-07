@@ -6,6 +6,10 @@ import '../../core/time/geo_config.dart';
 import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
 import '../../data/tips/daily_tip.dart';
+import '../planner/daily_tasks.dart';
+import '../planner/day_plan.dart';
+import '../planner/day_planner.dart';
+import '../planner/shift.dart';
 
 /// The app database. Overridden in tests with an in-memory instance.
 final databaseProvider = Provider<NouriDatabase>((ref) {
@@ -94,4 +98,36 @@ final tipRepositoryProvider = Provider<TipRepository>((ref) => TipRepository());
 final dailyTipProvider = FutureProvider<Tip?>((ref) async {
   final sets = await ref.watch(tipRepositoryProvider).loadAll();
   return tipForDay(DateTime.now(), sets);
+});
+
+/// Today's plan, built by the real planner.
+///
+/// Replaces the hand-written preview: the tasks, their times and the blocks
+/// they sit in are all decided by `planDay`. Re-planned from `now`, so opening
+/// Home at noon shows the rest of the day rather than a morning already gone.
+final todayPlanProvider = Provider<AsyncValue<DayPlan>>((ref) {
+  final settings = ref.watch(settingsProvider);
+  final times = ref.watch(todayPrayerTimesProvider);
+  // Coarse rather than per-second: a plan that rebuilt every second would
+  // churn the whole Home list for no visible gain.
+  final now = ref.watch(coarseClockProvider).value ?? DateTime.now();
+
+  if (!settings.hasValue || !times.hasValue) {
+    return const AsyncValue.loading();
+  }
+
+  final s = settings.requireValue;
+  final shift = ShiftPattern.fromName(s.shiftType);
+
+  return AsyncValue.data(planDay(
+    date: now,
+    shift: shift,
+    prayers: times.requireValue,
+    tasks: dailyTasksFor(
+      date: now,
+      shift: shift,
+      eatingWindowStartHour: s.eatingWindowStartHour,
+    ),
+    now: now,
+  ));
 });

@@ -78,26 +78,33 @@ void main() {
     });
   });
 
-  testWidgets('the day view shows the four blocks the brief names', (t) async {
+  testWidgets('the day view shows blocks the brief names', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
       await pumpHome(t);
 
       expect(find.text('يومك'), findsOneWidget);
-      for (final label in ['الصباح', 'الدوام', 'بعد الدوام', 'المسا']) {
-        expect(find.text(label), findsOneWidget, reason: label);
-      }
+
+      // A real plan is re-planned from now, so a morning already gone is
+      // legitimately absent. What must hold is that every block shown is one
+      // of the four, and that the day is not empty.
+      const named = ['الصباح', 'الدوام', 'بعد الدوام', 'المسا'];
+      final shown = named.where((l) => find.text(l).evaluate().isNotEmpty);
+      expect(shown, isNotEmpty, reason: 'the day should show its blocks');
     });
   });
 
-  testWidgets('the day view is labelled a preview, not a finished plan',
-      (t) async {
+  testWidgets('the day view is a real plan now, not a preview', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
       await pumpHome(t);
-      expect(find.text('معاينة'), findsOneWidget,
-          reason: 'it must not pretend Nouri planned this');
-      expect(find.textContaining('الشكل ده معاينة'), findsOneWidget);
+
+      // It was a hand-written fixture through Slice 1 and said so. The planner
+      // builds it now, so the disclaimer would be a lie.
+      expect(find.text('معاينة'), findsNothing);
+      expect(find.textContaining('الشكل ده معاينة'), findsNothing);
+      expect(find.byKey(const ValueKey('plan-sleep-line')), findsOneWidget,
+          reason: 'a planned day knows when it ends');
     });
   });
 
@@ -127,10 +134,21 @@ void main() {
       db = inMemoryDatabase(t);
       await pumpHome(t);
 
-      expect(find.text('فطار'), findsNothing);
-      await t.tap(find.text('الصباح'));
+      // Whichever block is showing — the plan is built from the real clock, so
+      // the test cannot assume the morning is still ahead.
+      const named = ['الصباح', 'الدوام', 'بعد الدوام', 'المسا'];
+      final label = named.firstWhere(
+        (l) => find.text(l).evaluate().isNotEmpty,
+        orElse: () => '',
+      );
+      expect(label, isNotEmpty, reason: 'the day should show a block');
+
+      await scrollTo(t, find.text(label));
+      await t.tap(find.text(label));
       await t.pumpAndSettle();
-      expect(find.text('فطار'), findsOneWidget);
+
+      // A prayer is the one thing every block of a planned day can contain.
+      expect(find.textContaining('صلاة'), findsWidgets);
     });
   });
 

@@ -45,7 +45,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -85,6 +85,11 @@ class NouriDatabase extends _$NouriDatabase {
           // v5 adds the sunnah fasting reminder toggle. Additive only.
           if (from < 5) {
             await m.addColumn(settingsRows, settingsRows.notifyFasting);
+          }
+
+          // v6 adds the duty pattern the planner needs. Additive only.
+          if (from < 6) {
+            await m.addColumn(settingsRows, settingsRows.shiftType);
           }
         },
       );

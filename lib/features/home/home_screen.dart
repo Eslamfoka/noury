@@ -11,9 +11,7 @@ import '../../core/time/prayer_times_service.dart';
 import '../../data/db/nouri_database.dart';
 // For the TipPillar.arabicLabel extension used by the daily tip line.
 import '../../data/tips/daily_tip.dart';
-import '../planner/day_plan.dart';
 import '../planner/shift.dart';
-import '../planner/example_day.dart';
 import '../planner/widgets/day_blocks.dart';
 import '../prayers/daily_review_sheet.dart';
 import '../prayers/log_prayer.dart';
@@ -162,7 +160,7 @@ class HomeScreen extends ConsumerWidget {
           const _CatchUpCard(),
           const SizedBox(height: 14),
 
-          _DayPreview(plan: exampleDayPlan(date: now, prayers: t), now: now),
+          _TodaysPlan(now: now),
           const SizedBox(height: 14),
 
           _SectionLabel(text: 'الورد اليومي'),
@@ -231,20 +229,22 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// A preview of the Slice 2 day view, on real prayer anchors.
+/// Today's plan, as the planner built it.
 ///
-/// The blocks and their layout are the approved design; the tasks inside them
-/// are a hand-written fixture from the worked example, not something Nouri
-/// decided. It is marked «معاينة» and is not interactive, because tapping a
-/// task would teach a habit the real planner then has to honour.
-class _DayPreview extends StatelessWidget {
-  const _DayPreview({required this.plan, required this.now});
+/// No longer a preview. The blocks, the times and what sits in them are all
+/// decided by `planDay` from the user's shift and the day's prayer times, and
+/// re-planned from now — so opening Home at noon shows the rest of the day
+/// rather than a morning already gone.
+class _TodaysPlan extends ConsumerWidget {
+  const _TodaysPlan({required this.now});
 
-  final DayPlan plan;
   final DateTime now;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(todayPlanProvider).value;
+    if (plan == null) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -253,17 +253,6 @@ class _DayPreview extends StatelessWidget {
           child: Row(
             children: [
               Text('يومك', style: cairo(size: 14, weight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: NouriColors.surfaceActive,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('معاينة',
-                    style: cairo(size: 9.5, color: NouriColors.muted)),
-              ),
               const Spacer(),
               Text(plan.shift.type.arabicLabel,
                   style: cairo(size: 11, color: NouriColors.muted)),
@@ -271,12 +260,32 @@ class _DayPreview extends StatelessWidget {
           ),
         ),
         DayBlocks(plan: plan, now: now),
-        const SizedBox(height: 8),
-        Text(
-          'الشكل ده معاينة. لما تدخل مواعيد ورديّاتك، نوري هيرتّب يومك '
-          'الحقيقي بنفس الطريقة.',
-          style: cairo(size: 11, color: NouriColors.muted, height: 1.75),
-        ),
+        if (plan.sleep != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            toArabicDigits(
+              'النوم ${formatClock(plan.sleep!.start)} — '
+              '${plan.sleep!.length.inHours} ساعات',
+            ),
+            key: const ValueKey('plan-sleep-line'),
+            style: cairo(size: 11, color: NouriColors.muted),
+          ),
+        ],
+        // What did not fit is always named. Silently shortening the day would
+        // be Nouri deciding something did not matter.
+        if (plan.deferred.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          for (final d in plan.deferred)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                d.arabicNote,
+                key: ValueKey('plan-deferred-${d.task.id}'),
+                style: cairo(
+                    size: 11, color: NouriColors.muted, height: 1.75),
+              ),
+            ),
+        ],
       ],
     );
   }

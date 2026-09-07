@@ -4,8 +4,9 @@ import 'package:nouri/data/db/nouri_database.dart';
 
 /// The schema and its migrations.
 ///
-/// v4 added reminders, walking, workouts and challenges; v5 added the sunnah
-/// fasting toggle. Every migration is additive, so the most important test
+/// v4 added reminders, walking, workouts and challenges; v5 the sunnah
+/// fasting toggle; v6 the duty pattern the planner needs. Every migration is
+/// additive, so the most important test
 /// here is the last one — that nothing from the religious core was disturbed
 /// on the way.
 void main() {
@@ -17,9 +18,9 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v5', () {
+  test('schema is at v6', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 5);
+    expect(fresh().schemaVersion, 6);
   });
 
   group('reminders', () {
@@ -212,6 +213,10 @@ void main() {
     test('offers the sunnah fasts by default, like the other reminders',
         () async {
       expect((await fresh().settingsDao.get()).notifyFasting, isTrue);
+    });
+
+    test('starts on the morning shift', () async {
+      expect((await fresh().settingsDao.get()).shiftType, 'morning');
     });
   });
 
