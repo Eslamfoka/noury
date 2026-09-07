@@ -43,16 +43,60 @@ void main() {
     });
   });
 
-  testWidgets('states plainly that this is a local religious summary',
+  testWidgets('states plainly that this is a local summary, not a reading',
       (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
       await pumpReports(t);
       expect(find.text('ملخّص ديني محلي'), findsOneWidget);
 
-      // Below the fold now that the challenges panel sits above it.
-      await scrollTo(t, find.textContaining('التقرير الكامل'));
-      expect(find.textContaining('التقرير الكامل'), findsOneWidget);
+      // Below the fold now that البدن والمالية and التحديات sit above it.
+      //
+      // The note used to say the report covered «الجانب الديني بس». It no
+      // longer does, so the claim changed with it — what is still true is
+      // that these are the user's own rows added up, and that Nouri's reading
+      // of the week has not arrived yet.
+      await scrollTo(t, find.textContaining('سجّلته بنفسك'));
+      expect(find.textContaining('سجّلته بنفسك'), findsOneWidget);
+      expect(find.textContaining('مرحلة جاية'), findsOneWidget);
+    });
+  });
+
+  testWidgets('an empty week says so in البدن والمالية too', (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pumpReports(t);
+      await scrollTo(t, find.byKey(const ValueKey('body-wealth-empty')));
+      expect(find.byKey(const ValueKey('body-wealth-empty')), findsOneWidget);
+    });
+  });
+
+  testWidgets('a logged walk and workout appear in the weekly report',
+      (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await db.stepsDao.addSession(
+        startedAt: DateTime.now(),
+        seconds: 1800,
+        steps: 3400,
+        metres: 2448,
+        kcal: 122,
+        targetMinutes: 30,
+      );
+      await db.workoutDao.addSession(
+        startedAt: DateTime.now(),
+        routineId: 'full-body',
+        doneCount: 5,
+        totalCount: 20,
+        seconds: 300,
+      );
+      await pumpReports(t);
+
+      await scrollTo(t, find.text('البدن والمالية'));
+      expect(find.text('٣٤٠٠'), findsOneWidget, reason: 'the steps');
+      expect(find.text('٥'), findsWidgets,
+          reason: 'five exercises, even though the routine was twenty');
+      expect(find.byKey(const ValueKey('body-wealth-empty')), findsNothing);
     });
   });
 

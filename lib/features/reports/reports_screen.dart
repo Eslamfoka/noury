@@ -6,6 +6,7 @@ import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
 import '../challenges/challenges_panel.dart';
+import 'body_wealth_panel.dart';
 import '../home/home_providers.dart';
 import '../prayers/prayer_scoring.dart';
 import '../shared/nouri_avatar.dart';
@@ -143,6 +144,8 @@ class ReportsScreen extends ConsumerWidget {
             value: toArabicDigits('${s.athkarSessions}'),
           ),
           const SizedBox(height: 22),
+          const BodyWealthPanel(),
+          const SizedBox(height: 22),
           const ChallengesPanel(),
           const SizedBox(height: 20),
           Container(
@@ -152,8 +155,8 @@ class ReportsScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
-              'ده ملخّص محلي للجانب الديني بس. التقرير الكامل بكل الجوانب '
-              'وكلام نوري هييجي في مرحلة جاية.',
+              'ده ملخّص محلي من اللي سجّلته بنفسك. قراءة نوري للأسبوع، '
+              'والربط بين الجوانب، هييجي في مرحلة جاية.',
               style: cairo(size: 12, color: NouriColors.muted, height: 1.8),
             ),
           ),
