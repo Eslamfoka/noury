@@ -62,7 +62,7 @@ void main() {
     });
   });
 
-  testWidgets('skipping walks through all three steps and finishes',
+  testWidgets('skipping walks through every step and finishes',
       (t) async {
     await withLargeSurface(t, () async {
       var done = false;
@@ -80,7 +80,68 @@ void main() {
       await t.tap(find.text('تخطّي'));
       await t.pumpAndSettle();
 
+      // The shift is a question rather than a request, so it is last — and
+      // skipping it leaves the morning default rather than blocking the way
+      // in, like every step before it.
+      expect(find.text('ورديتك'), findsOneWidget);
+      await t.tap(find.text('تخطّي'));
+      await t.pumpAndSettle();
+
       expect(done, isTrue);
+    });
+  });
+
+  testWidgets('the shift step offers all four and stores the one picked',
+      (t) async {
+    await withLargeSurface(t, () async {
+      final chosen = <String>[];
+      var done = false;
+
+      await t.pumpWidget(testShell(PermissionFlow(
+        steps: defaultPermissionSteps(
+          requestNotifications: () async {},
+          requestBattery: () async {},
+          requestLocation: () async {},
+          chooseShift: (s) async => chosen.add(s),
+        ),
+        onDone: () => done = true,
+      )));
+      await t.pumpAndSettle();
+
+      for (var i = 0; i < 3; i++) {
+        await t.tap(find.text('تخطّي'));
+        await t.pumpAndSettle();
+      }
+
+      for (final v in ['morning', 'evening', 'night', 'off']) {
+        expect(find.byKey(ValueKey('onboarding-choice-$v')), findsOneWidget,
+            reason: v);
+      }
+
+      await t.tap(find.byKey(const ValueKey('onboarding-choice-night')));
+      await t.pumpAndSettle();
+
+      expect(chosen, ['night']);
+      expect(done, isTrue, reason: 'picking one finishes the flow');
+    });
+  });
+
+  testWidgets('a choice step shows no accept button of its own', (t) async {
+    // Options above and a single accept button below would be two ways to
+    // answer the same question, and one of them ambiguous.
+    await withLargeSurface(t, () async {
+      var done = false;
+      await pumpFlow(t, onDone: () => done = true);
+
+      for (var i = 0; i < 3; i++) {
+        await t.tap(find.text('تخطّي'));
+        await t.pumpAndSettle();
+      }
+
+      expect(find.text('ورديتك'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.text('تخطّي'), findsOneWidget);
+      expect(done, isFalse);
     });
   });
 

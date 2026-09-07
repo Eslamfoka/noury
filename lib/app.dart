@@ -81,6 +81,10 @@ class _Root extends ConsumerWidget {
               await ref.read(settingsControllerProvider).detectLocation();
               ref.invalidate(settingsProvider);
             },
+            chooseShift: (shift) async {
+              await ref.read(settingsControllerProvider).updateShift(shift);
+              ref.invalidate(settingsProvider);
+            },
           ),
           onDone: () async {
             await ref
