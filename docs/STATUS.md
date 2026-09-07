@@ -5,11 +5,11 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `c266383`, working tree clean |
-| Tests | **764 passing**, `flutter analyze` clean |
+| Head | `1ab233f`, working tree clean |
+| Tests | **796 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
-| Schema | v6 |
+| Schema | v7 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
 
@@ -20,7 +20,7 @@ Last updated **7 September 2026**, overnight session.
 | Pillar | State |
 |---|---|
 | **الديني** religious | Built. Prayers, athkar, tasbeeh, wird, adhan + iqama alarms, follow-ups, daily review. Qur'anic athkar now set as a mushaf page. |
-| **البدني** physical | Built. 16/8 window, meal log with symptom, weight, **walking sessions**, **guided home workouts**, **sunnah fasting reminders**. No planner integration yet. |
+| **البدني** physical | Built. 16/8 window, meal log with symptom, weight, walking sessions, guided home workouts, sunnah fasting reminders, **water**. Now placed by the planner. |
 | **المالي** financial | Built. Pay-cycle month, budgets, expenses, savings rate. |
 | **تطوير الذات** self-development | **Not started.** §5.3 of the brief. |
 | **الوقت والدوام** time & duty | **Built.** The planner places the day from the shift and the prayer times; Home shows it. Calendar reminders too. |
@@ -41,6 +41,8 @@ Last updated **7 September 2026**, overnight session.
 - **Reports across البدن والمالية** as well as the religious summary
 - **The planned day** — blocks, times and what sits in them, decided by
   `planDay` from the shift and the day's prayers, re-planned from now
+- **Water** — a count against a target in البدن, and a nudge after each prayer
+  that disappears between fajr and maghrib on a day marked as a fast
 - Finance and body tabs, both writing to the local database
 - No network calls at all — `INTERNET` is removed from the manifest
 
@@ -104,6 +106,12 @@ Last updated **7 September 2026**, overnight session.
 - **The planner's six open questions are answered** in
   `docs/planner-decisions.md`, each the safest reversible way, each a setting
   or a constant away from changing.
+- **A fasting day is the user's word, never inferred.** Nouri suggests the
+  sunnah fasts but cannot know whether one was kept, and guessing wrong means
+  nudging a fasting person to drink at noon.
+- **The notification slot space is full** — 31 of `kSlotsPerDay` = 32. Raising
+  it renumbers every alarm already on a device, so it needs a deliberate
+  re-arm rather than a quiet bump.
 - Nothing is ever marked failed, and nothing is ever red.
 
 ## Where things live
