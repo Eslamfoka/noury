@@ -13,6 +13,7 @@ import 'log_meal_sheet.dart';
 import 'log_weight_sheet.dart';
 import 'meal.dart';
 import '../steps/walk_screen.dart';
+import '../workouts/workout_screen.dart';
 
 /// The physical pillar.
 ///
@@ -95,7 +96,17 @@ class BodyScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 9),
-            const Expanded(child: SizedBox()),
+            Expanded(
+              child: _Action(
+                key: const ValueKey('open-workout'),
+                label: 'تمارين البيت',
+                icon: Icons.fitness_center,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const WorkoutScreen()),
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 20),
