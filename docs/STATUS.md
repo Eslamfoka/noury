@@ -5,8 +5,8 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `85c2dce`, working tree clean |
-| Tests | **833 passing**, `flutter analyze` clean |
+| Head | `b78671e`, working tree clean |
+| Tests | **837 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
 | Schema | v8 |
@@ -106,7 +106,11 @@ itself tested both ways, so none can pass vacuously.
 ## Decisions already made (do not relitigate)
 
 - Prayer log states are append-only; reordering rewrites history. Same for
-  `MealFeeling` and `ReminderRepeat`.
+  `MealFeeling`, `ReminderRepeat` and `KnowledgeKind`.
+- **Anything day-scoped watches `currentDayProvider`**, never `DateTime.now()`
+  directly. It changes once a day, so the app turns over at midnight instead
+  of showing yesterday until something else invalidates it — which matters
+  because the user works nights.
 - Alarms are scheduled in **UTC** — the plugin's zone round-trip disagreed with
   the device's tzdata and moved the adhan by an hour.
 - Dates are **constructed, never offset**. `add(Duration(days: 1))` is 24 hours,
