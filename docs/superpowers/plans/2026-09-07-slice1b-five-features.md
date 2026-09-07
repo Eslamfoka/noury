@@ -18,6 +18,25 @@ interface with a fake, so the whole of the logic is testable without a device.
 flutter_local_notifications 22.3 · a hand-written Kotlin sensor channel (no new
 pub dependency).
 
+**Status:** executed in one overnight session on 7 September 2026. All fifteen
+tasks done, 668 tests passing, `flutter analyze` clean, verified on the
+`nourdm-api35` emulator. See
+`docs/superpowers/handoffs/2026-09-08-slice1b.md` for what was and was not
+verified, and for the four decisions taken alone.
+
+Two things came out differently from the plan, both improvements found while
+building:
+
+- **The ayah ornament is text, not a widget.** A `WidgetSpan` could not be
+  bound to its ayah, so it wrapped onto a line of its own and left the line
+  before it justified — and Flutter justifies Arabic by widening word gaps
+  rather than with kashida, so it came out full of holes. U+06DD attached
+  directly to the last word fixes both, and Amiri renders it as a proper
+  enclosing medallion.
+- **Each exercise is fitted to the bounding box of its own keyframes.** Not in
+  the plan, and without it the side-on exercises sat in the bottom third of
+  the card with dead space above them.
+
 **Spec:** this file. It stands in for a design doc — the five features were
 specified by the user in one message on 7 September 2026, quoted verbatim in
 each task's *Requirement* line. The open questions the user must answer are
@@ -213,7 +232,7 @@ BoolColumn get allowSimulatedSteps =>
     boolean().withDefault(const Constant(false))();
 ```
 
-- [ ] **Step 1: Write the failing migration test**
+- [x] **Step 1: Write the failing migration test**
 
 ```dart
 // test/data/db/schema_v4_test.dart
@@ -278,12 +297,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `flutter test test/data/db/schema_v4_test.dart`
 Expected: FAIL — `schemaVersion` is 3, `reminderDao` undefined.
 
-- [ ] **Step 3: Add the tables, the DAOs and the migration**
+- [x] **Step 3: Add the tables, the DAOs and the migration**
 
 In `nouri_database.dart`, bump `schemaVersion` to 4, register the four tables
 in `@DriftDatabase`, and extend `onUpgrade`:
@@ -307,18 +326,18 @@ if (from < 4) {
 `sessionsOn`, `recentSessions`. `ChallengeDao` needs `enroll`, `abandon`,
 `active`, `history`.
 
-- [ ] **Step 4: Regenerate drift and run the test**
+- [x] **Step 4: Regenerate drift and run the test**
 
 Run: `dart run build_runner build --delete-conflicting-outputs`
 Run: `flutter test test/data/db/schema_v4_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Run the whole suite — the migration must not disturb Slice 1**
+- [x] **Step 5: Run the whole suite — the migration must not disturb Slice 1**
 
 Run: `flutter test`
 Expected: the existing 474 tests still pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/data/db test/data/db/schema_v4_test.dart
@@ -353,7 +372,7 @@ List<DateTime> occurrencesOf(Reminder r, {required DateTime from, required DateT
 DateTime? nextOccurrence(Reminder r, {required DateTime after});
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 // test/features/reminders/reminder_test.dart
@@ -466,12 +485,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `flutter test test/features/reminders/reminder_test.dart`
 Expected: FAIL — nothing under `lib/features/reminders/` exists yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `reminder_ids.dart` holds only the two functions and the constant, with no
 plugin import, so the scheduler tests stay off the platform channel — the same
@@ -484,12 +503,12 @@ reason `notification_channels_ids.dart` exists.
 still equals the requested one — that guard is what makes the 31st skip
 February rather than land on 2 March.
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `flutter test test/features/reminders/reminder_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/features/reminders test/features/reminders
@@ -520,7 +539,7 @@ class ReminderScheduler {
 }
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 // Uses the same recording fake the existing scheduler tests use.
@@ -568,24 +587,24 @@ test('cancelling uses the same derived id', () async {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `flutter test test/features/reminders/reminder_scheduler_test.dart`
 Expected: FAIL — `ReminderScheduler` undefined.
 
-- [ ] **Step 3: Implement the scheduler and the route**
+- [x] **Step 3: Implement the scheduler and the route**
 
 `arm` computes `nextOccurrence` for each reminder, drops nulls and `done`
 rows, and schedules on `channelGeneral` with title = the reminder title and
 body = the note (or a neutral «فكّرك بده» when there is no note). Add
 `ReminderRoute(int id)` to the route union and its `reminder:<id>` parse.
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `flutter test test/features/reminders test/core/notifications`
 Expected: PASS, including the existing route tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/features/reminders lib/core/notifications test
@@ -621,7 +640,7 @@ const arabicWeekdayHeadings = <String>['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج']
 
 Weeks start on **Saturday**, as they do in Egypt and Kuwait.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 void main() {
@@ -660,23 +679,23 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `flutter test test/features/reminders/calendar_month_test.dart`
 Expected: FAIL — `MonthGrid` undefined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `MonthGrid.of` builds `DateTime(year, month, 1)`, maps Dart's Monday-first
 `weekday` (1–7) to a Saturday-first column with `(weekday + 1) % 7`, then fills
 `DateTime(year, month, d)` for each day. Never `add(Duration(days: 1))`.
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `flutter test test/features/reminders/calendar_month_test.dart`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/features/reminders/calendar_month.dart test/features/reminders/calendar_month_test.dart
@@ -704,7 +723,7 @@ and a swipe to delete. A «＋» adds one for the selected day, opening the edit
 sheet — title field, optional note, a time picker, and the four repeat choices
 as chips.
 
-- [ ] **Step 1: Write the failing widget test**
+- [x] **Step 1: Write the failing widget test**
 
 ```dart
 testWidgets('shows a dot on a day that has a reminder', (t) async {
@@ -730,17 +749,17 @@ testWidgets('marking done never colours the row red', (t) async {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail.** `flutter test test/features/reminders/calendar_screen_test.dart`
+- [x] **Step 2: Run and watch it fail.** `flutter test test/features/reminders/calendar_screen_test.dart`
 
-- [ ] **Step 3: Implement the providers, the screen and the sheet.**
+- [x] **Step 3: Implement the providers, the screen and the sheet.**
 
 Providers: `remindersForMonthProvider` (family on `(year, month)`),
 `remindersForDayProvider` (family on a `DateTime`), and a
 `reminderSchedulerProvider`. Every write invalidates both and re-arms.
 
-- [ ] **Step 4: Run the tests.** Expected: PASS.
+- [x] **Step 4: Run the tests.** Expected: PASS.
 
-- [ ] **Step 5: Verify on the emulator**
+- [x] **Step 5: Verify on the emulator**
 
 ```bash
 flutter run -d emulator-5554
@@ -748,7 +767,7 @@ flutter run -d emulator-5554
 Open the calendar from Home, add a reminder for today two minutes out, lock the
 emulator, and confirm the notification arrives and its tap opens the calendar.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "feat(reminders): the calendar, the editor and the Home entry point"
@@ -794,7 +813,7 @@ an `EventChannel` `com.nouri.nouri/steps_stream` that registers a
 `SensorEventListener` on `TYPE_STEP_COUNTER` at `SENSOR_DELAY_UI` and
 unregisters in `onCancel`. Nothing is stored natively.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 test('a simulated source emits a rising cumulative count', () async {
@@ -810,20 +829,20 @@ test('a simulated source reports itself available', () async {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail.**
+- [x] **Step 2: Run and watch it fail.**
 
-- [ ] **Step 3: Implement the Dart interface, the simulated source, and the
+- [x] **Step 3: Implement the Dart interface, the simulated source, and the
       Kotlin plugin.**
 
-- [ ] **Step 4: Run the test.** Expected: PASS.
+- [x] **Step 4: Run the test.** Expected: PASS.
 
-- [ ] **Step 5: Confirm the Kotlin compiles**
+- [x] **Step 5: Confirm the Kotlin compiles**
 
 Run: `flutter build apk --debug`
 Expected: BUILD SUCCESSFUL. (A Kotlin error here is a compile failure, not a
 test failure — the Dart suite would never catch it.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "feat(steps): a step source, hardware and simulated"
@@ -862,7 +881,7 @@ Calories use the standard MET formula, `kcal/min = MET × 3.5 × kg / 200`, with
 the MET chosen from pace: 2.8 below 4 km/h, 3.5 to 5.5 km/h, 5.0 above. It is
 an estimate and the UI says so.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 test('distance is steps times stride', () {
@@ -909,10 +928,10 @@ test('distance formats in Arabic digits, switching unit at a kilometre', () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run the test.** Expected: PASS.
-- [ ] **Step 5: Commit** — `feat(steps): distance, calories and pace`
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run the test.** Expected: PASS.
+- [x] **Step 5: Commit** — `feat(steps): distance, calories and pace`
 
 ---
 
@@ -933,16 +952,16 @@ When `isAvailable()` is false the screen says so plainly — «جهازك ماف
 `settings.allowSimulatedSteps` is on, labelled «تجربة». That switch lives in
 الإعدادات and is off by default, so a real phone can never quietly invent steps.
 
-- [ ] **Step 1: Write the failing widget test** — starting a session with a
+- [x] **Step 1: Write the failing widget test** — starting a session with a
   simulated source raises the count; finishing persists a row with the right
   totals; an unavailable sensor with simulation off shows the honest message
   and no start button.
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run the tests.**
-- [ ] **Step 5: Verify on the emulator** — turn the simulation switch on in
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run the tests.**
+- [x] **Step 5: Verify on the emulator** — turn the simulation switch on in
   الإعدادات, run a session, confirm the row appears in البدن.
-- [ ] **Step 6: Commit** — `feat(steps): the live walking session`
+- [x] **Step 6: Commit** — `feat(steps): the live walking session`
 
 ---
 
@@ -975,7 +994,7 @@ Pose frameAt(List<Pose> keyframes, double t, {required double loopSeconds});
 class ExerciseAnimation extends StatefulWidget { ... }   // plays it
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 test('lerp at the ends returns the endpoints', () {
@@ -1010,11 +1029,11 @@ test('frameAt is stable past many loops', () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.** The painter strokes limbs as rounded lines in
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.** The painter strokes limbs as rounded lines in
   `NouriColors.text` on `NouriColors.surface`, with the head a filled circle.
-- [ ] **Step 4: Run the tests.**
-- [ ] **Step 5: Commit** — `feat(workouts): pose keyframes and the frame player`
+- [x] **Step 4: Run the tests.**
+- [x] **Step 5: Commit** — `feat(workouts): pose keyframes and the frame player`
 
 ---
 
@@ -1061,7 +1080,7 @@ class IntervalTimer extends ChangeNotifier {
 `tick(Duration)` rather than an internal `Timer`: the state machine is then
 fully testable without pumping real time. The widget owns the ticker.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 test('starts ready, not running', () {
@@ -1116,12 +1135,12 @@ test('every catalogue exercise has a name, a cue and at least two keyframes', ()
 test('exercise ids are unique across the catalogue', () { /* ... */ });
 ```
 
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.** Ship three routines — «تمرين البيت السريع» (8
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.** Ship three routines — «تمرين البيت السريع» (8
   exercises), «الجسم كامل» (20), «الإحماء» (5) — built from squat, push-up,
   jumping jack, plank, lunge, crunch, glute bridge, high knees.
-- [ ] **Step 4: Run the tests.**
-- [ ] **Step 5: Commit** — `feat(workouts): the catalogue and the interval timer`
+- [x] **Step 4: Run the tests.**
+- [x] **Step 5: Commit** — `feat(workouts): the catalogue and the interval timer`
 
 ---
 
@@ -1139,15 +1158,15 @@ pause/skip. Rest phases show the *next* exercise, which is the whole point of a
 rest screen. Finishing writes a `WorkoutSession` row — including a partial one,
 because five of twenty is real work and Nouri never treats it as nothing.
 
-- [ ] **Step 1: Write the failing widget test** — the picker lists the
+- [x] **Step 1: Write the failing widget test** — the picker lists the
   routines; starting shows the first exercise; the progress line reads
   «٥ من ٢٠» after five skips; finishing early still persists a row.
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run the tests.**
-- [ ] **Step 5: Verify on the emulator** — run a routine, confirm the figure
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run the tests.**
+- [x] **Step 5: Verify on the emulator** — run a routine, confirm the figure
   animates and the rest screen names the next exercise.
-- [ ] **Step 6: Commit** — `feat(workouts): the guided session`
+- [x] **Step 6: Commit** — `feat(workouts): the guided session`
 
 ---
 
@@ -1201,7 +1220,7 @@ ChallengeProgress evaluate(
 });
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 test('a day counts only when all five prayers meet the bar', () {
@@ -1260,13 +1279,13 @@ test('a dhikr challenge counts a day when the tasbeeh target is reached', () {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.** Catalogue: «أربعين يوم في المسجد» (40, streak,
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.** Catalogue: «أربعين يوم في المسجد» (40, streak,
   mosque), «الصلاة في وقتها ٣٠ يوم» (30, streak, onTime), «أذكار الصباح
   والمساء ٤٠ يوم» (40, cumulative), «١٠٠ تسبيحة كل يوم ٣٠ يوم» (30,
   cumulative), «مشي ٣٠ دقيقة ٢١ يوم» (21, cumulative).
-- [ ] **Step 4: Run the tests.**
-- [ ] **Step 5: Commit** — `feat(challenges): definitions and the evaluator`
+- [x] **Step 4: Run the tests.**
+- [x] **Step 5: Commit** — `feat(challenges): definitions and the evaluator`
 
 ---
 
@@ -1283,13 +1302,13 @@ Enrolled challenges show a ring, «١٢ من ٤٠ يوم», and the streak. Avai
 show a join button. A broken streak reads «ابدأ من تاني — اللي فات مش ضايع»,
 never a failure notice, and carries no red.
 
-- [ ] **Step 1: Write the failing widget test** — joining writes an enrolment
+- [x] **Step 1: Write the failing widget test** — joining writes an enrolment
   and moves the card to the active list; progress renders in Arabic digits;
   no widget in the tree uses a red colour.
-- [ ] **Step 2: Run and watch it fail.**
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run the tests.**
-- [ ] **Step 5: Commit** — `feat(challenges): the panel inside التقارير`
+- [x] **Step 2: Run and watch it fail.**
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run the tests.**
+- [x] **Step 5: Commit** — `feat(challenges): the panel inside التقارير`
 
 ---
 
@@ -1352,7 +1371,7 @@ boundaries — nothing added, nothing removed.** A test enforces exactly that, s
 this change cannot alter a single letter of religious content and
 `docs/athkar-verification.md` stays valid.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 test('a passage numbers its ayat from one', () {
@@ -1415,9 +1434,9 @@ testWidgets('a non-Quranic dhikr still renders as before', (t) async {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail.**
+- [x] **Step 2: Run and watch it fail.**
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 `MushafCard`: a framed panel with a hairline gold border and the surah name in
 a header band, the Basmala centred on its own line in Amiri, then a single
@@ -1425,12 +1444,12 @@ justified `RichText` of the ayat with `۝`-plus-number ornaments in gold
 between them. Source and repeat pill stay exactly where `DhikrCard` puts them,
 so nothing about the flow changes.
 
-- [ ] **Step 4: Run the tests.**
+- [x] **Step 4: Run the tests.**
 
-- [ ] **Step 5: Verify on the emulator** — أذكار الصباح, confirm الإخلاص,
+- [x] **Step 5: Verify on the emulator** — أذكار الصباح, confirm الإخلاص,
   الفلق, الناس and آية الكرسي render as a mushaf page and the rest are unchanged.
 
-- [ ] **Step 6: Commit** — `feat(athkar): typeset Qur'anic athkar as a mushaf page`
+- [x] **Step 6: Commit** — `feat(athkar): typeset Qur'anic athkar as a mushaf page`
 
 ---
 
@@ -1441,7 +1460,7 @@ so nothing about the flow changes.
 - Create: `docs/superpowers/handoffs/2026-09-08-slice1b.md`
 - Modify: `docs/install.md` — device checks for reminders and the step sensor
 
-- [ ] **Step 1: Run everything**
+- [x] **Step 1: Run everything**
 
 ```bash
 flutter analyze
@@ -1451,13 +1470,13 @@ flutter build apk --debug
 
 All three must be clean before the handoff is written.
 
-- [ ] **Step 2: Write the handoff**, listing honestly what was verified on the
+- [x] **Step 2: Write the handoff**, listing honestly what was verified on the
   emulator, what was not verified anywhere, and every decision taken alone.
 
-- [ ] **Step 3: Update STATUS.md** — schema v4, the new test count, the new
+- [x] **Step 3: Update STATUS.md** — schema v4, the new test count, the new
   features, and the standing limits.
 
-- [ ] **Step 4: Commit** — `docs: Slice 1b status and handoff`
+- [x] **Step 4: Commit** — `docs: Slice 1b status and handoff`
 
 ---
 

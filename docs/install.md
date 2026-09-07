@@ -187,3 +187,42 @@ adb logcat -s flutter:V AndroidRuntime:E
 The `origWhen=` values in the first command should match the prayer times the
 app displays, rendered in the device's local timezone. A mismatch there is the
 bug described under "Timezone handling" in `docs/setup.md`.
+
+---
+
+### Slice 1b — the five features added on 7 September 2026
+
+None of these has ever run on this phone. Checks 51 and 52 are the ones that
+can only be answered here: the emulator has no step-counter hardware at all.
+
+| # | Check | ✅ |
+|---|-------|----|
+| 48 | The calendar icon in the Home header opens التقويم, Saturday-first | ☐ |
+| 49 | A reminder saved for two minutes out **fires with the screen locked** | ☐ |
+| 50 | After changing any setting, the reminder is **still** armed — see below | ☐ |
+| 51 | البدن → «امشي» offers a start button rather than «مافيهوش حسّاس خطوات» | ☐ |
+| 52 | A real walk counts steps, and the distance is believable against a map | ☐ |
+| 53 | البدن → «تمارين البيت» animates the figure, and rest names what is next | ☐ |
+| 54 | Finishing a workout early still records «٥ من ٢٠» | ☐ |
+| 55 | التقارير → التحديات joins a challenge and counts today once it qualifies | ☐ |
+| 56 | الأذكار → الصباح shows آية الكرسي and الإخلاص as mushaf pages | ☐ |
+
+**Check 50 is the important one.** Re-arming the window used to call
+`cancelAll()`, which would have deleted every reminder on the device. Add a
+reminder, then toggle any switch under الإشعارات, then confirm the reminder
+alarm is still there:
+
+```powershell
+adb shell dumpsys alarm | Select-String "com.nouri.nouri" -Context 0,2
+```
+
+A reminder's alarm is an `RTC_WAKEUP` whose `origWhen=` is the reminder's own
+date and time. It must survive the toggle. Verified on the emulator; not here.
+
+**Check 51 decides the shape of the feature.** If the HONOR reports no step
+sensor, the walk screen is honest about it and the feature needs the
+foreground-service design instead — do not treat the message as a bug.
+
+Steps are read only while the walk screen is open. Android keeps counting in
+the OS, so backgrounding the app and coming back reconciles correctly, but
+killing the app loses the session. That is a known limit, not check 52 failing.
