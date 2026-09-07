@@ -198,7 +198,11 @@ class RollingWindowScheduler {
     final today = DateTime(now.year, now.month, now.day);
 
     for (var i = 0; i < kWindowDays; i++) {
-      final date = today.add(Duration(days: i));
+      // Constructed, never offset. On the autumn night the clocks go back,
+      // `today.add(Duration(days: 1))` from midnight lands at 23:00 the *same*
+      // day — so the loop would arm that day twice and never reach the far end
+      // of the fortnight, quietly losing a day of adhan once a year.
+      final date = DateTime(today.year, today.month, today.day + i);
       final times = prayerTimes.forDate(date, cfg.geo);
 
       for (final slot in times.ordered) {

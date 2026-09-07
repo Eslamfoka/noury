@@ -41,7 +41,15 @@ HijriDate hijriFor(
   int offsetDays = 0,
   bool arabic = true,
 }) {
-  final h = HijriCalendar.fromDate(gregorian.add(Duration(days: offsetDays)));
+  // Constructed, never offset. Adding 24 hours within an hour of midnight on
+  // a DST night lands back on the same date, so the user's ±1 sighting nudge
+  // would silently do nothing on exactly the kind of day they might use it.
+  final nudged = DateTime(
+    gregorian.year,
+    gregorian.month,
+    gregorian.day + offsetDays,
+  );
+  final h = HijriCalendar.fromDate(nudged);
 
   final months = arabic ? arabicHijriMonths : englishHijriMonths;
   final monthName = months[h.hMonth] ?? '${h.hMonth}';

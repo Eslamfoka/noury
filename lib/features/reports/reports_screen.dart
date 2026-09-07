@@ -16,7 +16,8 @@ import 'weekly_summary.dart';
 final weeklySummaryProvider = FutureProvider<WeeklySummary>((ref) async {
   final db = ref.watch(databaseProvider);
   final today = DateTime.now();
-  final from = today.subtract(const Duration(days: 6));
+  // Constructed, never offset — a day is a calendar day, not 24 hours.
+  final from = DateTime(today.year, today.month, today.day - 6);
 
   final prayers = await db.prayerDao.logsBetween(from, today);
   final athkar = await db.athkarDao.between(from, today);
@@ -24,7 +25,9 @@ final weeklySummaryProvider = FutureProvider<WeeklySummary>((ref) async {
 
   final days = <DaySnapshot>[];
   for (var i = 0; i < 7; i++) {
-    final d = dayOf(from.add(Duration(days: i)));
+    // Same reason: offsetting across a DST night would put the same day in
+    // the week twice and drop another, so seven days would show six.
+    final d = DateTime(from.year, from.month, from.day + i);
 
     final states = prayers
         .where((p) => dayOf(p.date) == d)

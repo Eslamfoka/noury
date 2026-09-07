@@ -341,7 +341,8 @@ const _prayerNames = {
       ? prayers.fajr
       : shiftWake;
   final wakeTomorrow = wakeClock?.on(DateTime(day.year, day.month, day.day + 1)) ??
-      prayers.fajr.add(const Duration(days: 1));
+      DateTime(prayers.fajr.year, prayers.fajr.month, prayers.fajr.day + 1,
+          prayers.fajr.hour, prayers.fajr.minute);
 
   var bedtime = wakeTomorrow.subtract(config.targetSleep);
 
