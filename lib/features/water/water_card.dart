@@ -10,11 +10,17 @@ import '../settings/settings_screen.dart';
 import 'water_plan.dart';
 
 final todayWaterProvider = FutureProvider<WaterLog?>(
-  (ref) => ref.watch(databaseProvider).waterDao.forDate(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .waterDao
+      .forDate(ref.watch(currentDayProvider)),
 );
 
 final fastingTodayProvider = FutureProvider<bool>(
-  (ref) => ref.watch(databaseProvider).waterDao.isFasting(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .waterDao
+      .isFasting(ref.watch(currentDayProvider)),
 );
 
 /// The day's water, and the fasting marker that governs it.

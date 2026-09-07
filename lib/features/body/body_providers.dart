@@ -17,7 +17,10 @@ final fastingWindowProvider = Provider<FastingWindow>((ref) {
 });
 
 final todayMealsProvider = FutureProvider<List<Meal>>(
-  (ref) => ref.watch(databaseProvider).bodyDao.mealsOn(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .bodyDao
+      .mealsOn(ref.watch(currentDayProvider)),
 );
 
 final recentMealsProvider = FutureProvider<List<Meal>>(

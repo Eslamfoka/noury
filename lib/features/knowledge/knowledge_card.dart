@@ -13,7 +13,10 @@ import '../planner/shift.dart';
 const kKnowledgeMinimumMinutes = 10;
 
 final todayKnowledgeProvider = FutureProvider<List<KnowledgeLog>>(
-  (ref) => ref.watch(databaseProvider).knowledgeDao.forDate(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .knowledgeDao
+      .forDate(ref.watch(currentDayProvider)),
 );
 
 const kKnowledgeLabels = <KnowledgeKind, String>{

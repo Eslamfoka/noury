@@ -5,7 +5,10 @@ import '../home/home_providers.dart';
 
 /// Workout sessions started today.
 final todayWorkoutsProvider = FutureProvider<List<WorkoutSession>>(
-  (ref) => ref.watch(databaseProvider).workoutDao.sessionsOn(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .workoutDao
+      .sessionsOn(ref.watch(currentDayProvider)),
 );
 
 final recentWorkoutsProvider = FutureProvider<List<WorkoutSession>>(

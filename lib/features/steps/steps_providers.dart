@@ -23,12 +23,18 @@ final stepSensorAvailableProvider = FutureProvider<bool>(
 
 /// Today's walking sessions.
 final todayWalksProvider = FutureProvider<List<WalkSession>>(
-  (ref) => ref.watch(databaseProvider).stepsDao.sessionsOn(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .stepsDao
+      .sessionsOn(ref.watch(currentDayProvider)),
 );
 
 /// Today's total steps across every session.
 final todayStepsProvider = FutureProvider<int>(
-  (ref) => ref.watch(databaseProvider).stepsDao.stepsOn(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .stepsDao
+      .stepsOn(ref.watch(currentDayProvider)),
 );
 
 final recentWalksProvider = FutureProvider<List<WalkSession>>(

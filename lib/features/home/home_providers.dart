@@ -58,30 +58,52 @@ final coarseClockProvider = StreamProvider<DateTime>((ref) async* {
   yield* Stream.periodic(const Duration(seconds: 30), (_) => DateTime.now());
 });
 
+/// The calendar day, as a value that changes only at midnight.
+///
+/// Every day-scoped query in the app watches this rather than calling
+/// `DateTime.now()` itself. Without it they each read the date once, cached it,
+/// and never looked again — so an app left open past midnight went on showing
+/// yesterday's prayer times, yesterday's plan and yesterday's logs until
+/// something unrelated happened to invalidate them.
+///
+/// That is not an edge case here. The brief's user works night shifts, so
+/// being awake with Nouri open as the date turns is most of his nights.
+///
+/// A plain [Provider] over the coarse clock: Riverpod only notifies dependents
+/// when the value actually changes, and a `DateTime` compares by value — so
+/// this fires **once a day**, not once every thirty seconds.
+final currentDayProvider = Provider<DateTime>((ref) {
+  final now = ref.watch(coarseClockProvider).value ?? DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+});
+
 /// Today's prayer times.
 final todayPrayerTimesProvider = Provider<AsyncValue<DailyPrayerTimes>>((ref) {
   final geo = ref.watch(geoConfigProvider);
   final service = ref.watch(prayerTimesServiceProvider);
-  return geo.whenData((g) => service.forDate(DateTime.now(), g));
+  return geo.whenData((g) => service.forDate(ref.watch(currentDayProvider), g));
 });
 
 /// Today's prayer logs, keyed by prayer name.
 final todayPrayerLogsProvider =
     FutureProvider<Map<String, PrayerState>>((ref) async {
   final db = ref.watch(databaseProvider);
-  final logs = await db.prayerDao.logsForDate(DateTime.now());
+  final logs = await db.prayerDao.logsForDate(ref.watch(currentDayProvider));
   return {for (final l in logs) l.prayer: l.state};
 });
 
 /// Today's athkar and wird progress, keyed by type.
 final todayAthkarProvider = FutureProvider<Map<String, AthkarLog>>((ref) async {
   final db = ref.watch(databaseProvider);
-  final rows = await db.athkarDao.forDate(DateTime.now());
+  final rows = await db.athkarDao.forDate(ref.watch(currentDayProvider));
   return {for (final r in rows) r.type: r};
 });
 
 final todayQuranProvider = FutureProvider<QuranLog?>(
-  (ref) => ref.watch(databaseProvider).quranDao.forDate(DateTime.now()),
+  (ref) => ref
+      .watch(databaseProvider)
+      .quranDao
+      .forDate(ref.watch(currentDayProvider)),
 );
 
 final khatmaTotalPagesProvider = FutureProvider<int>(
@@ -97,7 +119,7 @@ final tipRepositoryProvider = Provider<TipRepository>((ref) => TipRepository());
 /// It can never delay startup.
 final dailyTipProvider = FutureProvider<Tip?>((ref) async {
   final sets = await ref.watch(tipRepositoryProvider).loadAll();
-  return tipForDay(DateTime.now(), sets);
+  return tipForDay(ref.watch(currentDayProvider), sets);
 });
 
 /// Today's plan, built by the real planner.
@@ -111,7 +133,7 @@ final dailyTipProvider = FutureProvider<Tip?>((ref) async {
 final todayPlanProvider = Provider<AsyncValue<DayPlan>>((ref) {
   final settings = ref.watch(settingsProvider);
   final times = ref.watch(todayPrayerTimesProvider);
-  final today = DateTime.now();
+  final today = ref.watch(currentDayProvider);
 
   if (!settings.hasValue || !times.hasValue) {
     return const AsyncValue.loading();
