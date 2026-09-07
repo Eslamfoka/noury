@@ -4,6 +4,7 @@ import '../../../core/format/arabic_numerals.dart';
 import '../../../core/theme/nouri_colors.dart';
 import '../../../core/theme/nouri_theme.dart';
 import '../../../data/athkar/athkar_item.dart';
+import 'mushaf_card.dart';
 
 /// One dhikr: the text in Amiri, its source, its repeat pill, and — only where
 /// the wording is well-established — a tap-to-reveal virtue.
@@ -42,6 +43,12 @@ class _DhikrCardState extends State<DhikrCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+
+    // A Qur'anic entry is typeset as a mushaf page rather than as a paragraph
+    // with comma separators. Everything else renders exactly as it always has.
+    if (item.isQuran) {
+      return MushafCard(item: item, repeatsDone: widget.repeatsDone);
+    }
 
     return Container(
       width: double.infinity,

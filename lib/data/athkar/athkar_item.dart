@@ -1,3 +1,5 @@
+import 'quran_passage.dart';
+
 /// A single dhikr.
 ///
 /// [source] is mandatory and always displayed. [virtue] is optional and ships
@@ -12,6 +14,7 @@ class AthkarItem {
     required this.source,
     this.virtue,
     this.note,
+    this.passage,
   });
 
   final String id;
@@ -20,6 +23,13 @@ class AthkarItem {
   final String source;
   final String? virtue;
   final String? note;
+
+  /// Present only on Qur'anic entries, and purely a rendering hint: the same
+  /// words as [text], split at ayah boundaries so the card can typeset them
+  /// like a mushaf page. A test asserts the split reproduces [text] exactly.
+  final QuranPassage? passage;
+
+  bool get isQuran => passage != null;
 
   bool get hasVirtue => virtue != null && virtue!.trim().isNotEmpty;
 
@@ -37,6 +47,17 @@ class AthkarItem {
     final virtue = (j['virtue'] as String?)?.trim();
     final note = (j['note'] as String?)?.trim();
 
+    final quran = j['quran'] as Map<String, dynamic>?;
+    final passage = quran == null ? null : QuranPassage.fromJson(quran);
+
+    // Loud, never silent: a mushaf rendering that quietly disagreed with the
+    // text it came from would be altering religious content on screen.
+    if (passage != null && passage.reconstructedText != text) {
+      throw FormatException(
+        'athkar entry $id: the quran split does not reproduce its text',
+      );
+    }
+
     return AthkarItem(
       id: id,
       text: text,
@@ -44,6 +65,7 @@ class AthkarItem {
       source: source,
       virtue: (virtue == null || virtue.isEmpty) ? null : virtue,
       note: (note == null || note.isEmpty) ? null : note,
+      passage: passage,
     );
   }
 
@@ -54,6 +76,7 @@ class AthkarItem {
         'source': source,
         'virtue': virtue,
         'note': note,
+        if (passage != null) 'quran': passage!.toJson(),
       };
 }
 
