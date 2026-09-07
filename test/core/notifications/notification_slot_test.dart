@@ -3,18 +3,33 @@ import 'package:nouri/core/notifications/notification_slot.dart';
 
 void main() {
   test('there are fewer slots than the per-day stride', () {
-    expect(NotificationSlot.values.length, lessThan(kSlotsPerDay));
+    // The single most consequential invariant in the ID scheme. IDs are
+    // `daysSince2020 * kSlotsPerDay + slot.index`, so one slot too many makes
+    // the last slot of one day collide with the first slot of the next —
+    // silently, and only for whoever's alarm gets overwritten.
+    //
+    // There are 31 slots against a stride of 32. **There is one left.** Adding
+    // two more means raising kSlotsPerDay, and that renumbers every alarm
+    // already sitting on a device, so it needs a deliberate re-arm rather than
+    // a quiet bump.
+    expect(NotificationSlot.values.length, lessThan(kSlotsPerDay),
+        reason: 'raise kSlotsPerDay deliberately, and re-arm — see the note '
+            'on the enum');
   });
 
   test('IDs are unique across a full year and every slot', () {
     final seen = <int>{};
-    var day = DateTime(2026, 1, 1);
     for (var i = 0; i < 365; i++) {
+      // Constructed, not offset. Stepping with `add(Duration(days: 1))` makes
+      // this test's own correctness depend on the zone it runs in: measured on
+      // Egypt time, 2026-10-29 plus twenty-four hours is 2026-10-29 23:00, the
+      // same date — which would look like an ID collision that is really a
+      // duplicated day in the test.
+      final day = DateTime(2026, 1, 1 + i);
       for (final slot in NotificationSlot.values) {
         final id = notificationIdFor(day, slot);
         expect(seen.add(id), isTrue, reason: 'collision on $day / $slot');
       }
-      day = day.add(const Duration(days: 1));
     }
   });
 

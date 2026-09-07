@@ -66,6 +66,33 @@ dart run build_runner build --delete-conflicting-outputs
 - **Slice 1 makes no network requests.** `test/guard/no_network_test.dart` fails
   the build if a network package or an HTTP call appears in `lib/`.
 
+## Dates: construct, never offset
+
+`test/guard/day_stepping_test.dart` fails the build if any source file steps a
+date with `add(Duration(days: n))`. That is not a style rule — it is the bug
+that moved the adhan by an hour and broke the pay cycle, found a third time in
+four more places on 7 September.
+
+**Measured on this machine**, Egypt time, September 2026:
+
+```
+2026-10-29 00:00  +24h -> 2026-10-29 23:00   (the same date)
+                 built -> 2026-10-30 00:00
+
+2026-04-24 01:00  +24h -> 2026-04-25 01:00
+                 built -> 2026-04-25 00:00
+```
+
+The autumn one is the dangerous half. A loop of the shape
+`for (i..) { today.add(Duration(days: i)) }` visits 29 October twice and never
+reaches the far end of its range — so the fourteen-day alarm window covered
+thirteen days, once a year, and the seven-day report showed six days and a
+duplicate.
+
+`Duration(days:)` as a **length** is fine and is not flagged: a fortnight of
+alarms, a week of history. It is only walking from one calendar day to the next
+that has to be `DateTime(y, m, d + n)`.
+
 ## Fonts
 
 Bundled under `assets/fonts/`, both SIL Open Font License (licence texts are
