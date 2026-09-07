@@ -5,11 +5,11 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `1ab233f`, working tree clean |
-| Tests | **796 passing**, `flutter analyze` clean |
+| Head | `4c12dc5`, working tree clean |
+| Tests | **813 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
-| Schema | v7 |
+| Schema | v8 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
 
@@ -22,7 +22,7 @@ Last updated **7 September 2026**, overnight session.
 | **الديني** religious | Built. Prayers, athkar, tasbeeh, wird, adhan + iqama alarms, follow-ups, daily review. Qur'anic athkar now set as a mushaf page. |
 | **البدني** physical | Built. 16/8 window, meal log with symptom, weight, walking sessions, guided home workouts, sunnah fasting reminders, **water**. Now placed by the planner. |
 | **المالي** financial | Built. Pay-cycle month, budgets, expenses, savings rate. |
-| **تطوير الذات** self-development | **Not started.** §5.3 of the brief. |
+| **تطوير الذات** self-development | **Tracking built.** Knowledge time logged on Home, in the report, and placed by the planner. The *recommending* — books, a skill path — is AI work for Slice 5. |
 | **الوقت والدوام** time & duty | **Built.** The planner places the day from the shift and the prayer times; Home shows it. Calendar reminders too. |
 | **المتابعة والذكاء** tracking & AI | Reports now cover **all three logged pillars** plus **challenges**. The Claude layer is Slice 5, unstarted. |
 
@@ -43,6 +43,8 @@ Last updated **7 September 2026**, overnight session.
   `planDay` from the shift and the day's prayers, re-planned from now
 - **Water** — a count against a target in البدن, and a nudge after each prayer
   that disappears between fajr and maghrib on a day marked as a fast
+- **Knowledge time** — reading, skill or religious content, logged on Home and
+  totalled in the weekly report as minutes *and* days
 - Finance and body tabs, both writing to the local database
 - No network calls at all — `INTERNET` is removed from the manifest
 
@@ -112,6 +114,9 @@ Last updated **7 September 2026**, overnight session.
 - **The notification slot space is full** — 31 of `kSlotsPerDay` = 32. Raising
   it renumbers every alarm already on a device, so it needs a deliberate
   re-arm rather than a quiet bump.
+- **Nouri recommends nothing.** No book, no skill path, no reading of the
+  week. All of it is AI work for Slice 5, and every screen asks rather than
+  claims — tests assert it makes no such claim.
 - Nothing is ever marked failed, and nothing is ever red.
 
 ## Where things live
