@@ -6,6 +6,7 @@ import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
 import '../home/home_providers.dart';
+import '../settings/settings_screen.dart';
 import 'water_plan.dart';
 
 final todayWaterProvider = FutureProvider<WaterLog?>(
@@ -153,10 +154,13 @@ class WaterCard extends ConsumerWidget {
                 value: fasting,
                 activeThumbColor: NouriColors.gold,
                 onChanged: (v) async {
+                  // Through the controller, not the DAO: today's water
+                  // reminders are already armed and have to be rebuilt, or
+                  // Nouri would nudge a fasting person to drink at noon
+                  // having just been told they are fasting.
                   await ref
-                      .read(databaseProvider)
-                      .waterDao
-                      .setFasting(DateTime.now(), v);
+                      .read(settingsControllerProvider)
+                      .setFastingDay(DateTime.now(), v);
                   ref.invalidate(fastingTodayProvider);
                 },
               ),

@@ -1,19 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nouri/core/notifications/rolling_window_scheduler.dart';
 import 'package:nouri/data/db/nouri_database.dart';
+import 'package:nouri/features/home/home_providers.dart';
+import 'package:nouri/features/settings/settings_controller.dart';
+import 'package:nouri/features/settings/settings_screen.dart';
 import 'package:nouri/features/water/water_card.dart';
 
 import '../../support/harness.dart';
 
+/// Counts re-arms, without a platform channel.
+class RecordingScheduler implements SchedulerPort {
+  int rearmCount = 0;
+
+  @override
+  Future<void> rearm(SchedulingConfig config) async => rearmCount++;
+}
+
 void main() {
   late NouriDatabase db;
+  late RecordingScheduler scheduler;
+
+  setUp(() => scheduler = RecordingScheduler());
 
   Future<void> pump(WidgetTester t) async {
-    await t.pumpWidget(testApp(
-      db: db,
-      child: const Scaffold(
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        schedulerPortProvider.overrideWithValue(scheduler),
+      ],
+      child: testShell(const Scaffold(
         body: Padding(padding: EdgeInsets.all(16), child: WaterCard()),
-      ),
+      )),
     ));
     await t.pumpAndSettle();
   }
@@ -88,6 +107,9 @@ void main() {
 
       expect(await db.waterDao.isFasting(DateTime.now()), isTrue);
       expect(find.textContaining('مفيش تنبيه مياه لحد المغرب'), findsOneWidget);
+      expect(scheduler.rearmCount, greaterThan(0),
+          reason: "today's water reminders are already armed and have to be "
+              'rebuilt, or Nouri nudges a fasting person to drink at noon');
     });
   });
 

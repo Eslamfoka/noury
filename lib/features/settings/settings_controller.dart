@@ -228,6 +228,17 @@ class SettingsController {
         SettingsRowsCompanion(shiftType: Value(shiftType)),
       );
 
+  /// Marks a day as a fast, and **rearms**.
+  ///
+  /// The re-arm is the point. Water reminders for today are already sitting in
+  /// AlarmManager by the time the user flips the switch, and they cannot know
+  /// they have been overruled — so the answer has to reach back and rebuild
+  /// the window, exactly as logging a prayer cancels its follow-ups.
+  Future<void> setFastingDay(DateTime date, bool fasting) async {
+    await db.waterDao.setFasting(date, fasting);
+    await _rearmFromSettings();
+  }
+
   Future<void> markOnboardingComplete() => db.settingsDao
       .update(const SettingsRowsCompanion(onboardingComplete: Value(true)));
 }
