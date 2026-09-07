@@ -13,6 +13,7 @@ import 'log_meal_sheet.dart';
 import 'log_weight_sheet.dart';
 import 'meal.dart';
 import '../steps/walk_screen.dart';
+import '../water/water_card.dart';
 import '../workouts/workout_screen.dart';
 
 /// The physical pillar.
@@ -109,6 +110,8 @@ class BodyScreen extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        const WaterCard(),
         const SizedBox(height: 20),
 
         if (weight != null) ...[

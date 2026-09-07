@@ -148,6 +148,15 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
             _SwitchRow(
+              key: const ValueKey('notify-water'),
+              label: 'تنبيه المياه بعد الصلاة',
+              value: s.notifyWater,
+              onChanged: (v) async {
+                await controller.toggleChannel('water', v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _SwitchRow(
               key: const ValueKey('notify-fasting'),
               label: 'صيام الاتنين والخميس والأيام البيض',
               value: s.notifyFasting,

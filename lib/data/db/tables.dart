@@ -61,6 +61,15 @@ class SettingsRows extends Table {
   /// today's shift is honest, reversible, and enough for the planner to work.
   TextColumn get shiftType => text().withDefault(const Constant('morning'))();
 
+  /// Glasses of water a day. A prompt, not a prescription — Nouri is not a
+  /// doctor, and the number is adjustable for exactly that reason.
+  IntColumn get waterTargetGlasses =>
+      integer().withDefault(const Constant(8))();
+
+  /// A nudge to drink after each prayer. On by default, and suppressed
+  /// entirely between fajr and maghrib on a day the user marks as fasting.
+  BoolColumn get notifyWater => boolean().withDefault(const Constant(true))();
+
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
 

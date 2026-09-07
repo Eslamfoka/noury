@@ -48,6 +48,18 @@ enum NotificationSlot {
   /// The evening before a sunnah fast — Monday, Thursday, or a white day.
   /// Appended like the rest: 26 slots against kSlotsPerDay = 32.
   fastingEve,
+
+  /// A nudge to drink, shortly after each prayer. Five more, taking the count
+  /// to 31 — the last that fits under kSlotsPerDay = 32.
+  ///
+  /// **The slot space is now full.** Anything further needs kSlotsPerDay
+  /// raised, and raising it renumbers every alarm already on the device — so
+  /// it has to be done deliberately, with a re-arm, not as a side effect.
+  waterFajr,
+  waterDhuhr,
+  waterAsr,
+  waterMaghrib,
+  waterIsha,
 }
 
 /// A notification's ID, derived purely from its date and slot.

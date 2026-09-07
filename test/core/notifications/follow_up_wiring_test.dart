@@ -229,7 +229,8 @@ void main() {
       // Fasting is excluded here rather than folded in: how many sunnah fasts
       // fall in a fortnight depends on the date, and a count that moved with
       // the calendar could not pin anything. It is bounded in the next test.
-      await scheduler.rearm(config.copyWith(notifyFasting: false));
+      await scheduler.rearm(
+          config.copyWith(notifyFasting: false, notifyWater: false));
       expect(gateway.scheduled.length, 229);
     });
 
@@ -238,10 +239,46 @@ void main() {
       // white days fall wholly inside it or not at all. Overlaps count once,
       // and the days fasting is prohibited are dropped — so the ceiling is
       // seven, and the floor is the four weekdays.
-      await scheduler.rearm(config);
+      await scheduler.rearm(config.copyWith(notifyWater: false));
       final fasting = gateway.ofSlot(NotificationSlot.fastingEve).length;
       expect(fasting, inInclusiveRange(4, 7));
       expect(gateway.scheduled.length, 229 + fasting);
+    });
+
+    test('water rides the short window, not the fortnight', () async {
+      // Five a day for three days. Arming them for a fortnight would cost 70
+      // alarms out of a budget the adhan has first call on, for nudges nobody
+      // needs twelve days ahead.
+      await scheduler.rearm(config);
+      final water = gateway.scheduled
+          .where((n) => n.payload == 'water')
+          .length;
+      expect(water, lessThanOrEqualTo(5 * kFollowUpWindowDays));
+      expect(water, greaterThan(0));
+    });
+
+    test('the whole window stays well inside the pending-alarm cap', () async {
+      await scheduler.rearm(config);
+      expect(gateway.scheduled.length, lessThan(400),
+          reason: 'Android drops alarms past ~500, silently');
+    });
+
+    test('a fasting day gets no daytime water reminder', () async {
+      // The rule that matters: telling a fasting person to drink at noon
+      // would be Nouri telling them to break it.
+      final fasting = DateTime(2026, 9, 6);
+      await scheduler.rearm(config.copyWith(fastingDays: {fasting}));
+
+      final onThatDay = gateway.scheduled.where((n) =>
+          n.payload == 'water' &&
+          n.when.year == fasting.year &&
+          n.when.month == fasting.month &&
+          n.when.day == fasting.day);
+
+      for (final n in onThatDay) {
+        expect(n.when.hour, greaterThanOrEqualTo(18),
+            reason: 'a water nudge at ${n.when} is inside the fast');
+      }
     });
 
     test('every fasting offer lands the evening before its day', () async {

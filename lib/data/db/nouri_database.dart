@@ -38,6 +38,8 @@ String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
     WalkSessions,
     WorkoutSessions,
     ChallengeEnrollments,
+    WaterLogs,
+    FastingDays,
   ],
 )
 class NouriDatabase extends _$NouriDatabase {
@@ -45,7 +47,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +93,14 @@ class NouriDatabase extends _$NouriDatabase {
           if (from < 6) {
             await m.addColumn(settingsRows, settingsRows.shiftType);
           }
+
+          // v7 adds water and the fasting-day marker. Additive only.
+          if (from < 7) {
+            await m.createTable(waterLogs);
+            await m.createTable(fastingDays);
+            await m.addColumn(settingsRows, settingsRows.waterTargetGlasses);
+            await m.addColumn(settingsRows, settingsRows.notifyWater);
+          }
         },
       );
 
@@ -104,6 +114,7 @@ class NouriDatabase extends _$NouriDatabase {
   late final stepsDao = StepsDao(this);
   late final workoutDao = WorkoutDao(this);
   late final challengeDao = ChallengeDao(this);
+  late final waterDao = WaterDao(this);
 
   static QueryExecutor _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
@@ -595,5 +606,71 @@ class ChallengeDao {
   Future<List<ChallengeEnrollment>> history() =>
       (_db.select(_db.challengeEnrollments)
             ..orderBy([(t) => OrderingTerm.desc(t.startedOn)]))
+          .get();
+}
+
+/// Water, and the days the user says they are fasting.
+class WaterDao {
+  WaterDao(this._db);
+  final NouriDatabase _db;
+
+  Future<WaterLog?> forDate(DateTime date) =>
+      (_db.select(_db.waterLogs)..where((t) => t.date.equals(dayOf(date))))
+          .getSingleOrNull();
+
+  /// Adds [glasses] to the day, never below zero.
+  ///
+  /// Clamped rather than guarded at the call site: the minus button is there
+  /// for a mistap, and a negative count of glasses is not a thing.
+  Future<void> add(DateTime date, int glasses, {required int target}) async {
+    final day = dayOf(date);
+    final existing = await forDate(day);
+    final next = ((existing?.glasses ?? 0) + glasses).clamp(0, 100);
+
+    final row = WaterLogsCompanion.insert(
+      date: day,
+      targetGlasses: target,
+      glasses: Value(next),
+    );
+    await _db.into(_db.waterLogs).insert(
+          row,
+          onConflict: DoUpdate((_) => row, target: [_db.waterLogs.date]),
+        );
+  }
+
+  Future<List<WaterLog>> between(DateTime from, DateTime to) =>
+      (_db.select(_db.waterLogs)
+            ..where((t) => t.date.isBetweenValues(dayOf(from), dayOf(to)))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+          .get();
+
+  Future<bool> isFasting(DateTime date) async {
+    final row = await (_db.select(_db.fastingDays)
+          ..where((t) => t.date.equals(dayOf(date))))
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<void> setFasting(DateTime date, bool fasting) async {
+    final day = dayOf(date);
+    if (!fasting) {
+      await (_db.delete(_db.fastingDays)..where((t) => t.date.equals(day)))
+          .go();
+      return;
+    }
+    // The conflict target must be named. DoNothing() targets the primary key,
+    // and `id` is auto-increment — so it would never see the `date` collision
+    // and SQLite would raise 2067 instead of doing nothing. The same trap
+    // PrayerDao documents.
+    await _db.into(_db.fastingDays).insert(
+          FastingDaysCompanion.insert(date: day),
+          onConflict: DoNothing(target: [_db.fastingDays.date]),
+        );
+  }
+
+  Future<List<FastingDay>> fastingBetween(DateTime from, DateTime to) =>
+      (_db.select(_db.fastingDays)
+            ..where((t) => t.date.isBetweenValues(dayOf(from), dayOf(to)))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
           .get();
 }

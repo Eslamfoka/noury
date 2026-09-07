@@ -1,4 +1,5 @@
 import '../../features/fasting/sunnah_fasting.dart';
+import '../../features/water/water_plan.dart';
 import '../time/geo_config.dart';
 import '../time/prayer_times_service.dart';
 import 'follow_up_plan.dart';
@@ -44,6 +45,8 @@ class SchedulingConfig {
     this.notifyAthkar = true,
     this.notifyWird = true,
     this.notifyFasting = true,
+    this.notifyWater = true,
+    this.fastingDays = const {},
     this.hijriOffsetDays = 0,
     this.fastingEveHour = 20,
     this.morningAthkarHour = 7,
@@ -61,6 +64,16 @@ class SchedulingConfig {
 
   /// Whether to offer the sunnah fasts the evening before.
   final bool notifyFasting;
+
+  /// Whether to nudge the user to drink after each prayer.
+  final bool notifyWater;
+
+  /// The days the user has said they are fasting, as midnight-local dates.
+  ///
+  /// Passed in rather than looked up: the scheduler is pure, and it is the
+  /// user's own marking — Nouri never infers a fast, because guessing wrong
+  /// means telling a fasting person to drink at noon.
+  final Set<DateTime> fastingDays;
 
   /// The same nudge the Home header uses, so the fasting days can never
   /// disagree with the Hijri date shown on screen.
@@ -85,6 +98,8 @@ class SchedulingConfig {
     bool? notifyAthkar,
     bool? notifyWird,
     bool? notifyFasting,
+    bool? notifyWater,
+    Set<DateTime>? fastingDays,
     int? hijriOffsetDays,
     int? fastingEveHour,
     int? morningAthkarHour,
@@ -100,6 +115,8 @@ class SchedulingConfig {
         notifyAthkar: notifyAthkar ?? this.notifyAthkar,
         notifyWird: notifyWird ?? this.notifyWird,
         notifyFasting: notifyFasting ?? this.notifyFasting,
+        notifyWater: notifyWater ?? this.notifyWater,
+        fastingDays: fastingDays ?? this.fastingDays,
         hijriOffsetDays: hijriOffsetDays ?? this.hijriOffsetDays,
         fastingEveHour: fastingEveHour ?? this.fastingEveHour,
         morningAthkarHour: morningAthkarHour ?? this.morningAthkarHour,
@@ -319,6 +336,49 @@ class RollingWindowScheduler {
             body: fastingEveBody(fast),
             channel: channelGeneral,
             payload: 'fasting',
+          );
+        }
+      }
+
+      // Water, riding the prayers. Five times a day the user already stops
+      // what they are doing, so this costs no new interruption — and on a day
+      // they have said they are fasting, the daytime ones are simply absent.
+      // Only over the short window, for the same reason the follow-ups are.
+      // A nudge to drink twelve days from now is worth nothing to anyone, and
+      // arming it for a fortnight would cost 70 alarms out of a budget of
+      // ~500 that the adhan has first call on.
+      if (cfg.notifyWater && i < kFollowUpWindowDays) {
+        final fastingToday = cfg.fastingDays.contains(date);
+        final slots = <NotificationSlot>[
+          NotificationSlot.waterFajr,
+          NotificationSlot.waterDhuhr,
+          NotificationSlot.waterAsr,
+          NotificationSlot.waterMaghrib,
+          NotificationSlot.waterIsha,
+        ];
+
+        for (var p = 0; p < times.ordered.length; p++) {
+          final at = times.ordered[p].time.add(const Duration(minutes: 25));
+          if (!waterReminderAllowed(
+            at: at,
+            fastingToday: fastingToday,
+            fajr: times.fajr,
+            maghrib: times.maghrib,
+          )) {
+            continue;
+          }
+
+          await _put(
+            date,
+            slots[p],
+            at,
+            now,
+            title: 'مياه',
+            body: waterReminderBody(
+              afterFast: fastingToday && !at.isBefore(times.maghrib),
+            ),
+            channel: channelGeneral,
+            payload: 'water',
           );
         }
       }

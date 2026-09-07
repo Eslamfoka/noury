@@ -75,6 +75,8 @@ class _AppShellState extends ConsumerState<AppShell> {
           if (mounted) setState(() => _index = _tabForAthkar);
         case QuranRoute():
           if (mounted) setState(() => _index = 0);
+        case WaterRoute():
+          if (mounted) setState(() => _index = _tabForBody);
         case FastingRoute():
           // Fasting lives in the physical pillar, per the brief.
           if (mounted) setState(() => _index = _tabForBody);

@@ -63,6 +63,15 @@ class SettingsController {
 
   Future<void> _rearmFromSettings() async {
     final s = await db.settingsDao.get();
+
+    // The days the user has said they are fasting, over the window the water
+    // reminders actually cover. Read here rather than in the scheduler so the
+    // scheduler stays pure.
+    final today = DateTime.now();
+    final fasting = await db.waterDao.fastingBetween(
+      today,
+      DateTime(today.year, today.month, today.day + 14),
+    );
     await scheduler.rearm(SchedulingConfig(
       geo: GeoConfig(
         latitude: s.latitude,
@@ -76,6 +85,8 @@ class SettingsController {
       notifyAthkar: s.notifyAthkar,
       notifyWird: s.notifyWird,
       notifyFasting: s.notifyFasting,
+      notifyWater: s.notifyWater,
+      fastingDays: {for (final f in fasting) dayOf(f.date)},
       hijriOffsetDays: s.hijriOffsetDays,
     ));
   }
@@ -164,6 +175,7 @@ class SettingsController {
       'athkar' => SettingsRowsCompanion(notifyAthkar: Value(enabled)),
       'wird' => SettingsRowsCompanion(notifyWird: Value(enabled)),
       'fasting' => SettingsRowsCompanion(notifyFasting: Value(enabled)),
+      'water' => SettingsRowsCompanion(notifyWater: Value(enabled)),
       _ => throw ArgumentError('unknown channel: $channel'),
     };
     await db.settingsDao.update(companion);

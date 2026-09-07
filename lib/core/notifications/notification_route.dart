@@ -29,6 +29,7 @@ sealed class NotificationRoute {
       'reminder' when int.tryParse(rest) != null =>
         ReminderRoute(int.parse(rest)),
       'fasting' => const FastingRoute(),
+      'water' => const WaterRoute(),
       _ => null,
     };
   }
@@ -111,4 +112,14 @@ class FastingRoute extends NotificationRoute {
   bool operator ==(Object other) => other is FastingRoute;
   @override
   int get hashCode => 'fasting'.hashCode;
+}
+
+/// Open البدن, where the water card lives.
+class WaterRoute extends NotificationRoute {
+  const WaterRoute();
+
+  @override
+  bool operator ==(Object other) => other is WaterRoute;
+  @override
+  int get hashCode => 'water'.hashCode;
 }

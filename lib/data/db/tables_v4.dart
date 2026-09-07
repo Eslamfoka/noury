@@ -93,3 +93,38 @@ class ChallengeEnrollments extends Table {
         {challengeId, startedOn}
       ];
 }
+
+/// Glasses of water drunk on a day.
+///
+/// One row per day rather than one per glass. The user taps a plus button; the
+/// interesting number is the day's total, and a row per tap would be a lot of
+/// rows to say the same thing.
+class WaterLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Midnight local.
+  DateTimeColumn get date => dateTime()();
+  IntColumn get glasses => integer().withDefault(const Constant(0))();
+  IntColumn get targetGlasses => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {date}
+      ];
+}
+
+/// A day the user has said they are fasting.
+///
+/// Set by the user, never inferred. Nouri suggests the sunnah fasts but has no
+/// way of knowing whether one was kept, and guessing would be the difference
+/// between a helpful app and one that tells a fasting person to drink water at
+/// noon. A row here is the user saying so.
+class FastingDays extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get date => dateTime()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {date}
+      ];
+}

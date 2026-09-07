@@ -218,6 +218,11 @@ Future<void> _armReminders(
 /// which makes re-arming safe to repeat.
 Future<void> _armWindow(NouriDatabase db, RollingWindowScheduler s) async {
   final settings = await db.settingsDao.get();
+  final today = DateTime.now();
+  final fasting = await db.waterDao.fastingBetween(
+    today,
+    DateTime(today.year, today.month, today.day + 14),
+  );
   await s.rearm(SchedulingConfig(
     geo: GeoConfig(
       latitude: settings.latitude,
@@ -231,6 +236,8 @@ Future<void> _armWindow(NouriDatabase db, RollingWindowScheduler s) async {
     notifyAthkar: settings.notifyAthkar,
     notifyWird: settings.notifyWird,
     notifyFasting: settings.notifyFasting,
+    notifyWater: settings.notifyWater,
+    fastingDays: {for (final f in fasting) dayOf(f.date)},
     hijriOffsetDays: settings.hijriOffsetDays,
   ));
 }
