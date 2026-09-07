@@ -57,15 +57,28 @@ came from the task list.
 
 ### 4. Re-planning mid-day — deterministic, or wait for the AI?
 
-**Answer: deterministic, now.**
+**Answer, revised: not implemented, and the plan is now stable instead.**
 
-`planDay` takes a `now` and simply plans the rest of the day from it. There is
-no memory of the earlier plan, so nothing drifts and the same inputs always
-give the same day — a test asserts that. A prayer already passed is not
-re-listed.
+I first answered "deterministic, now" and gave `planDay` a `now` that planned
+the rest of the day from the current time. That was wrong twice over, and both
+faults were found by building on it:
 
-This is the cheapest answer and it is genuinely enough. When the AI layer
-arrives in Slice 5 it can *advise* on a re-plan rather than perform it.
+- Clamping every window to `now` made a flexible task land at "now" and then
+  keep moving — 15:45, 15:55, 16:05 — chasing the clock and never arriving.
+  A plan that will not hold still is not a plan.
+- Filtering *past* prayers out before placing was subtler and worse. A fajr
+  that had already happened stopped consuming its fifteen minutes, so the
+  tasks around it shifted, and **the same day planned at noon came out
+  different from the same day planned at dawn.**
+
+`now` is gone. The day is planned once and whole; what is past is still in it,
+in a block the UI collapses and marks. That is a true statement about the day.
+
+**Re-planning around a missed task is a real feature and it is not built.**
+The brief asks for it — move tonight's reading because this morning's was
+missed — but it is a decision about what to move and what to drop, not a clock
+parameter. Pretending a clock parameter was that feature is what caused both
+bugs above. It wants either your judgement or the AI layer.
 
 ### 5. Where do user-defined tasks live?
 
@@ -108,13 +121,18 @@ describes a morning nobody has.
 maghrib, opening the evening block at maghrib handed the planner four free
 hours the user spends at work — and it put a heavy task in them.
 
-## And one bug the tests found
+## And two bugs the tests found
 
 The first window model advanced a window's start past anything placed in it. A
 prayer at 11:46 inside a window running 04:07–18:04 moved the start to 12:01
 and **silently threw away seven usable hours** — which made a day off look
 fuller than a work day. Windows now *split* when something lands in their
 middle. That is why `_consume` is more careful than it first appears.
+
+The second is question 4 above: the plan changed depending on when you opened
+it. Both bugs came from the same instinct — trying to make the planner clever
+about the current moment — and both were caught by asking a test to state
+something obvious out loud.
 
 ## What is still not decided
 

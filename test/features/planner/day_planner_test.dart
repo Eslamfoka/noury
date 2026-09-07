@@ -36,7 +36,6 @@ PlannedTask task(
 DayPlan plan({
   ShiftPattern? shift,
   List<PlannedTask> tasks = const [],
-  DateTime? now,
   PlannerConfig config = const PlannerConfig(),
 }) =>
     planDay(
@@ -45,7 +44,6 @@ DayPlan plan({
       prayers: prayers,
       tasks: tasks,
       config: config,
-      now: now,
     );
 
 ScheduledTask? find(DayPlan p, String id) {
@@ -363,31 +361,33 @@ void main() {
     });
   });
 
-  group('re-planning mid-day', () {
-    test('nothing is placed before now', () {
-      final noon = DateTime(2026, 9, 6, 12, 0);
-      final p = plan(
-        now: noon,
-        tasks: [task('walk', weight: TaskWeight.heavy)],
-      );
-      for (final t in p.allTasks) {
-        expect(t.start.isBefore(noon), isFalse,
-            reason: '${t.task.id} at ${t.start} is behind now');
-      }
-    });
-
-    test('a prayer already passed is not re-listed', () {
-      final p = plan(now: DateTime(2026, 9, 6, 12, 0));
-      expect(find(p, 'prayer-fajr'), isNull);
-      expect(find(p, 'prayer-dhuhr'), isNull, reason: '11:46 has passed');
-      expect(find(p, 'prayer-asr'), isNotNull);
-    });
-
-    test('re-planning is deterministic — the same inputs, the same day', () {
-      final noon = DateTime(2026, 9, 6, 12, 0);
-      final a = plan(now: noon, tasks: [task('x', weight: TaskWeight.heavy)]);
-      final b = plan(now: noon, tasks: [task('x', weight: TaskWeight.heavy)]);
+  group('the plan does not depend on when you look at it', () {
+    test('the same day planned twice is the same day', () {
+      final a = plan(tasks: [task('x', weight: TaskWeight.heavy)]);
+      final b = plan(tasks: [task('x', weight: TaskWeight.heavy)]);
       expect(find(a, 'x')!.start, find(b, 'x')!.start);
+    });
+
+    test('a prayer that has passed still holds its place in the day', () {
+      // It was filtered out once, and that was subtly worse than it looked:
+      // a fajr that stopped being placed also stopped consuming its fifteen
+      // minutes, so everything around it shifted and the same day planned at
+      // noon came out different from the same day planned at dawn.
+      final p = plan();
+      expect(find(p, 'prayer-fajr'), isNotNull);
+      expect(find(p, 'prayer-fajr')!.start, prayers.fajr);
+    });
+
+    test('every prayer is in the day, whatever the hour', () {
+      final p = plan(tasks: [
+        for (var i = 0; i < 4; i++)
+          task('t$i', weight: TaskWeight.light,
+              duration: const Duration(minutes: 20)),
+      ]);
+      expect(
+        p.allTasks.where((t) => t.task.id.startsWith('prayer-')),
+        hasLength(5),
+      );
     });
   });
 

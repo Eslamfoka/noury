@@ -132,17 +132,31 @@ class _Window {
 
 /// Plans one day.
 ///
-/// [now] is only used to plan the rest of a day already in progress — the
-/// answer to "re-planning mid-day". It is deterministic: the plan is
-/// recomputed from the current time, with no memory of the earlier one, so
-/// there is no drift to accumulate.
+/// **The plan is the whole day, and it does not depend on when you look at
+/// it.** There is deliberately no `now`: a plan that changes as the clock
+/// moves is not a plan, and two attempts at making one work both did damage.
+///
+/// Clamping windows to `now` made a flexible task land at "now" and then keep
+/// moving — 15:45, 15:55, 16:05 — chasing the clock and never arriving.
+/// Filtering *past* prayers out before placing was subtler and worse: a fajr
+/// that had already happened stopped consuming its fifteen minutes, so the
+/// tasks around it shifted, and the same day planned at noon came out
+/// different from the same day planned at dawn.
+///
+/// So the day is planned once and whole. What is past is still in it, in a
+/// block the UI collapses and marks — that is a true statement about the day,
+/// and the user can see what it was for.
+///
+/// **Re-planning around a missed task is not implemented.** The brief asks for
+/// it and it is a real feature — move tonight's reading because this morning's
+/// was missed — but it is a decision about what to move and what to drop, not
+/// a clock parameter. See `docs/planner-decisions.md`.
 DayPlan planDay({
   required DateTime date,
   required ShiftPattern shift,
   required DailyPrayerTimes prayers,
   required List<PlannedTask> tasks,
   PlannerConfig config = const PlannerConfig(),
-  DateTime? now,
 }) {
   final day = DateTime(date.year, date.month, date.day);
   final (sleep, waking) = _sleepAndWaking(day, shift, prayers, config);
@@ -153,7 +167,6 @@ DayPlan planDay({
     prayers: prayers,
     waking: waking,
     config: config,
-    now: now,
   );
 
   // The blocks' own edges, captured before anything is placed. Reading them
@@ -178,7 +191,6 @@ DayPlan planDay({
   for (final slot in prayers.ordered) {
     final at = slot.time;
     if (at.isBefore(waking.start) || !at.isBefore(waking.end)) continue;
-    if (now != null && at.isBefore(now)) continue;
 
     final block = _blockIn(bounds, at) ?? DayBlockKind.morning;
     placed.add(ScheduledTask(
@@ -211,8 +223,7 @@ DayPlan planDay({
     final at = _anchorTime(task.anchor, day, prayers);
     if (at == null ||
         at.isBefore(waking.start) ||
-        !at.isBefore(waking.end) ||
-        (now != null && at.isBefore(now))) {
+        !at.isBefore(waking.end)) {
       deferred.add(DeferredTask(
         task: task,
         reason: DeferralReason.outsideTheDay,
@@ -365,14 +376,15 @@ List<_Window> _windowsFor({
   required DailyPrayerTimes prayers,
   required WakingDay waking,
   required PlannerConfig config,
-  DateTime? now,
 }) {
   final windows = <_Window>[];
 
   void add(DateTime start, DateTime end, DayBlockKind block,
       {bool allowsHeavy = true}) {
+    // Deliberately *not* clamped to `now`. A window is a stretch of the day,
+    // and the day's shape does not change because someone opened the app at
+    // two in the afternoon.
     var from = start;
-    if (now != null && from.isBefore(now)) from = now;
     // Never outside the waking day, whatever the shift's clocks say.
     if (from.isBefore(waking.start)) from = waking.start;
     var to = end;

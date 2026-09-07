@@ -103,14 +103,15 @@ final dailyTipProvider = FutureProvider<Tip?>((ref) async {
 /// Today's plan, built by the real planner.
 ///
 /// Replaces the hand-written preview: the tasks, their times and the blocks
-/// they sit in are all decided by `planDay`. Re-planned from `now`, so opening
-/// Home at noon shows the rest of the day rather than a morning already gone.
+/// they sit in are all decided by `planDay`.
+///
+/// It does **not** watch the clock. The plan is the day's shape and does not
+/// change as the hours pass — the UI decides which block is current. Rebuilding
+/// it every thirty seconds also churned the whole Home list for nothing.
 final todayPlanProvider = Provider<AsyncValue<DayPlan>>((ref) {
   final settings = ref.watch(settingsProvider);
   final times = ref.watch(todayPrayerTimesProvider);
-  // Coarse rather than per-second: a plan that rebuilt every second would
-  // churn the whole Home list for no visible gain.
-  final now = ref.watch(coarseClockProvider).value ?? DateTime.now();
+  final today = DateTime.now();
 
   if (!settings.hasValue || !times.hasValue) {
     return const AsyncValue.loading();
@@ -120,14 +121,13 @@ final todayPlanProvider = Provider<AsyncValue<DayPlan>>((ref) {
   final shift = ShiftPattern.fromName(s.shiftType);
 
   return AsyncValue.data(planDay(
-    date: now,
+    date: today,
     shift: shift,
     prayers: times.requireValue,
     tasks: dailyTasksFor(
-      date: now,
+      date: today,
       shift: shift,
       eatingWindowStartHour: s.eatingWindowStartHour,
     ),
-    now: now,
   ));
 });
