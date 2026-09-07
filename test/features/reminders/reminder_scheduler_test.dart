@@ -118,6 +118,60 @@ void main() {
     });
   });
 
+  group('arming establishes the truth, it does not only add', () {
+    test('a reminder moved into the past has its old alarm cancelled',
+        () async {
+      // Arm it for the 20th, then edit it to a day gone by. Without a cancel
+      // the 20th alarm is still sitting in AlarmManager and fires for a
+      // reminder that no longer wants a time.
+      await scheduler.arm(
+        [aReminder(id: 1, on: DateTime(2026, 9, 20))],
+        now: DateTime(2026, 9, 19),
+      );
+      expect(gateway.scheduled, hasLength(1));
+
+      await scheduler.arm(
+        [aReminder(id: 1, on: DateTime(2026, 9, 10))],
+        now: DateTime(2026, 9, 19),
+      );
+
+      expect(gateway.cancelled, contains(reminderNotificationId(1)));
+      expect(
+        gateway.scheduled.where((n) => n.id == reminderNotificationId(1)),
+        isEmpty,
+      );
+    });
+
+    test('a reminder marked done has its alarm cancelled by arming alone',
+        () async {
+      await scheduler.arm([aReminder(id: 1)], now: DateTime(2026, 9, 19));
+      expect(gateway.scheduled, hasLength(1));
+
+      await scheduler.arm(
+        [aReminder(id: 1, done: true)],
+        now: DateTime(2026, 9, 19),
+      );
+      expect(gateway.scheduled, isEmpty);
+    });
+
+    test('a reminder still ahead is left armed, not cancelled and re-added',
+        () async {
+      await scheduler.arm(
+        [aReminder(id: 1, repeat: ReminderRepeat.daily)],
+        now: DateTime(2026, 9, 19),
+      );
+      gateway.cancelled.clear();
+
+      await scheduler.arm(
+        [aReminder(id: 1, repeat: ReminderRepeat.daily)],
+        now: DateTime(2026, 9, 19),
+      );
+      expect(gateway.cancelled, isEmpty,
+          reason: 'cancelling a live alarm to immediately re-add it is a '
+              'window in which the reminder does not exist');
+    });
+  });
+
   group('cancelling', () {
     test('uses the same derived id', () async {
       await scheduler.cancelFor(7);

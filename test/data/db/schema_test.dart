@@ -69,6 +69,45 @@ void main() {
       expect(rows.map((r) => r.minutes), [420, 720, 1080]);
     });
 
+    test('the active set drops one-offs long past, but keeps repeats',
+        () async {
+      // Arming now cancels anything with no next occurrence, so an unbounded
+      // active set would issue one pointless platform call per stale reminder
+      // on every re-arm, growing for as long as the app is used.
+      final db = fresh();
+      final now = DateTime(2026, 9, 20);
+
+      await db.reminderDao.add(
+        onDate: DateTime(2026, 3, 1),
+        minutes: 600,
+        title: 'قديم',
+        repeat: ReminderRepeat.once,
+      );
+      await db.reminderDao.add(
+        onDate: DateTime(2026, 3, 1),
+        minutes: 600,
+        title: 'أسبوعي قديم',
+        repeat: ReminderRepeat.weekly,
+      );
+      await db.reminderDao.add(
+        onDate: DateTime(2026, 9, 18),
+        minutes: 600,
+        title: 'قريب',
+        repeat: ReminderRepeat.once,
+      );
+
+      final active = await db.reminderDao.allActive(now: now);
+      final titles = active.map((r) => r.title).toSet();
+
+      expect(titles, isNot(contains('قديم')),
+          reason: 'a one-off from March will never fire again');
+      expect(titles, contains('أسبوعي قديم'),
+          reason: 'a repeat still comes round, however old');
+      expect(titles, contains('قريب'),
+          reason: 'a one-off that has only just passed is still cleared '
+              'explicitly rather than left to a stale alarm');
+    });
+
     test('done reminders drop out of the active set', () async {
       final db = fresh();
       final id = await db.reminderDao.add(

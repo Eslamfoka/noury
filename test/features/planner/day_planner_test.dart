@@ -82,6 +82,66 @@ void main() {
       expect(p.sleep!.length, greaterThanOrEqualTo(const Duration(hours: 6)));
     });
 
+    test('sleep is a real duration, on every day of the year', () {
+      // The one place in this file that deliberately *offsets* rather than
+      // constructs. Everywhere else `add(Duration(days: 1))` is the bug —
+      // it is 24 absolute hours, which is the wrong length on a DST night.
+      //
+      // Sleep is the exception, and it is the exception on purpose: seven
+      // hours of sleep is seven *real* hours. On a spring-forward night that
+      // means bedtime lands at 21:00 rather than 22:00, and the user still
+      // gets their seven hours. Constructing 22:00 there would quietly hand
+      // them six.
+      //
+      // Anyone "fixing" this later to match the rest of the file would be
+      // reintroducing exactly that, so the invariant is pinned across a whole
+      // year rather than on one date — which also keeps the test independent
+      // of whatever zone the machine running it happens to be in.
+      for (var d = 0; d < 365; d++) {
+        final date = DateTime(2026, 1, 1 + d);
+        final p = planDay(
+          date: date,
+          shift: ShiftPattern.morning,
+          prayers: DailyPrayerTimes(
+            fajr: DateTime(date.year, date.month, date.day, 4, 7),
+            sunrise: DateTime(date.year, date.month, date.day, 5, 30),
+            dhuhr: DateTime(date.year, date.month, date.day, 11, 46),
+            asr: DateTime(date.year, date.month, date.day, 15, 18),
+            maghrib: DateTime(date.year, date.month, date.day, 18, 4),
+            isha: DateTime(date.year, date.month, date.day, 19, 23),
+          ),
+          tasks: const [],
+        );
+
+        expect(p.sleep!.length, const Duration(hours: 7),
+            reason: 'sleep on $date was ${p.sleep!.length}');
+      }
+    });
+
+    test('the waking day never runs backwards, on any day of the year', () {
+      for (var d = 0; d < 365; d++) {
+        final date = DateTime(2026, 1, 1 + d);
+        final p = planDay(
+          date: date,
+          shift: ShiftPattern.morning,
+          prayers: DailyPrayerTimes(
+            fajr: DateTime(date.year, date.month, date.day, 4, 7),
+            sunrise: DateTime(date.year, date.month, date.day, 5, 30),
+            dhuhr: DateTime(date.year, date.month, date.day, 11, 46),
+            asr: DateTime(date.year, date.month, date.day, 15, 18),
+            maghrib: DateTime(date.year, date.month, date.day, 18, 4),
+            isha: DateTime(date.year, date.month, date.day, 19, 23),
+          ),
+          tasks: const [],
+        );
+
+        for (final b in p.blocks) {
+          expect(b.end.isAfter(b.start), isTrue,
+              reason: '${b.kind.name} on $date runs backwards');
+        }
+      }
+    });
+
     test('a night shift sleeps forwards from coming home, not backwards',
         () {
       // There is no morning to wake for: the user gets home at 08:00 and

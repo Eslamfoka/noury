@@ -31,14 +31,24 @@ class ReminderScheduler {
 
   /// Arms the next occurrence of every reminder in [reminders].
   ///
-  /// Safe to call repeatedly. IDs are derived from the row id, so a second
-  /// call overwrites the first rather than stacking a duplicate alarm.
+  /// **Establishes the truth rather than only adding to it.** A reminder with
+  /// no next occurrence has its alarm *cancelled*, not merely skipped —
+  /// otherwise editing one into the past, or marking it done through a path
+  /// that does not cancel, would leave the old alarm sitting in AlarmManager
+  /// and firing for a reminder that no longer wants a time.
+  ///
+  /// Safe to call repeatedly. IDs are derived from the row id, so a live alarm
+  /// is overwritten in place — never cancelled and re-added, which would open
+  /// a window in which the reminder does not exist.
   Future<void> arm(List<Reminder> reminders, {DateTime? now}) async {
     final at = now ?? DateTime.now();
 
     for (final r in reminders) {
       final next = nextOccurrence(r, after: at);
-      if (next == null) continue;
+      if (next == null) {
+        await _gateway.cancel(reminderNotificationId(r.id));
+        continue;
+      }
 
       await _gateway.schedule(ScheduledNotification(
         id: reminderNotificationId(r.id),

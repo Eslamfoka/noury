@@ -467,11 +467,32 @@ class ReminderDao {
             ]))
           .get();
 
-  /// Everything not yet marked done — the set the scheduler re-arms from.
-  Future<List<Reminder>> allActive() => (_db.select(_db.reminders)
-        ..where((t) => t.done.equals(false))
-        ..orderBy([(t) => OrderingTerm.asc(t.onDate)]))
-      .get();
+  /// The set the scheduler re-arms from: everything not done, minus the
+  /// one-offs whose day is long gone.
+  ///
+  /// Bounded on purpose. A one-off from last March will never fire again, and
+  /// arming now *cancels* anything with no next occurrence — so an unbounded
+  /// query would issue one pointless platform call per stale reminder on every
+  /// re-arm, growing for as long as the app is used. Repeats are always
+  /// included, however old, because they still come round.
+  ///
+  /// The grace window is a few days rather than zero so that a one-off which
+  /// has only just passed is still explicitly cleared rather than left to a
+  /// stale alarm.
+  Future<List<Reminder>> allActive({DateTime? now}) {
+    final today = now ?? DateTime.now();
+    final cutoff = DateTime(today.year, today.month, today.day - 7);
+
+    return (_db.select(_db.reminders)
+          ..where((t) =>
+              t.done.equals(false) &
+              (t.onDate.isBiggerOrEqualValue(cutoff) |
+                  t.repeat.equals(ReminderRepeat.daily.index) |
+                  t.repeat.equals(ReminderRepeat.weekly.index) |
+                  t.repeat.equals(ReminderRepeat.monthly.index)))
+          ..orderBy([(t) => OrderingTerm.asc(t.onDate)]))
+        .get();
+  }
 
   Future<List<Reminder>> all() => _db.select(_db.reminders).get();
 }
