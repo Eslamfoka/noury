@@ -7,8 +7,10 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'tables.dart';
+import 'tables_v4.dart';
 
 export 'tables.dart';
+export 'tables_v4.dart';
 
 part 'nouri_database.g.dart';
 
@@ -32,6 +34,10 @@ String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
     Budgets,
     Meals,
     Weights,
+    Reminders,
+    WalkSessions,
+    WorkoutSessions,
+    ChallengeEnrollments,
   ],
 )
 class NouriDatabase extends _$NouriDatabase {
@@ -39,7 +45,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -63,6 +69,18 @@ class NouriDatabase extends _$NouriDatabase {
                 settingsRows, settingsRows.eatingWindowStartHour);
             await m.addColumn(settingsRows, settingsRows.targetWeightGrams);
           }
+
+          // v4 adds reminders, walking, workouts and challenges. Additive
+          // only, like every migration before it -- an upgrade must never
+          // cost the user a row.
+          if (from < 4) {
+            await m.createTable(reminders);
+            await m.createTable(walkSessions);
+            await m.createTable(workoutSessions);
+            await m.createTable(challengeEnrollments);
+            await m.addColumn(settingsRows, settingsRows.strideCm);
+            await m.addColumn(settingsRows, settingsRows.allowSimulatedSteps);
+          }
         },
       );
 
@@ -72,6 +90,10 @@ class NouriDatabase extends _$NouriDatabase {
   late final quranDao = QuranDao(this);
   late final financeDao = FinanceDao(this);
   late final bodyDao = BodyDao(this);
+  late final reminderDao = ReminderDao(this);
+  late final stepsDao = StepsDao(this);
+  late final workoutDao = WorkoutDao(this);
+  late final challengeDao = ChallengeDao(this);
 
   static QueryExecutor _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
@@ -346,5 +368,222 @@ class BodyDao {
       (_db.select(_db.weights)
             ..orderBy([(t) => OrderingTerm.desc(t.at)])
             ..limit(limit))
+          .get();
+}
+
+/// Reminders the user wrote against a day on the calendar.
+class ReminderDao {
+  ReminderDao(this._db);
+  final NouriDatabase _db;
+
+  /// Returns the new row's id, which is also what the notification id derives
+  /// from — see `lib/features/reminders/reminder_ids.dart`.
+  Future<int> add({
+    required DateTime onDate,
+    required int minutes,
+    required String title,
+    required ReminderRepeat repeat,
+    String? note,
+  }) =>
+      _db.into(_db.reminders).insert(RemindersCompanion.insert(
+            onDate: dayOf(onDate),
+            minutes: minutes,
+            title: title,
+            repeat: repeat,
+            note: Value(note),
+            createdAt: DateTime.now(),
+          ));
+
+  Future<void> edit({
+    required int id,
+    required DateTime onDate,
+    required int minutes,
+    required String title,
+    required ReminderRepeat repeat,
+    String? note,
+  }) =>
+      (_db.update(_db.reminders)..where((t) => t.id.equals(id))).write(
+        RemindersCompanion(
+          onDate: Value(dayOf(onDate)),
+          minutes: Value(minutes),
+          title: Value(title),
+          repeat: Value(repeat),
+          note: Value(note),
+        ),
+      );
+
+  Future<void> delete(int id) =>
+      (_db.delete(_db.reminders)..where((t) => t.id.equals(id))).go();
+
+  Future<void> setDone(int id, bool done) =>
+      (_db.update(_db.reminders)..where((t) => t.id.equals(id)))
+          .write(RemindersCompanion(done: Value(done)));
+
+  /// Reminders whose own day is [day].
+  ///
+  /// Deliberately not "reminders that occur on [day]" — a repeat occurring
+  /// today is computed by [occurrencesOf], not by the database, because the
+  /// repeat rules are domain logic and belong where they can be tested
+  /// without SQLite.
+  Future<List<Reminder>> forDay(DateTime day) => (_db.select(_db.reminders)
+        ..where((t) => t.onDate.equals(dayOf(day)))
+        ..orderBy([(t) => OrderingTerm.asc(t.minutes)]))
+      .get();
+
+  Future<List<Reminder>> between(DateTime from, DateTime to) =>
+      (_db.select(_db.reminders)
+            ..where((t) => t.onDate.isBetweenValues(dayOf(from), dayOf(to)))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.onDate),
+              (t) => OrderingTerm.asc(t.minutes),
+            ]))
+          .get();
+
+  /// Everything not yet marked done — the set the scheduler re-arms from.
+  Future<List<Reminder>> allActive() => (_db.select(_db.reminders)
+        ..where((t) => t.done.equals(false))
+        ..orderBy([(t) => OrderingTerm.asc(t.onDate)]))
+      .get();
+
+  Future<List<Reminder>> all() => _db.select(_db.reminders).get();
+}
+
+/// Walking sessions.
+class StepsDao {
+  StepsDao(this._db);
+  final NouriDatabase _db;
+
+  Future<int> addSession({
+    required DateTime startedAt,
+    required int seconds,
+    required int steps,
+    required int metres,
+    required int kcal,
+    required int targetMinutes,
+  }) =>
+      _db.into(_db.walkSessions).insert(WalkSessionsCompanion.insert(
+            startedAt: startedAt,
+            seconds: seconds,
+            steps: steps,
+            metres: metres,
+            kcal: kcal,
+            targetMinutes: targetMinutes,
+          ));
+
+  /// Sessions that *started* on [day]. A walk begun at 23:50 counts as that
+  /// day's walk even if it ends after midnight — it is the day the user set
+  /// out, which is how they will remember it.
+  Future<List<WalkSession>> sessionsOn(DateTime day) {
+    final from = DateTime(day.year, day.month, day.day);
+    final to = DateTime(day.year, day.month, day.day + 1);
+    return (_db.select(_db.walkSessions)
+          ..where((t) => t.startedAt.isBiggerOrEqualValue(from))
+          ..where((t) => t.startedAt.isSmallerThanValue(to))
+          ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
+        .get();
+  }
+
+  Future<int> stepsOn(DateTime day) async {
+    final rows = await sessionsOn(day);
+    return rows.fold<int>(0, (a, r) => a + r.steps);
+  }
+
+  Future<List<WalkSession>> between(DateTime from, DateTime to) {
+    final start = DateTime(from.year, from.month, from.day);
+    final end = DateTime(to.year, to.month, to.day + 1);
+    return (_db.select(_db.walkSessions)
+          ..where((t) => t.startedAt.isBiggerOrEqualValue(start))
+          ..where((t) => t.startedAt.isSmallerThanValue(end))
+          ..orderBy([(t) => OrderingTerm.asc(t.startedAt)]))
+        .get();
+  }
+
+  Future<List<WalkSession>> recentSessions({int limit = 10}) =>
+      (_db.select(_db.walkSessions)
+            ..orderBy([(t) => OrderingTerm.desc(t.startedAt)])
+            ..limit(limit))
+          .get();
+}
+
+/// Workout sessions, complete and partial alike.
+class WorkoutDao {
+  WorkoutDao(this._db);
+  final NouriDatabase _db;
+
+  Future<int> addSession({
+    required DateTime startedAt,
+    required String routineId,
+    required int doneCount,
+    required int totalCount,
+    required int seconds,
+  }) =>
+      _db.into(_db.workoutSessions).insert(WorkoutSessionsCompanion.insert(
+            startedAt: startedAt,
+            routineId: routineId,
+            doneCount: doneCount,
+            totalCount: totalCount,
+            seconds: seconds,
+          ));
+
+  Future<List<WorkoutSession>> sessionsOn(DateTime day) {
+    final from = DateTime(day.year, day.month, day.day);
+    final to = DateTime(day.year, day.month, day.day + 1);
+    return (_db.select(_db.workoutSessions)
+          ..where((t) => t.startedAt.isBiggerOrEqualValue(from))
+          ..where((t) => t.startedAt.isSmallerThanValue(to))
+          ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
+        .get();
+  }
+
+  Future<List<WorkoutSession>> recentSessions({int limit = 10}) =>
+      (_db.select(_db.workoutSessions)
+            ..orderBy([(t) => OrderingTerm.desc(t.startedAt)])
+            ..limit(limit))
+          .get();
+}
+
+/// Challenge enrolments. Progress itself is never stored — it is derived from
+/// the prayer, athkar and walk logs on every read.
+class ChallengeDao {
+  ChallengeDao(this._db);
+  final NouriDatabase _db;
+
+  Future<int> enroll({
+    required String challengeId,
+    required DateTime startedOn,
+  }) {
+    final row = ChallengeEnrollmentsCompanion.insert(
+      challengeId: challengeId,
+      startedOn: dayOf(startedOn),
+    );
+    return _db.into(_db.challengeEnrollments).insert(
+          row,
+          onConflict: DoUpdate(
+            (_) => row,
+            target: [
+              _db.challengeEnrollments.challengeId,
+              _db.challengeEnrollments.startedOn,
+            ],
+          ),
+        );
+  }
+
+  /// Steps away from a challenge without deleting it — an abandoned forty days
+  /// is still something the user did.
+  Future<void> abandon(int id, {DateTime? on}) =>
+      (_db.update(_db.challengeEnrollments)..where((t) => t.id.equals(id)))
+          .write(ChallengeEnrollmentsCompanion(
+        abandonedOn: Value(dayOf(on ?? DateTime.now())),
+      ));
+
+  Future<List<ChallengeEnrollment>> active() =>
+      (_db.select(_db.challengeEnrollments)
+            ..where((t) => t.abandonedOn.isNull())
+            ..orderBy([(t) => OrderingTerm.desc(t.startedOn)]))
+          .get();
+
+  Future<List<ChallengeEnrollment>> history() =>
+      (_db.select(_db.challengeEnrollments)
+            ..orderBy([(t) => OrderingTerm.desc(t.startedOn)]))
           .get();
 }

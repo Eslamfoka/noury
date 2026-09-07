@@ -72,6 +72,19 @@ class SettingsRows extends Table {
   IntColumn get targetWeightGrams =>
       integer().withDefault(const Constant(74000))();
 
+  /// Walking stride, centimetres. 72 cm is a common adult average; the whole
+  /// distance readout is only as honest as this number, so it is adjustable
+  /// rather than baked in.
+  IntColumn get strideCm => integer().withDefault(const Constant(72))();
+
+  /// Whether the walk screen may run its simulated step source.
+  ///
+  /// A debug aid, off by default and deliberately opt-in: the emulator has no
+  /// step-counter hardware, and a walk that quietly invented steps on a real
+  /// phone would be a lie told by the app about the user's own body.
+  BoolColumn get allowSimulatedSteps =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
