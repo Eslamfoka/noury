@@ -158,6 +158,30 @@ void main() {
     });
   });
 
+  testWidgets('a double tap on «خلّصت» records one session, not two',
+      (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pump(t);
+
+      await t.tap(find.byKey(const ValueKey('walk-start')));
+      await t.pumpAndSettle();
+      source.emit(1000);
+      source.emit(1500);
+      await t.pumpAndSettle();
+
+      // Two taps landing before the first save completes. The button is a
+      // large target and an impatient double tap is the obvious way in.
+      final finish = find.byKey(const ValueKey('walk-finish'));
+      await t.tap(finish);
+      await t.tap(finish, warnIfMissed: false);
+      await t.pumpAndSettle();
+
+      expect(await db.stepsDao.recentSessions(), hasLength(1),
+          reason: 'one walk is one row, however many times the button is hit');
+    });
+  });
+
   testWidgets('shows a dash for calories until a weight is known', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);

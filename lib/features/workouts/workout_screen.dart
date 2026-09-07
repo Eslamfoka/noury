@@ -51,9 +51,18 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     });
   }
 
+  /// Guards the save against running twice.
+  ///
+  /// Two ways in, both real. A double tap on «كفاية» is the obvious one; the
+  /// narrower one is the ticker completing the routine and starting a save
+  /// while the user hits the button. `_timer` is not cleared until after the
+  /// database write, so checking it alone leaves the whole await open.
+  bool _finishing = false;
+
   Future<void> _finish() async {
     final t = _timer;
-    if (t == null) return;
+    if (t == null || _finishing) return;
+    _finishing = true;
 
     _ticker?.cancel();
     _ticker = null;
@@ -77,7 +86,10 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       ..invalidate(todayWorkoutsProvider)
       ..invalidate(recentWorkoutsProvider);
 
-    setState(() => _timer = null);
+    setState(() {
+      _timer = null;
+      _finishing = false;
+    });
     Navigator.of(context).maybePop();
   }
 

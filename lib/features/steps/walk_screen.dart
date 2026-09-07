@@ -88,7 +88,19 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
     });
   }
 
+  /// Guards the save against running twice.
+  ///
+  /// `_finish` awaits the database, and during that await a second tap on
+  /// «خلّصت» would start a second save and write the same walk twice. The
+  /// button is a large target and an impatient double tap is the obvious way
+  /// in. A bool set before the first await is what closes it; `_running` is
+  /// not enough, because it is only cleared after the write.
+  bool _finishing = false;
+
   Future<void> _finish() async {
+    if (_finishing) return;
+    _finishing = true;
+
     _ticker?.cancel();
 
     // Deliberately not awaited. Cancelling the sensor subscription is cleanup,

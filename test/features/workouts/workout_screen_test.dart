@@ -149,6 +149,54 @@ void main() {
     });
   });
 
+  testWidgets('a double tap on «كفاية» records one session, not two',
+      (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pump(t);
+
+      await t.tap(find.byKey(const ValueKey('routine-warm-up')));
+      await t.pump();
+      await t.tap(find.byKey(const ValueKey('workout-skip')));
+      await t.pump();
+
+      final finish = find.byKey(const ValueKey('workout-finish'));
+      await t.tap(finish);
+      await t.tap(finish, warnIfMissed: false);
+      await t.pumpAndSettle();
+
+      expect(await db.workoutDao.recentSessions(), hasLength(1));
+    });
+  });
+
+  testWidgets('skipping the last exercise then tapping «كفاية» records once',
+      (t) async {
+    // The narrower race: finishing the routine kicks off a save, and the user
+    // hits the button while it is still in flight.
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pump(t);
+
+      await t.tap(find.byKey(const ValueKey('routine-warm-up')));
+      await t.pump();
+
+      for (var i = 0; i < 9; i++) {
+        final skip = find.byKey(const ValueKey('workout-skip'));
+        if (skip.evaluate().isEmpty) break;
+        await t.tap(skip);
+        await t.pump();
+      }
+
+      final finish = find.byKey(const ValueKey('workout-finish'));
+      if (finish.evaluate().isNotEmpty) {
+        await t.tap(finish, warnIfMissed: false);
+      }
+      await t.pumpAndSettle();
+
+      expect(await db.workoutDao.recentSessions(), hasLength(1));
+    });
+  });
+
   testWidgets('past sessions are listed on the picker', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);

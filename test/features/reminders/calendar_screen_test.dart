@@ -167,6 +167,25 @@ void main() {
     });
   });
 
+  testWidgets('a double tap on «احفظ» writes one reminder, not two', (t) async {
+    await withLargeSurface(t, () async {
+      db = inMemoryDatabase(t);
+      await pump(t, day: DateTime(2026, 9, 20));
+
+      await t.tap(find.byKey(const ValueKey('add-reminder')));
+      await t.pumpAndSettle();
+      await t.enterText(find.byKey(const ValueKey('reminder-title')), 'كشف');
+
+      final save = find.byKey(const ValueKey('reminder-save'));
+      await t.tap(save);
+      await t.tap(save, warnIfMissed: false);
+      await t.pumpAndSettle();
+
+      expect(await db.reminderDao.all(), hasLength(1),
+          reason: 'one reminder, however many times the button is hit');
+    });
+  });
+
   testWidgets('a reminder with no title is not saved', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);

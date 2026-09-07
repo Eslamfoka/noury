@@ -99,9 +99,20 @@ class _ReminderEditorState extends State<_ReminderEditor> {
     }
   }
 
+  /// Guards the save against running twice.
+  ///
+  /// `_save` awaits the database and only then pops the sheet, so a second tap
+  /// on «احفظ» during that await would insert the same reminder again — and
+  /// `add` is an insert, so there is no unique key to catch it. The widget
+  /// test happens to pass without this, because an in-memory write completes
+  /// inside the same batch as the taps; on a real device it does not.
+  bool _saving = false;
+
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) return;
+    if (_saving) return;
+    _saving = true;
 
     final note = _note.text.trim().isEmpty ? null : _note.text.trim();
     final controller = widget.parentRef.read(reminderControllerProvider);
@@ -126,7 +137,13 @@ class _ReminderEditorState extends State<_ReminderEditor> {
       );
     }
 
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    } else {
+      // The sheet went away under us; let a retry through rather than
+      // leaving the editor permanently unable to save.
+      _saving = false;
+    }
   }
 
   @override
