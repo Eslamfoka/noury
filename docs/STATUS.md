@@ -5,8 +5,8 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `4c12dc5`, working tree clean |
-| Tests | **813 passing**, `flutter analyze` clean |
+| Head | `85c2dce`, working tree clean |
+| Tests | **833 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
 | Schema | v8 |
@@ -45,6 +45,8 @@ Last updated **7 September 2026**, overnight session.
   that disappears between fajr and maghrib on a day marked as a fast
 - **Knowledge time** — reading, skill or religious content, logged on Home and
   totalled in the weekly report as minutes *and* days
+- **Onboarding asks which shift**, so the first day Nouri shows is the right
+  shape rather than a morning guess
 - Finance and body tabs, both writing to the local database
 - No network calls at all — `INTERNET` is removed from the manifest
 
@@ -86,6 +88,20 @@ Last updated **7 September 2026**, overnight session.
 - A counter like the athkar repeat pill reads «٣ / ٠» at zero of three,
   because RTL lays the slash form out right to left. Pre-existing, app-wide,
   and left alone rather than fixed on one screen — see the handoff.
+
+## Guards that fail the build
+
+Invariants worth more as a failing test than as a comment. Each one's regex is
+itself tested both ways, so none can pass vacuously.
+
+| Guard | What it stops |
+|---|---|
+| `no_network_test` | Slice 1 reaching the network; `INTERNET` in a release APK |
+| `day_stepping_test` | `add(Duration(days:))` — the DST bug, found three times |
+| `counter_form_test` | «٠ / ٣» counters, which read backwards in RTL |
+| `palette_test` | A red anywhere, and colour defined outside the palette |
+| `notification_receivers_test` | The boot receiver going missing |
+| `notification_sound_test` | The adhan sound and channel drifting apart |
 
 ## Decisions already made (do not relitigate)
 
