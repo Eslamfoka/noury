@@ -88,6 +88,44 @@ void main() {
         reason: 'every day should be fully populated');
   });
 
+  test('the window still covers 14 distinct days across a DST boundary',
+      () async {
+    // The regression. Egypt's clocks go back on 30 October 2026, and measured
+    // on this machine `DateTime(2026, 10, 29).add(Duration(days: 1))` is
+    // 2026-10-29 23:00 — the *same date*. The window loop steps `today + i`,
+    // so it visited the 29th twice and never reached the far end: fourteen
+    // days of adhan quietly became thirteen, once a year.
+    //
+    // Zone-dependent by nature, so it asserts the property rather than the
+    // dates: whatever zone this runs in, fourteen days means fourteen days.
+    final autumn = RollingWindowScheduler(
+      gateway: gateway,
+      prayerTimes: const PrayerTimesService(),
+      clock: () => DateTime(2026, 10, 29, 6, 0),
+    );
+    await autumn.rearm(config);
+
+    final days = gateway.scheduled
+        .map((n) => DateTime(n.when.year, n.when.month, n.when.day))
+        .toSet();
+    expect(days.length, kWindowDays,
+        reason: 'the window lost a day to the clocks going back');
+  });
+
+  test('and across the spring boundary too', () async {
+    final spring = RollingWindowScheduler(
+      gateway: gateway,
+      prayerTimes: const PrayerTimesService(),
+      clock: () => DateTime(2026, 4, 23, 6, 0),
+    );
+    await spring.rearm(config);
+
+    final days = gateway.scheduled
+        .map((n) => DateTime(n.when.year, n.when.month, n.when.day))
+        .toSet();
+    expect(days.length, kWindowDays);
+  });
+
   test('every ID in the window is unique', () async {
     await scheduler.rearm(config);
     final ids = await gateway.pendingIds();
