@@ -44,6 +44,10 @@ enum NotificationSlot {
 
   /// The end-of-day review, offering to log whatever is still unanswered.
   dailySummary,
+
+  /// The evening before a sunnah fast — Monday, Thursday, or a white day.
+  /// Appended like the rest: 26 slots against kSlotsPerDay = 32.
+  fastingEve,
 }
 
 /// A notification's ID, derived purely from its date and slot.

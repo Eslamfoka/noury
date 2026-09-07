@@ -45,7 +45,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -80,6 +80,11 @@ class NouriDatabase extends _$NouriDatabase {
             await m.createTable(challengeEnrollments);
             await m.addColumn(settingsRows, settingsRows.strideCm);
             await m.addColumn(settingsRows, settingsRows.allowSimulatedSteps);
+          }
+
+          // v5 adds the sunnah fasting reminder toggle. Additive only.
+          if (from < 5) {
+            await m.addColumn(settingsRows, settingsRows.notifyFasting);
           }
         },
       );

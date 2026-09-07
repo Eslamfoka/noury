@@ -6,12 +6,21 @@ import 'date_formats.dart';
 class HijriDate {
   const HijriDate({
     required this.day,
+    required this.month,
     required this.monthName,
     required this.year,
     required this.formatted,
   });
 
   final int day;
+
+  /// 1 = المحرم … 12 = ذو الحجة.
+  ///
+  /// Carried alongside [monthName] because some questions are about *which*
+  /// month rather than what it is called — the fasting rules need to know that
+  /// ذو الحجة is month 12 without matching on a string.
+  final int month;
+
   final String monthName;
   final int year;
 
@@ -43,6 +52,7 @@ HijriDate hijriFor(
 
   return HijriDate(
     day: h.hDay,
+    month: h.hMonth,
     monthName: monthName,
     year: h.hYear,
     formatted: formatted,

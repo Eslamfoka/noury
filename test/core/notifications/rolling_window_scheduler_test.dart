@@ -124,6 +124,7 @@ void main() {
       notifyIqama: false,
       notifyAthkar: false,
       notifyWird: false,
+      notifyFasting: false,
     ));
     expect(gateway.scheduled, isEmpty);
   });

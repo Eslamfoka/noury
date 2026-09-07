@@ -1,3 +1,4 @@
+import '../../features/fasting/sunnah_fasting.dart';
 import '../time/geo_config.dart';
 import '../time/prayer_times_service.dart';
 import 'follow_up_plan.dart';
@@ -42,6 +43,9 @@ class SchedulingConfig {
     this.notifyIqama = true,
     this.notifyAthkar = true,
     this.notifyWird = true,
+    this.notifyFasting = true,
+    this.hijriOffsetDays = 0,
+    this.fastingEveHour = 20,
     this.morningAthkarHour = 7,
     this.sleepAthkarHour = 22,
     this.quranWirdHour = 17,
@@ -54,6 +58,18 @@ class SchedulingConfig {
   final bool notifyIqama;
   final bool notifyAthkar;
   final bool notifyWird;
+
+  /// Whether to offer the sunnah fasts the evening before.
+  final bool notifyFasting;
+
+  /// The same nudge the Home header uses, so the fasting days can never
+  /// disagree with the Hijri date shown on screen.
+  final int hijriOffsetDays;
+
+  /// When the evening-before offer goes out. 20:00 by default: late enough to
+  /// be after work, early enough to still be an evening.
+  final int fastingEveHour;
+
   final int morningAthkarHour;
   final int sleepAthkarHour;
   final int quranWirdHour;
@@ -68,6 +84,9 @@ class SchedulingConfig {
     bool? notifyIqama,
     bool? notifyAthkar,
     bool? notifyWird,
+    bool? notifyFasting,
+    int? hijriOffsetDays,
+    int? fastingEveHour,
     int? morningAthkarHour,
     int? sleepAthkarHour,
     int? quranWirdHour,
@@ -80,6 +99,9 @@ class SchedulingConfig {
         notifyIqama: notifyIqama ?? this.notifyIqama,
         notifyAthkar: notifyAthkar ?? this.notifyAthkar,
         notifyWird: notifyWird ?? this.notifyWird,
+        notifyFasting: notifyFasting ?? this.notifyFasting,
+        hijriOffsetDays: hijriOffsetDays ?? this.hijriOffsetDays,
+        fastingEveHour: fastingEveHour ?? this.fastingEveHour,
         morningAthkarHour: morningAthkarHour ?? this.morningAthkarHour,
         sleepAthkarHour: sleepAthkarHour ?? this.sleepAthkarHour,
         quranWirdHour: quranWirdHour ?? this.quranWirdHour,
@@ -278,6 +300,27 @@ class RollingWindowScheduler {
           channel: channelWird,
           payload: 'quran',
         );
+      }
+
+      // The evening before a sunnah fast, so the offer arrives while there is
+      // still a night to decide in. Asked about *tomorrow*, which is why it
+      // looks a day ahead rather than at the day it is scheduled on.
+      if (cfg.notifyFasting) {
+        final tomorrow = DateTime(date.year, date.month, date.day + 1);
+        final fast = sunnahFastFor(tomorrow,
+            hijriOffsetDays: cfg.hijriOffsetDays);
+        if (fast != null) {
+          await _put(
+            date,
+            NotificationSlot.fastingEve,
+            _at(date, cfg.fastingEveHour),
+            now,
+            title: 'صيام بكرة؟',
+            body: fastingEveBody(fast),
+            channel: channelGeneral,
+            payload: 'fasting',
+          );
+        }
       }
 
       // The end-of-day review. Worded so it reads correctly whether or not

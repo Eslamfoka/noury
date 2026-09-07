@@ -36,6 +36,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _handling = false;
 
   static const _tabForAthkar = 1;
+  static const _tabForBody = 3;
 
   // Six destinations is one past Material's recommended five. The three
   // pillars each need a home and none of them is optional, so the crowding is
@@ -74,6 +75,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           if (mounted) setState(() => _index = _tabForAthkar);
         case QuranRoute():
           if (mounted) setState(() => _index = 0);
+        case FastingRoute():
+          // Fasting lives in the physical pillar, per the brief.
+          if (mounted) setState(() => _index = _tabForBody);
         case ReminderRoute(:final id):
           // Open the calendar on the reminder's own day. The row is read
           // fresh rather than trusted from the payload: the reminder may have

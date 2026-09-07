@@ -230,5 +230,7 @@ Future<void> _armWindow(NouriDatabase db, RollingWindowScheduler s) async {
     notifyIqama: settings.notifyIqama,
     notifyAthkar: settings.notifyAthkar,
     notifyWird: settings.notifyWird,
+    notifyFasting: settings.notifyFasting,
+    hijriOffsetDays: settings.hijriOffsetDays,
   ));
 }

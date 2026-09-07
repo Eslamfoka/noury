@@ -147,6 +147,15 @@ class SettingsScreen extends ConsumerWidget {
                 ref.invalidate(settingsProvider);
               },
             ),
+            _SwitchRow(
+              key: const ValueKey('notify-fasting'),
+              label: 'صيام الاتنين والخميس والأيام البيض',
+              value: s.notifyFasting,
+              onChanged: (v) async {
+                await controller.toggleChannel('fasting', v);
+                ref.invalidate(settingsProvider);
+              },
+            ),
           ]),
           const SizedBox(height: 16),
 

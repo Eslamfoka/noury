@@ -75,6 +75,8 @@ class SettingsController {
       notifyIqama: s.notifyIqama,
       notifyAthkar: s.notifyAthkar,
       notifyWird: s.notifyWird,
+      notifyFasting: s.notifyFasting,
+      hijriOffsetDays: s.hijriOffsetDays,
     ));
   }
 
@@ -161,6 +163,7 @@ class SettingsController {
       'iqama' => SettingsRowsCompanion(notifyIqama: Value(enabled)),
       'athkar' => SettingsRowsCompanion(notifyAthkar: Value(enabled)),
       'wird' => SettingsRowsCompanion(notifyWird: Value(enabled)),
+      'fasting' => SettingsRowsCompanion(notifyFasting: Value(enabled)),
       _ => throw ArgumentError('unknown channel: $channel'),
     };
     await db.settingsDao.update(companion);

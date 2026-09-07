@@ -2,10 +2,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 
-/// Schema v4: reminders, walking, workouts and challenges.
+/// The schema and its migrations.
 ///
-/// The migration itself is additive, so the most important test here is the
-/// last one — that nothing from the religious core was disturbed on the way.
+/// v4 added reminders, walking, workouts and challenges; v5 added the sunnah
+/// fasting toggle. Every migration is additive, so the most important test
+/// here is the last one — that nothing from the religious core was disturbed
+/// on the way.
 void main() {
   NouriDatabase open(void Function(NouriDatabase) _) {
     final db = NouriDatabase.forTesting(NativeDatabase.memory());
@@ -15,8 +17,9 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v4', () {
-    expect(fresh().schemaVersion, 4);
+  test('schema is at v5', () {
+    // Pinned deliberately: an accidental bump means a migration nobody wrote.
+    expect(fresh().schemaVersion, 5);
   });
 
   group('reminders', () {
@@ -204,6 +207,11 @@ void main() {
       expect(s.strideCm, 72);
       expect(s.allowSimulatedSteps, isFalse,
           reason: 'a real phone must never quietly invent steps');
+    });
+
+    test('offers the sunnah fasts by default, like the other reminders',
+        () async {
+      expect((await fresh().settingsDao.get()).notifyFasting, isTrue);
     });
   });
 

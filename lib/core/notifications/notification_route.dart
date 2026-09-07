@@ -28,6 +28,7 @@ sealed class NotificationRoute {
       'quran' => const QuranRoute(),
       'reminder' when int.tryParse(rest) != null =>
         ReminderRoute(int.parse(rest)),
+      'fasting' => const FastingRoute(),
       _ => null,
     };
   }
@@ -100,4 +101,14 @@ class ReminderRoute extends NotificationRoute {
   bool operator ==(Object other) => other is ReminderRoute && other.id == id;
   @override
   int get hashCode => Object.hash('reminder', id);
+}
+
+/// Open البدن, where fasting lives — the brief puts it in the physical pillar.
+class FastingRoute extends NotificationRoute {
+  const FastingRoute();
+
+  @override
+  bool operator ==(Object other) => other is FastingRoute;
+  @override
+  int get hashCode => 'fasting'.hashCode;
 }

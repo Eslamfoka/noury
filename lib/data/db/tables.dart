@@ -48,6 +48,11 @@ class SettingsRows extends Table {
   BoolColumn get notifyAthkar => boolean().withDefault(const Constant(true))();
   BoolColumn get notifyWird => boolean().withDefault(const Constant(true))();
 
+  /// The evening-before offer for the sunnah fasts — Mondays, Thursdays and
+  /// the white days. On by default like the other religious reminders.
+  BoolColumn get notifyFasting =>
+      boolean().withDefault(const Constant(true))();
+
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
 

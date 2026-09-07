@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/notification_channels_ids.dart';
 import 'package:nouri/core/notifications/notification_slot.dart';
+import 'package:nouri/features/fasting/sunnah_fasting.dart';
 import 'package:nouri/core/notifications/rolling_window_scheduler.dart';
 import 'package:nouri/core/time/geo_config.dart';
 import 'package:nouri/core/time/prayer_times_service.dart';
@@ -224,8 +225,34 @@ void main() {
       // The exact number is pinned deliberately. Arming every slot for the
       // full fortnight would cost 350, and Android starts dropping alarms
       // somewhere past 500 — silently, which is the worst way to find out.
-      await scheduler.rearm(config);
+      //
+      // Fasting is excluded here rather than folded in: how many sunnah fasts
+      // fall in a fortnight depends on the date, and a count that moved with
+      // the calendar could not pin anything. It is bounded in the next test.
+      await scheduler.rearm(config.copyWith(notifyFasting: false));
       expect(gateway.scheduled.length, 229);
+    });
+
+    test('the fasting offers add at most a handful on top', () async {
+      // Two Mondays and two Thursdays fall in any fortnight, and the three
+      // white days fall wholly inside it or not at all. Overlaps count once,
+      // and the days fasting is prohibited are dropped — so the ceiling is
+      // seven, and the floor is the four weekdays.
+      await scheduler.rearm(config);
+      final fasting = gateway.ofSlot(NotificationSlot.fastingEve).length;
+      expect(fasting, inInclusiveRange(4, 7));
+      expect(gateway.scheduled.length, 229 + fasting);
+    });
+
+    test('every fasting offer lands the evening before its day', () async {
+      await scheduler.rearm(config);
+      for (final n in gateway.ofSlot(NotificationSlot.fastingEve)) {
+        final tomorrow =
+            DateTime(n.when.year, n.when.month, n.when.day + 1);
+        expect(sunnahFastFor(tomorrow), isNotNull,
+            reason: 'an offer on ${n.when} is about a day that is not a fast');
+        expect(n.when.hour, 20);
+      }
     });
   });
 }
