@@ -14,6 +14,16 @@ class FakeNotificationGateway implements NotificationGateway {
     scheduled.clear();
   }
 
+  /// Ceilings passed to [cancelAllBelow], in order.
+  final List<int> cancelledBelow = [];
+
+  @override
+  Future<void> cancelAllBelow(int ceiling) async {
+    cancelledBelow.add(ceiling);
+    cancelAllCount++;
+    scheduled.removeWhere((n) => n.id < ceiling);
+  }
+
   @override
   Future<void> schedule(ScheduledNotification n) async => scheduled.add(n);
 

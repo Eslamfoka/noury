@@ -20,6 +20,7 @@ class HomeHeader extends StatelessWidget {
     required this.hijri,
     required this.gregorian,
     required this.greeting,
+    this.onCalendar,
   });
 
   final HijriDate hijri;
@@ -28,6 +29,14 @@ class HomeHeader extends StatelessWidget {
   final String gregorian;
 
   final String greeting;
+
+  /// Opens the calendar. Null in tests that render the header alone.
+  ///
+  /// The calendar lives behind this button rather than behind a seventh bottom
+  /// tab: the shell already carries six destinations, one past Material's
+  /// recommendation, and the tab structure is an open Slice 2 question. A
+  /// button costs nothing and keeps every answer to that question available.
+  final VoidCallback? onCalendar;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +63,19 @@ class HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 4),
+        if (onCalendar != null)
+          IconButton(
+            key: const ValueKey('open-calendar'),
+            onPressed: onCalendar,
+            tooltip: 'التقويم',
+            icon: const Icon(
+              Icons.calendar_month_outlined,
+              color: NouriColors.muted,
+              size: 22,
+            ),
+          ),
+        const SizedBox(width: 4),
         const NouriAvatar(),
       ],
     );

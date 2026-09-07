@@ -59,6 +59,21 @@ int notificationIdFor(DateTime date, NotificationSlot slot) {
   return days * kSlotsPerDay + slot.index;
 }
 
+/// The ceiling of the rolling window's ID range, and the floor of everything
+/// scheduled outside it (reminders, today).
+///
+/// The window numbers alarms `daysSince2020 * 32 + slot`: about 78,000 today,
+/// climbing roughly 11,700 a year, so it does not reach this base until some
+/// time around the year 2098. **Never change it** — lowering it could collide
+/// with a live alarm, and raising it would orphan every reminder already
+/// scheduled on the device, leaving alarms the app can no longer cancel.
+///
+/// This is why [RollingWindowScheduler] clears its window with
+/// `cancelAllBelow(kOutOfWindowIdBase)` rather than `cancelAll()`: "clear
+/// everything" must mean "clear everything I own", or re-arming the adhan
+/// would silently delete the user's reminders.
+const kOutOfWindowIdBase = 900000000;
+
 class ScheduledNotification {
   const ScheduledNotification({
     required this.id,

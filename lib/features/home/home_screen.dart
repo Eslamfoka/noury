@@ -19,6 +19,7 @@ import '../prayers/daily_review_sheet.dart';
 import '../prayers/log_prayer.dart';
 import '../prayers/prayer_log_sheet.dart';
 import '../prayers/prayer_row.dart';
+import '../reminders/calendar_screen.dart';
 import '../quran/khatma.dart';
 import 'daily_items.dart';
 import 'home_providers.dart';
@@ -105,6 +106,11 @@ class HomeScreen extends ConsumerWidget {
                 offsetDays: s.hijriOffsetDays, arabic: isArabic),
             gregorian: formatGregorianLong(now, arabic: isArabic),
             greeting: greetingFor(now),
+            onCalendar: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const CalendarScreen(),
+              ),
+            ),
           ),
           const SizedBox(height: 18),
 

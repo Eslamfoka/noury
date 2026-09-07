@@ -10,6 +10,16 @@ abstract class NotificationGateway {
   /// there is no incremental state to get wrong.
   Future<void> cancelAll();
 
+  /// Clears every pending notification whose id is below [ceiling].
+  ///
+  /// The rolling window uses this instead of [cancelAll] so that re-arming the
+  /// adhan does not take the user's reminders with it. Reminders are numbered
+  /// from `kOutOfWindowIdBase` upward precisely so they can be spared here.
+  ///
+  /// Still a full clear of the window's own range, so alarms for slots or days
+  /// that have dropped out of the window are removed exactly as before.
+  Future<void> cancelAllBelow(int ceiling);
+
   Future<void> schedule(ScheduledNotification n);
 
   /// Cancels one pending notification by id.

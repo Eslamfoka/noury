@@ -27,6 +27,18 @@ class LocalNotificationGateway implements NotificationGateway {
   @override
   Future<void> cancelAll() => _plugin.cancelAll();
 
+  @override
+  Future<void> cancelAllBelow(int ceiling) async {
+    // One cancel per pending alarm rather than the plugin's single cancelAll.
+    // The window already pays ~230 zonedSchedule calls to re-arm, each of
+    // which registers an AlarmManager entry, so the extra cancels are a small
+    // fraction of an operation that only runs at startup and on a settings
+    // change -- and they are what keeps reminders alive across it.
+    for (final id in await pendingIds()) {
+      if (id < ceiling) await _plugin.cancel(id: id);
+    }
+  }
+
   /// Converts an instant to a [tz.TZDateTime] **in UTC**, deliberately.
   ///
   /// The plugin serialises a schedule as a wall-clock string plus a zone name,

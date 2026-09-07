@@ -149,7 +149,11 @@ class RollingWindowScheduler {
   static const _eveningAthkarBeforeMaghrib = Duration(minutes: 45);
 
   Future<void> rearm(SchedulingConfig cfg) async {
-    await gateway.cancelAll();
+    // Not cancelAll: reminders are scheduled outside this window, at ids from
+    // kOutOfWindowIdBase upward, and a settings change must not delete them.
+    // For a device carrying only window alarms this is identical to the
+    // cancelAll it replaces -- there is nothing at or above the base to spare.
+    await gateway.cancelAllBelow(kOutOfWindowIdBase);
 
     final now = clock();
     final today = DateTime(now.year, now.month, now.day);

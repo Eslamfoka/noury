@@ -26,6 +26,8 @@ sealed class NotificationRoute {
       'review' when rest == 'daily' => const DailyReviewRoute(),
       'athkar' when rest.isNotEmpty => AthkarRoute(rest),
       'quran' => const QuranRoute(),
+      'reminder' when int.tryParse(rest) != null =>
+        ReminderRoute(int.parse(rest)),
       _ => null,
     };
   }
@@ -83,4 +85,19 @@ class QuranRoute extends NotificationRoute {
   bool operator ==(Object other) => other is QuranRoute;
   @override
   int get hashCode => 'quran'.hashCode;
+}
+
+/// Open the calendar on the day a reminder falls.
+///
+/// Carries the row id rather than the date: the reminder may have been edited
+/// to another day between the alarm being armed and the user tapping it, and
+/// the row is the thing that is still true.
+class ReminderRoute extends NotificationRoute {
+  const ReminderRoute(this.id);
+  final int id;
+
+  @override
+  bool operator ==(Object other) => other is ReminderRoute && other.id == id;
+  @override
+  int get hashCode => Object.hash('reminder', id);
 }

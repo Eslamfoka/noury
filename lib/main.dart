@@ -6,7 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/notifications/local_notification_gateway.dart';
+import 'core/notifications/notification_gateway.dart';
 import 'core/notifications/notification_route.dart';
+import 'features/reminders/reminder_providers.dart';
+import 'features/reminders/reminder_scheduler.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/notifications/pending_route_provider.dart';
 import 'core/notifications/rolling_window_scheduler.dart';
@@ -43,6 +46,11 @@ Future<void> main() async {
   // Resolves once the scheduler exists. A settings change made before then
   // waits on this rather than being silently dropped.
   final schedulerReady = Completer<SchedulerPort?>();
+
+  // The same deal for reminders. A reminder written in the first seconds
+  // after launch must not be saved-but-never-armed, which is the worst
+  // failure available here: the row is visibly there and the alarm is not.
+  final reminderSchedulerReady = Completer<ReminderSchedulerPort?>();
 
   // A tap can arrive before the ProviderScope exists — Android launches the
   // app cold straight from the shade — so the first one is held here and
@@ -84,6 +92,7 @@ Future<void> main() async {
     plugin: plugin,
     notifications: notifications,
     schedulerReady: schedulerReady,
+    reminderSchedulerReady: reminderSchedulerReady,
     total: total,
   );
   notifications.attachWarmUp(warmUp);
@@ -100,6 +109,8 @@ Future<void> main() async {
       locationPortProvider.overrideWithValue(const GeolocatorLocationPort()),
       schedulerPortProvider
           .overrideWithValue(DeferredSchedulerPort(schedulerReady.future)),
+      reminderSchedulerPortProvider.overrideWithValue(
+          DeferredReminderSchedulerPort(reminderSchedulerReady.future)),
     ],
   );
   containerReady = true;
@@ -147,22 +158,31 @@ Future<void> _warmUpInBackground({
   required FlutterLocalNotificationsPlugin plugin,
   required NotificationService notifications,
   required Completer<SchedulerPort?> schedulerReady,
+  required Completer<ReminderSchedulerPort?> reminderSchedulerReady,
   required Stopwatch total,
 }) async {
   try {
     await _phase('timezone', NotificationService.initTimezone);
 
     final status = await _phase('readStatus', notifications.readStatus);
+    final gateway = LocalNotificationGateway(plugin, mode: status.mode);
     final scheduler = RollingWindowScheduler(
-      gateway: LocalNotificationGateway(plugin, mode: status.mode),
+      gateway: gateway,
       prayerTimes: const PrayerTimesService(),
       clock: DateTime.now,
     );
 
     // Unblock anything waiting to re-arm before starting the slow pass.
     schedulerReady.complete(RollingWindowSchedulerPort(scheduler));
+    reminderSchedulerReady
+        .complete(LiveReminderSchedulerPort(ReminderScheduler(gateway)));
 
     await _phase('armWindow', () => _armWindow(db, scheduler));
+
+    // Strictly after the window. The window clears its own id range on every
+    // re-arm, and while that deliberately spares reminders, arming them second
+    // means the order can never matter.
+    await _phase('armReminders', () => _armReminders(db, gateway));
 
     assert(() {
       debugPrint('NOURI_STARTUP warmUpComplete ${total.elapsedMilliseconds}ms');
@@ -171,7 +191,24 @@ Future<void> _warmUpInBackground({
   } catch (e) {
     debugPrint('Nouri: background warm-up failed: $e');
     if (!schedulerReady.isCompleted) schedulerReady.complete(null);
+    if (!reminderSchedulerReady.isCompleted) {
+      reminderSchedulerReady.complete(null);
+    }
   }
+}
+
+/// Arms the next occurrence of every reminder the user has not marked done.
+///
+/// One alarm per reminder, never one per occurrence: a daily reminder armed
+/// for a year would cost 365 of Android's ~500 pending alarms on its own and
+/// start pushing adhan alarms out.
+Future<void> _armReminders(
+  NouriDatabase db,
+  NotificationGateway gateway,
+) async {
+  final active = await db.reminderDao.allActive();
+  if (active.isEmpty) return;
+  await ReminderScheduler(gateway).arm(active);
 }
 
 /// Builds the rolling window from current settings.

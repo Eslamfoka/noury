@@ -11,11 +11,15 @@
 /// cancelling one can never silence the other.
 library;
 
-/// The floor of the reminder range. **Never change this.** Lowering it could
-/// collide with the rolling window; raising it would orphan every reminder
-/// alarm already on the device — they would fire under IDs the app no longer
-/// recognises and could never be cancelled.
-const kReminderIdBase = 900000000;
+import '../../core/notifications/notification_slot.dart';
+
+/// The floor of the reminder range.
+///
+/// Defined in core as [kOutOfWindowIdBase], because the rolling window has to
+/// know it too: it clears its own alarms with `cancelAllBelow` against exactly
+/// this value, which is what stops a settings change from deleting every
+/// reminder on the device.
+const kReminderIdBase = kOutOfWindowIdBase;
 
 /// A reminder's notification ID, derived purely from its database row id.
 ///

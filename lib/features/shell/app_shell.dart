@@ -8,9 +8,11 @@ import '../../core/theme/nouri_colors.dart';
 import '../athkar/athkar_screen.dart';
 import '../body/body_screen.dart';
 import '../finance/finance_screen.dart';
+import '../home/home_providers.dart';
 import '../home/home_screen.dart';
 import '../prayers/daily_review_sheet.dart';
 import '../prayers/notification_log_flow.dart';
+import '../reminders/calendar_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -72,6 +74,21 @@ class _AppShellState extends ConsumerState<AppShell> {
           if (mounted) setState(() => _index = _tabForAthkar);
         case QuranRoute():
           if (mounted) setState(() => _index = 0);
+        case ReminderRoute(:final id):
+          // Open the calendar on the reminder's own day. The row is read
+          // fresh rather than trusted from the payload: the reminder may have
+          // been moved to another day since the alarm was armed.
+          final row = await ref
+              .read(databaseProvider)
+              .reminderDao
+              .all()
+              .then((rows) => rows.where((r) => r.id == id).firstOrNull);
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => CalendarScreen(initialDay: row?.onDate),
+            ),
+          );
       }
     } finally {
       _handling = false;
