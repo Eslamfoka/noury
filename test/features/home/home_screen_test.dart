@@ -24,11 +24,22 @@ void main() {
   /// Home now carries the day blocks as well, so it is longer than one
   /// viewport and its ListView builds lazily. Anything below the fold has to
   /// be scrolled into existence before it can be found.
-  Future<void> scrollTo(WidgetTester t, Finder target) => t.scrollUntilVisible(
-        target,
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
+  ///
+  /// `scrollUntilVisible` stops as soon as the target is *built*, and a lazy
+  /// ListView builds 250px (the default cacheExtent) past the viewport — so
+  /// on its own it happily leaves the target just off screen, where a tap
+  /// misses it and silently does nothing. Measured: the wird card came to
+  /// rest at y=1303 on a 1200-tall surface. `ensureVisible` is what actually
+  /// brings it into view, and it has to follow every scroll.
+  Future<void> scrollTo(WidgetTester t, Finder target) async {
+    await t.scrollUntilVisible(
+      target,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await t.ensureVisible(target);
+    await t.pumpAndSettle();
+  }
 
   testWidgets('renders header, ring, prayer list and wird grid', (t) async {
     await withLargeSurface(t, () async {
