@@ -5,6 +5,7 @@ import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
+import '../challenges/challenges_panel.dart';
 import '../home/home_providers.dart';
 import '../prayers/prayer_scoring.dart';
 import '../shared/nouri_avatar.dart';
@@ -141,6 +142,8 @@ class ReportsScreen extends ConsumerWidget {
             label: 'جلسات الأذكار',
             value: toArabicDigits('${s.athkarSessions}'),
           ),
+          const SizedBox(height: 22),
+          const ChallengesPanel(),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(14),

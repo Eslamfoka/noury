@@ -15,6 +15,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Brings [target] fully into view.
+  ///
+  /// scrollUntilVisible stops as soon as the target is *built*, and a lazy
+  /// ListView builds 250px past the viewport, so on its own it can leave the
+  /// target just off screen. Same helper, same reason, as in
+  /// home_screen_test.
+  Future<void> scrollTo(WidgetTester t, Finder target) async {
+    await t.scrollUntilVisible(
+      target,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await t.ensureVisible(target);
+    await t.pumpAndSettle();
+  }
+
   testWidgets('an empty week renders without any score or error', (t) async {
     await withLargeSurface(t, () async {
       db = inMemoryDatabase(t);
@@ -33,6 +49,9 @@ void main() {
       db = inMemoryDatabase(t);
       await pumpReports(t);
       expect(find.text('ملخّص ديني محلي'), findsOneWidget);
+
+      // Below the fold now that the challenges panel sits above it.
+      await scrollTo(t, find.textContaining('التقرير الكامل'));
       expect(find.textContaining('التقرير الكامل'), findsOneWidget);
     });
   });
