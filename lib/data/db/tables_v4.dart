@@ -128,3 +128,30 @@ class FastingDays extends Table {
         {date}
       ];
 }
+
+/// The three faces of "knowledge time".
+///
+/// Appended, never reordered: stored by index like every other enum here.
+enum KnowledgeKind { reading, skill, religiousContent }
+
+/// A session of knowledge time.
+///
+/// The brief treats reading, skill learning and religious content as **one
+/// flexible block** that rotates rather than three daily items, so this is one
+/// table with a kind rather than three tables. What Nouri *recommends* — which
+/// book, which skill — is AI work and belongs with Slice 5; recording that the
+/// time happened does not, and the planner already schedules it.
+class KnowledgeLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Midnight local.
+  DateTimeColumn get date => dateTime()();
+  IntColumn get kind => intEnum<KnowledgeKind>()();
+  IntColumn get minutes => integer()();
+
+  /// What was read or learned. Optional, and free text — Nouri has no library
+  /// and does not pretend to.
+  TextColumn get note => text().nullable()();
+
+  DateTimeColumn get loggedAt => dateTime()();
+}

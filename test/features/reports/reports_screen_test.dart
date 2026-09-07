@@ -92,7 +92,7 @@ void main() {
       );
       await pumpReports(t);
 
-      await scrollTo(t, find.text('البدن والمالية'));
+      await scrollTo(t, find.text('البدن والمعرفة والمالية'));
       expect(find.text('٣٤٠٠'), findsOneWidget, reason: 'the steps');
       expect(find.text('٥'), findsWidgets,
           reason: 'five exercises, even though the routine was twenty');

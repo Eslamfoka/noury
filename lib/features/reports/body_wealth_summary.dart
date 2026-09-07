@@ -24,6 +24,8 @@ class BodyWealthSummary {
     required this.weightChangeGrams,
     required this.spentFils,
     required this.budgetedFils,
+    required this.knowledgeMinutes,
+    required this.knowledgeDays,
   });
 
   final int walkSessions;
@@ -58,6 +60,14 @@ class BodyWealthSummary {
   /// The sum of this month's category limits, or zero when none are set.
   final int budgetedFils;
 
+  /// Minutes of knowledge time across the week, all three kinds together —
+  /// the brief treats them as one block, so one total is the honest number.
+  final int knowledgeMinutes;
+
+  /// How many days of the week carried any at all. Ten minutes on six days is
+  /// a different week from an hour on one, and the total alone hides that.
+  final int knowledgeDays;
+
   bool get hasBody =>
       walkSessions > 0 ||
       workoutSessions > 0 ||
@@ -66,7 +76,9 @@ class BodyWealthSummary {
 
   bool get hasWealth => spentFils > 0 || budgetedFils > 0;
 
-  bool get isEmpty => !hasBody && !hasWealth;
+  bool get hasKnowledge => knowledgeMinutes > 0;
+
+  bool get isEmpty => !hasBody && !hasWealth && !hasKnowledge;
 
   /// How much of the month's budget the week's spending used, or null when no
   /// budget is set. Nouri shows a dash rather than inventing a denominator.
@@ -82,6 +94,7 @@ class BodyWealthSummary {
     required List<Weight> weights,
     required List<Expense> expenses,
     required Map<String, int> budgets,
+    List<KnowledgeLog> knowledge = const [],
   }) {
     // Oldest first, so "change across the week" is last minus first.
     final ordered = [...weights]..sort((a, b) => a.at.compareTo(b.at));
@@ -102,6 +115,9 @@ class BodyWealthSummary {
           : ordered.last.grams - ordered.first.grams,
       spentFils: expenses.fold(0, (a, e) => a + e.amountFils),
       budgetedFils: budgets.values.fold(0, (a, v) => a + v),
+      knowledgeMinutes: knowledge.fold(0, (a, k) => a + k.minutes),
+      knowledgeDays:
+          knowledge.map((k) => dayOf(k.date)).toSet().length,
     );
   }
 }

@@ -36,6 +36,7 @@ final bodyWealthSummaryProvider =
         await db.bodyDao.mealsOn(DateTime(from.year, from.month, from.day + i)));
   }
 
+  final knowledge = await db.knowledgeDao.between(from, today);
   final weights = await db.bodyDao.recentWeights();
   final inRange = weights
       .where((w) => !w.at.isBefore(from))
@@ -54,10 +55,11 @@ final bodyWealthSummaryProvider =
     weights: inRange,
     expenses: expenses,
     budgets: budgets,
+    knowledge: knowledge,
   );
 });
 
-/// البدن والمالية in the weekly report.
+/// البدن والمعرفة والمالية in the weekly report.
 ///
 /// Added because both pillars had real data and appeared nowhere — walking and
 /// workouts especially, which were logged into a screen nobody ever looked
@@ -75,12 +77,12 @@ class BodyWealthPanel extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('البدن والمالية',
+          Text('البدن والمعرفة والمالية',
               style: cairo(size: 14, weight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text(
-            'لسه مفيش تسجيل للأسبوع ده. سجّل مشية أو وجبة أو مصروف '
-            'وهيبان هنا.',
+            'لسه مفيش تسجيل للأسبوع ده. سجّل مشية أو وجبة أو قراءة أو '
+            'مصروف وهيبان هنا.',
             key: const ValueKey('body-wealth-empty'),
             style: cairo(size: 12, color: NouriColors.muted, height: 1.8),
           ),
@@ -91,7 +93,7 @@ class BodyWealthPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('البدن والمالية',
+        Text('البدن والمعرفة والمالية',
             style: cairo(size: 14, weight: FontWeight.w600)),
         const SizedBox(height: 10),
         if (s.hasBody) ...[
@@ -134,6 +136,15 @@ class BodyWealthPanel extends ConsumerWidget {
               value: _weightLine(s),
             ),
           const SizedBox(height: 12),
+        ],
+        if (s.hasKnowledge) ...[
+          _Row(
+            label: 'وقت المعرفة',
+            value: toArabicDigits(
+              '${s.knowledgeMinutes} دقيقة · ${s.knowledgeDays} يوم',
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
         if (s.hasWealth) ...[
           _Row(

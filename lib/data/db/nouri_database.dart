@@ -40,6 +40,7 @@ String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
     ChallengeEnrollments,
     WaterLogs,
     FastingDays,
+    KnowledgeLogs,
   ],
 )
 class NouriDatabase extends _$NouriDatabase {
@@ -47,7 +48,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -101,6 +102,11 @@ class NouriDatabase extends _$NouriDatabase {
             await m.addColumn(settingsRows, settingsRows.waterTargetGlasses);
             await m.addColumn(settingsRows, settingsRows.notifyWater);
           }
+
+          // v8 adds knowledge time — the self-development pillar. Additive.
+          if (from < 8) {
+            await m.createTable(knowledgeLogs);
+          }
         },
       );
 
@@ -115,6 +121,7 @@ class NouriDatabase extends _$NouriDatabase {
   late final workoutDao = WorkoutDao(this);
   late final challengeDao = ChallengeDao(this);
   late final waterDao = WaterDao(this);
+  late final knowledgeDao = KnowledgeDao(this);
 
   static QueryExecutor _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
@@ -673,4 +680,46 @@ class WaterDao {
             ..where((t) => t.date.isBetweenValues(dayOf(from), dayOf(to)))
             ..orderBy([(t) => OrderingTerm.asc(t.date)]))
           .get();
+}
+
+/// Knowledge time — the self-development pillar.
+class KnowledgeDao {
+  KnowledgeDao(this._db);
+  final NouriDatabase _db;
+
+  Future<int> add({
+    required DateTime date,
+    required KnowledgeKind kind,
+    required int minutes,
+    String? note,
+  }) =>
+      _db.into(_db.knowledgeLogs).insert(KnowledgeLogsCompanion.insert(
+            date: dayOf(date),
+            kind: kind,
+            minutes: minutes,
+            note: Value(note),
+            loggedAt: DateTime.now(),
+          ));
+
+  Future<void> delete(int id) =>
+      (_db.delete(_db.knowledgeLogs)..where((t) => t.id.equals(id))).go();
+
+  Future<List<KnowledgeLog>> forDate(DateTime date) =>
+      (_db.select(_db.knowledgeLogs)
+            ..where((t) => t.date.equals(dayOf(date)))
+            ..orderBy([(t) => OrderingTerm.desc(t.loggedAt)]))
+          .get();
+
+  Future<List<KnowledgeLog>> between(DateTime from, DateTime to) =>
+      (_db.select(_db.knowledgeLogs)
+            ..where((t) => t.date.isBetweenValues(dayOf(from), dayOf(to)))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+          .get();
+
+  /// Minutes on [date], across all three kinds — the brief treats them as one
+  /// block, so the useful number is the total.
+  Future<int> minutesOn(DateTime date) async {
+    final rows = await forDate(date);
+    return rows.fold<int>(0, (a, r) => a + r.minutes);
+  }
 }

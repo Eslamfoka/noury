@@ -25,6 +25,7 @@ import 'widgets/home_header.dart';
 import 'widgets/next_prayer_card.dart';
 import 'widgets/progress_ring.dart';
 import 'widgets/wird_grid.dart';
+import '../knowledge/knowledge_card.dart';
 
 /// Home / النهاردة.
 ///
@@ -197,6 +198,11 @@ class HomeScreen extends ConsumerWidget {
               onTap: () => _toggleWird(ref, quranToday?.pagesRead ?? 0),
             ),
           ),
+          const SizedBox(height: 14),
+          // The self-development pillar, alongside the daily wird rather than
+          // in a tab of its own — it is a daily practice like the others, and
+          // the shell is already one destination past the recommendation.
+          const KnowledgeCard(),
         ],
       ),
     );

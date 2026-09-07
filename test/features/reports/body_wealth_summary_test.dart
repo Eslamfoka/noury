@@ -38,6 +38,14 @@ Expense expense(int day, int fils) => Expense(
       amountFils: fils,
     );
 
+KnowledgeLog knowledge(int day, {int minutes = 30}) => KnowledgeLog(
+      id: day,
+      date: DateTime(2026, 9, day),
+      kind: KnowledgeKind.reading,
+      minutes: minutes,
+      loggedAt: DateTime(2026, 9, day, 20),
+    );
+
 BodyWealthSummary build({
   List<WalkSession> walks = const [],
   List<WorkoutSession> workouts = const [],
@@ -45,6 +53,7 @@ BodyWealthSummary build({
   List<Weight> weights = const [],
   List<Expense> expenses = const [],
   Map<String, int> budgets = const {},
+  List<KnowledgeLog> knowledgeLogs = const [],
 }) =>
     BodyWealthSummary.build(
       walks: walks,
@@ -53,6 +62,7 @@ BodyWealthSummary build({
       weights: weights,
       expenses: expenses,
       budgets: budgets,
+      knowledge: knowledgeLogs,
     );
 
 void main() {
@@ -160,6 +170,34 @@ void main() {
       );
       expect(s.budgetFraction, 1.0);
       expect(s.spentFils, 90000, reason: 'the number itself stays honest');
+    });
+  });
+
+  group('knowledge time', () {
+    test('totals the minutes and counts the days they fell on', () {
+      // Ten minutes on six days is a different week from an hour on one, and
+      // the total alone hides that.
+      final s = build(knowledgeLogs: [
+        knowledge(1, minutes: 30),
+        knowledge(1, minutes: 15),
+        knowledge(3, minutes: 20),
+      ]);
+      expect(s.knowledgeMinutes, 65);
+      expect(s.knowledgeDays, 2);
+      expect(s.hasKnowledge, isTrue);
+    });
+
+    test('a week with none is not knowledge, and not an error', () {
+      final s = build();
+      expect(s.knowledgeMinutes, 0);
+      expect(s.hasKnowledge, isFalse);
+    });
+
+    test('a knowledge-only week is not empty', () {
+      final s = build(knowledgeLogs: [knowledge(1)]);
+      expect(s.isEmpty, isFalse);
+      expect(s.hasBody, isFalse);
+      expect(s.hasWealth, isFalse);
     });
   });
 

@@ -6,7 +6,8 @@ import 'package:nouri/data/db/nouri_database.dart';
 ///
 /// v4 added reminders, walking, workouts and challenges; v5 the sunnah
 /// fasting toggle; v6 the duty pattern the planner needs; v7 water and the
-/// fasting-day marker. Every migration is additive, so the most important test
+/// fasting-day marker; v8 knowledge time. Every migration is additive, so the
+/// most important test
 /// here is the last one — that nothing from the religious core was disturbed
 /// on the way.
 void main() {
@@ -18,9 +19,9 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v7', () {
+  test('schema is at v8', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 7);
+    expect(fresh().schemaVersion, 8);
   });
 
   group('reminders', () {
@@ -223,6 +224,21 @@ void main() {
       final s = await fresh().settingsDao.get();
       expect(s.waterTargetGlasses, 8);
       expect(s.notifyWater, isTrue);
+    });
+  });
+
+  group('knowledge time', () {
+    test('a session round-trips and totals by day', () async {
+      final db = fresh();
+      final day = DateTime(2026, 9, 7);
+      await db.knowledgeDao
+          .add(date: day, kind: KnowledgeKind.reading, minutes: 30);
+      await db.knowledgeDao
+          .add(date: day, kind: KnowledgeKind.skill, minutes: 15);
+
+      expect(await db.knowledgeDao.minutesOn(day), 45,
+          reason: 'one flexible block, so the total is the useful number');
+      expect(await db.knowledgeDao.forDate(day), hasLength(2));
     });
   });
 
