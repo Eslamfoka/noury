@@ -5,7 +5,7 @@ Last updated **7 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `b78671e`, working tree clean |
+| Head | `ac4b82f`, working tree clean |
 | Tests | **837 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
 | On the emulator | current build, `nourdm-api35` |
@@ -40,13 +40,16 @@ Last updated **7 September 2026**, overnight session.
   the evening before, with the prohibited days excluded
 - **Reports across البدن والمالية** as well as the religious summary
 - **The planned day** — blocks, times and what sits in them, decided by
-  `planDay` from the shift and the day's prayers, re-planned from now
+  `planDay` from the shift and the day's prayers. The whole day, stable: it
+  does not change depending on when it is opened
 - **Water** — a count against a target in البدن, and a nudge after each prayer
   that disappears between fajr and maghrib on a day marked as a fast
 - **Knowledge time** — reading, skill or religious content, logged on Home and
   totalled in the weekly report as minutes *and* days
 - **Onboarding asks which shift**, so the first day Nouri shows is the right
   shape rather than a morning guess
+- Counters read «٠ من ٣», never «٠ / ٣» — the slash form reverses in RTL and
+  said *three of zero*. Fixed app-wide and held by a guard test.
 - Finance and body tabs, both writing to the local database
 - No network calls at all — `INTERNET` is removed from the manifest
 
@@ -85,9 +88,6 @@ Last updated **7 September 2026**, overnight session.
   `docs/fasting-verification.md` lists what is and is not covered and asks for
   that review. عرفة, عاشوراء and الست من شوال are deliberately absent — the
   brief does not name them and choosing which to add is a religious judgement.
-- A counter like the athkar repeat pill reads «٣ / ٠» at zero of three,
-  because RTL lays the slash form out right to left. Pre-existing, app-wide,
-  and left alone rather than fixed on one screen — see the handoff.
 
 ## Guards that fail the build
 
