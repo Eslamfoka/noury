@@ -41,21 +41,37 @@ Future<void> logPrayer(
 }) async {
   final date = on ?? DateTime.now();
 
-  await ref.read(databaseProvider).prayerDao.upsertLog(
+  // Everything is taken off `ref` **before** the first await.
+  //
+  // A WidgetRef belongs to a widget, and after an await that widget may be
+  // gone — reading it then throws. The write would already have happened, so
+  // what would be lost is the half that comes after it: the follow-up
+  // cancellation. That is exactly the bug 0690711 had to fix, and reaching it
+  // again through an unmount would look identical to the user, so the reads
+  // are hoisted rather than left to luck about how long a database write takes.
+  final db = ref.read(databaseProvider);
+  final service = ref.read(notificationServiceProvider);
+
+  await db.prayerDao.upsertLog(
         date: date,
         prayer: prayer,
         scheduledTime: scheduledTime,
         state: state,
       );
-  ref.invalidate(todayPrayerLogsProvider);
+
+  // Best-effort, like the cancel below: the widget may be gone, and a missed
+  // refresh costs a stale screen the user is no longer looking at.
+  try {
+    ref.invalidate(todayPrayerLogsProvider);
+  } catch (_) {
+    // The widget went away mid-write. The log is written; nothing to refresh.
+  }
 
   // Clearing an entry should put the questions back, not silence them.
   if (state == PrayerState.none) return;
 
   final slots = _followUpSlotsFor[prayer];
   if (slots == null) return;
-
-  final service = ref.read(notificationServiceProvider);
   if (service == null) return;
 
   for (final slot in slots) {

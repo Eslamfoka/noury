@@ -135,11 +135,13 @@ class KnowledgeCard extends ConsumerWidget {
                       key: ValueKey('knowledge-delete-${l.id}'),
                       visualDensity: VisualDensity.compact,
                       onPressed: () async {
-                        await ref
-                            .read(databaseProvider)
-                            .knowledgeDao
-                            .delete(l.id);
-                        ref.invalidate(todayKnowledgeProvider);
+                        final db = ref.read(databaseProvider);
+                        await db.knowledgeDao.delete(l.id);
+                        try {
+                          ref.invalidate(todayKnowledgeProvider);
+                        } catch (_) {
+                          // Card gone; the row is already deleted.
+                        }
                       },
                       icon: const Icon(Icons.close,
                           size: 15, color: NouriColors.muted),
@@ -202,13 +204,19 @@ class _LogKnowledgeState extends State<_LogKnowledge> {
     if (_saving) return;
     _saving = true;
 
-    await widget.parentRef.read(databaseProvider).knowledgeDao.add(
-          date: DateTime.now(),
-          kind: widget.kind,
-          minutes: _minutes,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-        );
-    widget.parentRef.invalidate(todayKnowledgeProvider);
+    final db = widget.parentRef.read(databaseProvider);
+    await db.knowledgeDao.add(
+      date: DateTime.now(),
+      kind: widget.kind,
+      minutes: _minutes,
+      note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+    );
+
+    try {
+      widget.parentRef.invalidate(todayKnowledgeProvider);
+    } catch (_) {
+      // The card behind the sheet went away. The session is recorded.
+    }
 
     if (mounted) {
       Navigator.of(context).pop();

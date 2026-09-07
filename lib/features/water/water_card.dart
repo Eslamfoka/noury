@@ -26,13 +26,23 @@ class WaterCard extends ConsumerWidget {
   const WaterCard({super.key});
 
   Future<void> _add(WidgetRef ref, int glasses) async {
+    // Read off `ref` before the first await: a WidgetRef belongs to a widget,
+    // and after an await that widget may be gone. Same reasoning as logPrayer.
+    final db = ref.read(databaseProvider);
     final settings = await ref.read(settingsProvider.future);
-    await ref.read(databaseProvider).waterDao.add(
-          DateTime.now(),
-          glasses,
-          target: settings.waterTargetGlasses,
-        );
-    ref.invalidate(todayWaterProvider);
+
+    await db.waterDao.add(
+      DateTime.now(),
+      glasses,
+      target: settings.waterTargetGlasses,
+    );
+
+    try {
+      ref.invalidate(todayWaterProvider);
+    } catch (_) {
+      // The card went away mid-write. The glass is counted; nothing to
+      // refresh.
+    }
   }
 
   @override
@@ -158,10 +168,13 @@ class WaterCard extends ConsumerWidget {
                   // reminders are already armed and have to be rebuilt, or
                   // Nouri would nudge a fasting person to drink at noon
                   // having just been told they are fasting.
-                  await ref
-                      .read(settingsControllerProvider)
-                      .setFastingDay(DateTime.now(), v);
-                  ref.invalidate(fastingTodayProvider);
+                  final controller = ref.read(settingsControllerProvider);
+                  await controller.setFastingDay(DateTime.now(), v);
+                  try {
+                    ref.invalidate(fastingTodayProvider);
+                  } catch (_) {
+                    // Card gone; the marker and the re-arm both happened.
+                  }
                 },
               ),
             ],
