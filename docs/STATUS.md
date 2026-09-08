@@ -2,10 +2,13 @@
 
 Last updated **8 September 2026**, evening — after the phone install.
 
+**Next session starts at** `docs/superpowers/handoffs/2026-09-09-the-phone-install-and-the-sound-audit.md` → *Start here
+tomorrow*.
+
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `15268f8`, working tree clean |
+| Head | `6860de8`, pushed to origin, working tree clean |
 | Tests | **1118 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 8 Sep 20:04** (HONOR VNE-N41) — المهام, the nineteen tones, the five adhans, and the snooze receiver |
 | On the emulator | current build, `nourdm-api35`, verified |

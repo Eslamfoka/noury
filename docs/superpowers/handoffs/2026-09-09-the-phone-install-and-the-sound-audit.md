@@ -206,3 +206,64 @@ for**, and locks the field within seconds (`mUserLockedFields=4`,
 `mOriginalImp=5`). HIGH is still heads-up with sound, and the full-screen
 intent is independent of it, so nothing is lost — but a future channel bump
 will land at HIGH again. That is device policy, not a bug to chase.
+
+---
+
+## Start here tomorrow
+
+Branch `slice1-religious-core`, head **`6860de8`**, pushed to origin, tree
+clean. **1118 tests passing**, `flutter analyze` clean, schema v11. Still
+**not merged to `master`** — that waits on the user's approval.
+
+The phone is on this exact build (md5 `06df5ca4…`, installed 8 Sep 20:04).
+
+### First, ask him three things — they are all one-minute answers and they
+### unblock work that is otherwise guesswork
+
+1. **الإعدادات → الأصوات: which adhan carries «الصلاة خير من النوم»?** If it
+   is not the fajr one, swap it: `tool/install_adhan_sound.sh fajr <file>`
+   and the two changes it prints.
+2. **Which of the nineteen tones do not read?** They are synthesised, so any
+   of them is one line in `tool/make_alert_sounds.py`. Bump that kind's
+   channel version when you change its sound — Android freezes a channel's
+   sound at creation.
+3. **Is the iqama's new sound right?** It moved off the system default onto
+   `alert_iqama_v2` today. He had asked for prayer/adhan/iqama to be kept
+   "separate and unchanged"; that was read as *out of the task system*, not
+   *never given a sound*. One constant reverses it.
+
+### Then, in rough order of value
+
+- **The DND finding.** All five `adhan_*_v2` channels have
+  `mBypassDnd=false`, so Do Not Disturb silences the adhan — which matters
+  most for a man who sleeps in the daytime. `flutter_local_notifications`
+  does not expose `bypassDnd`; doing it natively needs notification-policy
+  access, which is his call. Today the fix is one manual system toggle. Worth
+  offering him the choice explicitly rather than leaving it in a handoff.
+- **`ACTIVITY_RECOGNITION` has still never been granted**, so the step
+  counter has never been watched counting a real step. البدن → امشي →
+  «اسمح لنوري». Needs him holding the phone.
+- **الأذكار folded into النهاردة.** Seven tabs is two past Material's
+  recommendation and the labels are visibly cramped on his 720px screen — see
+  the screenshot in this handoff. الأذكار is the sub-feature sitting beside
+  its own pillar as a peer.
+- **The pure background-isolate snooze** — still never exercised. A snooze
+  pressed after Android has killed the process takes a different branch.
+  `force-stop` cannot test it: it cancels the app's alarms.
+- Long-standing and still open: the rota (the brief describes a rotating
+  pattern; the app has a single shift setting), whether the plan should be a
+  place to *log* — `docs/planner-decisions.md` records why guessing has
+  already cost two bugs — and `docs/fasting-verification.md` /
+  `docs/athkar-verification.md`, both religious content awaiting a human.
+
+### Rules this project keeps re-learning
+
+- **Never build while the emulator runs.** 15.9 GB of RAM.
+- **Check `POST_NOTIFICATIONS` before concluding anything about alarms.**
+  Runtime permission on SDK 33+; ungranted on the emulator for weeks, which
+  is the whole reason "no notification has ever been watched arriving".
+- **Confirm `mCurrentFocus` is Nouri before any screenshot or tap on his
+  phone.** Blind taps once opened his notification shade and a WhatsApp
+  conversation. Prefer `dumpsys`.
+- **Read the device, not just the tests.** Both faults fixed today were
+  invisible to 1111 passing tests and obvious in one `dumpsys notification`.
