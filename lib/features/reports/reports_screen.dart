@@ -15,7 +15,11 @@ import 'weekly_summary.dart';
 /// The last seven days, assembled from local rows only.
 final weeklySummaryProvider = FutureProvider<WeeklySummary>((ref) async {
   final db = ref.watch(databaseProvider);
-  final today = DateTime.now();
+  // Watched, not read: a report left open past midnight has to become the
+  // new week's report. `DateTime.now()` here would cache the date once and
+  // keep showing the old seven days until something else invalidated it —
+  // which matters most for a user who works nights.
+  final today = ref.watch(currentDayProvider);
   // Constructed, never offset — a day is a calendar day, not 24 hours.
   final from = DateTime(today.year, today.month, today.day - 6);
 

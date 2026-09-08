@@ -32,7 +32,9 @@ final activeChallengesProvider =
   final enrolments = await db.challengeDao.active();
   if (enrolments.isEmpty) return const [];
 
-  final today = DateTime.now();
+  // Watched: a challenge counted to yesterday all night would have said «٣٩
+  // يوم» on the fortieth morning.
+  final today = ref.watch(currentDayProvider);
   var earliest = dayOf(today);
   for (final e in enrolments) {
     if (e.startedOn.isBefore(earliest)) earliest = dayOf(e.startedOn);

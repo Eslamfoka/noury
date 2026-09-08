@@ -15,7 +15,8 @@ import 'body_wealth_summary.dart';
 final bodyWealthSummaryProvider =
     FutureProvider<BodyWealthSummary>((ref) async {
   final db = ref.watch(databaseProvider);
-  final today = DateTime.now();
+  // Watched, so the panel turns over at midnight with the rest of the app.
+  final today = ref.watch(currentDayProvider);
   final from = DateTime(today.year, today.month, today.day - 6);
 
   // Money is read over the financial month, not the week: a budget is a

@@ -15,7 +15,9 @@ import 'financial_month.dart';
 final currentFinancialMonthProvider = Provider<AsyncValue<FinancialMonth>>(
   (ref) => ref.watch(settingsProvider).whenData(
         (s) => FinancialMonth.containing(
-          DateTime.now(),
+          // Watched: on payday the financial month has to roll over without
+          // waiting for something else to invalidate it.
+          ref.watch(currentDayProvider),
           startDay: s.financialMonthStartDay,
         ),
       ),
@@ -94,7 +96,9 @@ final budgetStatusesProvider =
 
   final budgets = ref.watch(monthBudgetsProvider).value ?? const {};
   final spend = ref.watch(monthSpendByCategoryProvider).value ?? const {};
-  final now = DateTime.now();
+  // Watched: the paced allowance moves a day at a time, so a stale date
+  // makes an ordinary spend look like it is ahead of the month.
+  final now = ref.watch(currentDayProvider);
 
   return {
     for (final c in BudgetCategory.values)

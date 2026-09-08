@@ -5,7 +5,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/data/db/nouri_database.dart';
+import 'package:nouri/features/finance/finance_providers.dart';
 import 'package:nouri/features/home/home_providers.dart';
+import 'package:nouri/features/reports/reports_screen.dart';
 
 /// Midnight, with the app open.
 ///
@@ -94,6 +96,46 @@ void main() {
 
     await tick(DateTime(2026, 9, 8, 0, 1));
     expect(notifications, 1);
+  });
+
+  test('the weekly report follows the day, not the launch', () async {
+    // A report left open past midnight has to become the new week's report.
+    // These providers read `DateTime.now()` once, so the seven-day window was
+    // frozen at launch — and «آخر ٧ أيام» quietly meant "the seven days
+    // ending whenever you opened Nouri".
+    await db.prayerDao.upsertLog(
+      date: DateTime(2026, 9, 1),
+      prayer: 'fajr',
+      scheduledTime: DateTime(2026, 9, 1, 4, 7),
+      state: PrayerState.mosque,
+    );
+
+    container.listen(weeklySummaryProvider, (_, _) {}, fireImmediately: true);
+
+    await tick(DateTime(2026, 9, 7, 22, 0));
+    final inWindow = await container.read(weeklySummaryProvider.future);
+    expect(inWindow.prayersLogged, 1,
+        reason: '1 September is inside the week ending on the 7th');
+
+    // Eight days on, the same log is outside the window.
+    await tick(DateTime(2026, 9, 15, 0, 1));
+    final outOfWindow = await container.read(weeklySummaryProvider.future);
+    expect(outOfWindow.prayersLogged, 0,
+        reason: 'the window moved with the day');
+  });
+
+  test('the financial month rolls over on payday without a relaunch',
+      () async {
+    final sub = container.listen(currentFinancialMonthProvider, (_, _) {},
+        fireImmediately: true);
+
+    await tick(DateTime(2026, 9, 24, 12, 0));
+    expect(sub.read().value!.start, DateTime(2026, 8, 25),
+        reason: 'the 24th is still the cycle that began on 25 August');
+
+    await tick(DateTime(2026, 9, 25, 0, 1));
+    expect(sub.read().value!.start, DateTime(2026, 9, 25),
+        reason: 'payday starts a new financial month');
   });
 
   test('day-scoped queries follow it over midnight', () async {
