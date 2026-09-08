@@ -13,6 +13,8 @@
 /// that, and neither can reinstalling — only a new ID starts clean.
 library;
 
+import 'task_alert.dart';
+
 /// Bumped v1 → v2 to reset the importance MagicOS locked at DEFAULT, and to
 /// adopt the full-screen intent that lets the adhan behave like an alarm.
 const channelAdhan = 'adhan_v2';
@@ -21,12 +23,25 @@ const channelAthkar = 'athkar_v1';
 const channelWird = 'wird_v1';
 const channelGeneral = 'general_v1';
 
-const allChannelIds = <String>[
+/// The core ids. Every [TaskAlertKind] adds one more; `allChannelIds` below
+/// is the union, and it is what startup creates and what the settings screen
+/// reasons about.
+const coreChannelIds = <String>[
   channelAdhan,
   channelIqama,
   channelAthkar,
   channelWird,
   channelGeneral,
+];
+
+/// Every channel id Nouri owns.
+///
+/// Built from the registry rather than listed by hand: a kind added there and
+/// forgotten here would create a channel nothing ever deletes, leaving a stray
+/// row in the user's system notification settings.
+final allChannelIds = <String>[
+  ...coreChannelIds,
+  for (final kind in TaskAlertKind.values) kind.channelId,
 ];
 
 /// Superseded channels, deleted at startup.

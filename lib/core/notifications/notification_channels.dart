@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'notification_channels_ids.dart';
+import 'task_alert.dart';
 
 export 'notification_channels_ids.dart';
 
@@ -16,9 +17,13 @@ export 'notification_channels_ids.dart';
 /// editing one without the other silently keeps the old audio.
 const adhanSoundResource = 'chime';
 
-/// The five channels, kept separate so the user can silence one without
+/// The core channels, kept separate so the user can silence one without
 /// killing the others — muting the wird reminder must never mute the adhan.
-const nouriChannels = <AndroidNotificationChannel>[
+///
+/// Everything in [TaskAlertKind] adds one more, because Android reads a
+/// notification's sound off its **channel**. "A different sound per task" and
+/// "a channel per task" are the same sentence on Android.
+const _coreChannels = <AndroidNotificationChannel>[
   AndroidNotificationChannel(
     channelAdhan,
     'الأذان',
@@ -54,6 +59,29 @@ const nouriChannels = <AndroidNotificationChannel>[
     description: 'متابعة نوري اليومية',
     importance: Importance.defaultImportance,
   ),
+];
+
+/// Every channel Nouri creates: the core ones plus one per alert kind.
+///
+/// The per-kind ones are **high** importance and carry alarm audio usage when
+/// the kind asks to be heard, because the user's request was for alarms rather
+/// than for chatter: «i need alarms for each task». The informational ones —
+/// the budget note, the phone cap, the review, the soft «عملتها؟» — stay at
+/// notification usage.
+final nouriChannels = <AndroidNotificationChannel>[
+  ..._coreChannels,
+  for (final kind in TaskAlertKind.values)
+    AndroidNotificationChannel(
+      kind.channelId,
+      kind.title,
+      description: kind.body,
+      importance: Importance.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound(kind.sound),
+      audioAttributesUsage: kind.asAlarm
+          ? AudioAttributesUsage.alarm
+          : AudioAttributesUsage.notification,
+    ),
 ];
 
 AndroidNotificationChannel _channelFor(String id) =>

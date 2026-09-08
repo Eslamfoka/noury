@@ -15,6 +15,8 @@ import '../prayers/notification_log_flow.dart';
 import '../reminders/calendar_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
+import '../steps/walk_screen.dart';
+import '../workouts/workout_screen.dart';
 
 /// The five-tab shell.
 ///
@@ -37,6 +39,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   static const _tabForAthkar = 1;
   static const _tabForBody = 3;
+  static const _tabForFinance = 4;
 
   // Six destinations is one past Material's recommended five. The three
   // pillars each need a home and none of them is optional, so the crowding is
@@ -80,6 +83,31 @@ class _AppShellState extends ConsumerState<AppShell> {
         case FastingRoute():
           // Fasting lives in the physical pillar, per the brief.
           if (mounted) setState(() => _index = _tabForBody);
+        case QiyamRoute():
+          // Home, where the day is. قيام needs no screen of its own — it is an
+          // invitation, not a thing to log.
+          if (mounted) setState(() => _index = 0);
+        case FinanceRoute():
+          if (mounted) setState(() => _index = _tabForFinance);
+        // «open the app to do it», not merely "open the app": a walk reminder
+        // that lands on Home has not finished the job. Anything with no screen
+        // of its own falls back to Home rather than throwing — an alarm armed
+        // by an older build can still be in AlarmManager days later.
+        case TaskRoute(:final taskId) || TaskFollowUpRoute(:final taskId):
+          if (!mounted) return;
+          // «open the app to do it», not merely "open the app". A walk
+          // reminder that lands on Home has not finished the job, so the two
+          // tasks with a screen of their own get pushed onto it.
+          setState(() => _index = tabForTaskId(taskId));
+          if (taskId == 'walk') {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const WalkScreen()),
+            );
+          } else if (taskId == 'workout') {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const WorkoutScreen()),
+            );
+          }
         case ReminderRoute(:final id):
           // Open the calendar on the reminder's own day. The row is read
           // fresh rather than trusted from the payload: the reminder may have
@@ -192,3 +220,22 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 }
+
+
+/// Which tab a planned task is done on.
+///
+/// A pure function so it can be tested without a shell, and so the mapping
+/// lives in one readable place rather than inside a switch in a state class.
+///
+/// An unknown id lands on Home rather than throwing. An alarm armed by an
+/// older build of Nouri can still be sitting in AlarmManager days later, and
+/// crashing on tap would be a poor thanks for upgrading.
+int tabForTaskId(String taskId) => switch (taskId) {
+      'walk' || 'workout' || 'first-meal' || 'last-meal' => 3, // البدن
+      'tasbeeh' ||
+      'morning-athkar' ||
+      'evening-athkar' ||
+      'sleep-athkar' =>
+        1, // الأذكار
+      _ => 0, // النهاردة — the wird, knowledge, calls and phone cards live here
+    };

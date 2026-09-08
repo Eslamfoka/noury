@@ -30,6 +30,14 @@ sealed class NotificationRoute {
         ReminderRoute(int.parse(rest)),
       'fasting' => const FastingRoute(),
       'water' => const WaterRoute(),
+      'qiyam' => const QiyamRoute(),
+      'finance' => const FinanceRoute(),
+      // The planner's own tasks. `rest` is a task id from `dailyTasksFor`, and
+      // an id this version has never heard of still parses — an alarm armed by
+      // an older build can be sitting in AlarmManager days later, and crashing
+      // on tap would be a poor thanks for upgrading.
+      'task' when rest.isNotEmpty => TaskRoute(rest),
+      'taskask' when rest.isNotEmpty => TaskFollowUpRoute(rest),
       _ => null,
     };
   }
@@ -122,4 +130,53 @@ class WaterRoute extends NotificationRoute {
   bool operator ==(Object other) => other is WaterRoute;
   @override
   int get hashCode => 'water'.hashCode;
+}
+
+/// Open Home, where قيام is offered. Nothing sensitive: the route carries no
+/// personal data, and the screen it lands on is the ordinary day view.
+class QiyamRoute extends NotificationRoute {
+  const QiyamRoute();
+
+  @override
+  bool operator ==(Object other) => other is QiyamRoute;
+  @override
+  int get hashCode => 'qiyam'.hashCode;
+}
+
+/// Open المالية, where the budget note points.
+class FinanceRoute extends NotificationRoute {
+  const FinanceRoute();
+
+  @override
+  bool operator ==(Object other) => other is FinanceRoute;
+  @override
+  int get hashCode => 'finance'.hashCode;
+}
+
+/// Open the screen where a planned task is actually done.
+///
+/// The user's requirement was «open the app to do it», not "open the app": a
+/// walk reminder that lands on Home has not finished the job. [taskId] is a
+/// `dailyTasksFor` id, and the mapping from id to screen lives with the UI.
+class TaskRoute extends NotificationRoute {
+  const TaskRoute(this.taskId);
+  final String taskId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TaskRoute && other.taskId == taskId;
+  @override
+  int get hashCode => Object.hash('task', taskId);
+}
+
+/// The «عملتها؟» that follows a task — same destination, different question.
+class TaskFollowUpRoute extends NotificationRoute {
+  const TaskFollowUpRoute(this.taskId);
+  final String taskId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TaskFollowUpRoute && other.taskId == taskId;
+  @override
+  int get hashCode => Object.hash('taskask', taskId);
 }

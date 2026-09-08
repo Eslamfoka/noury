@@ -1,14 +1,59 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/notification_channels.dart';
+import 'package:nouri/core/notifications/task_alert.dart';
 
 void main() {
   AndroidNotificationChannel channel(String id) =>
       nouriChannels.firstWhere((c) => c.id == id);
 
-  test('there is exactly one channel per concern', () {
+  test('the channel list and the id list agree', () {
+    // A channel created but not listed is one nothing ever deletes, leaving a
+    // stray row in the user's system notification settings.
     expect(nouriChannels.map((c) => c.id).toSet(), allChannelIds.toSet());
-    expect(nouriChannels.length, 5);
+  });
+
+  test('there are five core channels plus one per alert kind', () {
+    // The count is not arbitrary: Android reads a notification's sound off its
+    // channel, so «a different sound for every task» and «a channel for every
+    // task» are the same sentence.
+    expect(nouriChannels.length, coreChannelIds.length + TaskAlertKind.values.length);
+  });
+
+  test('every alert kind has its channel, carrying its own sound', () {
+    for (final kind in TaskAlertKind.values) {
+      final c = channel(kind.channelId);
+      expect(c.sound, isA<RawResourceAndroidNotificationSound>(),
+          reason: kind.name);
+      expect((c.sound as RawResourceAndroidNotificationSound).sound, kind.sound,
+          reason: kind.name);
+      expect(c.playSound, isTrue, reason: kind.name);
+    }
+  });
+
+  test('no two channels carry the same sound', () {
+    // The whole point of the slice: the user must be able to tell which task
+    // is calling by ear.
+    final sounds = <String>[];
+    for (final c in nouriChannels) {
+      final s = c.sound;
+      if (s is RawResourceAndroidNotificationSound) sounds.add(s.sound);
+    }
+    expect(sounds.toSet().length, sounds.length);
+  });
+
+  test('the kinds that summon you use alarm volume; the rest do not', () {
+    // «i need alarms for each task» — but waking someone at alarm volume to
+    // mention a budget would be the kind of app that gets uninstalled.
+    for (final kind in TaskAlertKind.values) {
+      expect(
+        channel(kind.channelId).audioAttributesUsage,
+        kind.asAlarm
+            ? AudioAttributesUsage.alarm
+            : AudioAttributesUsage.notification,
+        reason: kind.name,
+      );
+    }
   });
 
   group('the adhan channel', () {
