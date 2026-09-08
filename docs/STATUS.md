@@ -8,10 +8,10 @@ tomorrow*.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `6860de8`, pushed to origin, working tree clean |
+| Head | tip of `slice1-religious-core`, pushed to origin, tree clean |
 | Tests | **1118 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 8 Sep 20:04** (HONOR VNE-N41) — المهام, the nineteen tones, the five adhans, and the snooze receiver |
-| On the emulator | current build, `nourdm-api35`, verified |
+| On the emulator | **behind** — `nourdm-api35` last ran the Slice 6 build. The 8 Sep evening work (the duplicate-ring fix, the seven re-routed sounds, الأصوات) was verified on the phone and in tests, not there |
 | Schema | v11 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.

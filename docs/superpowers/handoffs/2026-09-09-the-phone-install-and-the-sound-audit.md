@@ -6,7 +6,9 @@ what I could prove without touching it, and the two faults that reading the
 device found — neither of which any test in the suite could have caught.
 
 **1118 tests passing**, `flutter analyze` clean, schema **v11**. Branch
-`slice1-religious-core`, still **not merged to `master`**. Head `ba62f13`.
+`slice1-religious-core`, still **not merged to `master`**, pushed to origin.
+Nothing here was run on the emulator — it last saw the Slice 6 build. The
+verification below is the phone and the suite.
 
 ---
 
