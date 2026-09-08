@@ -5,9 +5,9 @@ Last updated **8 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `ce4d29b`, working tree clean |
-| Tests | **932 passing**, `flutter analyze` clean |
-| On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **three days stale** |
+| Head | `e3c7123`, working tree clean |
+| Tests | **944 passing**, `flutter analyze` clean |
+| On the phone | **current build, installed 8 Sep 13:12** (HONOR VNE-N41) |
 | On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v10 |
 
@@ -72,12 +72,19 @@ Last updated **8 September 2026**, overnight session.
 - **MagicOS caps the adhan channel at HIGH**, not MAX, and re-locks it within
   seconds of creation. HIGH is enough for the full-screen intent. A future
   channel bump will land at HIGH again — that is device policy, not a bug.
-- **The phone's build is from 6 September** and has none of tonight's work,
-  nor the follow-up cancellation fix. It needs a reinstall.
-- **The step counter needs hardware Nouri cannot assume.** The emulator has no
-  `TYPE_STEP_COUNTER`, so the walk screen says so and offers a clearly labelled
-  simulated run only when the opt-in switch in الإعدادات is on. **The real
-  sensor path has never run on real hardware.**
+- **The adhan does not bypass Do Not Disturb.** Measured on the phone:
+  `adhan_v2` has `mBypassDnd=false`, and the manual override the user had set
+  on the old `adhan_v1` did not carry over. For a night worker sleeping in the
+  daytime with DND on, that silences the adhan. Nouri cannot set it —
+  `flutter_local_notifications` does not expose `bypassDnd`, and doing it
+  natively needs notification-policy access, which is the user's call. The fix
+  today is one manual toggle in system settings.
+- **The step counter needs hardware *and a permission*.** The HONOR has the
+  hardware — an HONOR `pedometer` on `android.sensor.step_counter(19)` — and
+  Nouri held `ACTIVITY_RECOGNITION: granted=false`, having never asked. That
+  is fixed: the walk screen distinguishes "no sensor" from "not allowed yet"
+  and offers «اسمح لنوري». **Nobody has yet granted it and watched a real step
+  arrive**, which is the last thing needing a person holding the phone.
 - **A walk is only counted while its screen is open.** Android keeps counting
   in the OS, so a backgrounded session reconciles correctly on resume, but
   there is no foreground service and a killed app loses the session.
@@ -91,9 +98,16 @@ Last updated **8 September 2026**, overnight session.
 - **The planned day is read-only.** Blocks expand to show their hours; nothing
   is tapped done from there yet. Prayers are still logged from Home and from
   the notification.
-- **Untested on real hardware:** reboot survival, battery-kill, multi-day
-  reliability, and everything built on 7 and 8 September. Emulator results say
-  nothing about MagicOS.
+- **Verified on the HONOR on 8 September:** no orphaned alarms across the
+  stride change (232 old-stride alarms → 249, not ~470), a window spanning
+  exactly 14 days, exact alarms permitted, Nouri whitelisted from battery
+  optimisation, and the MagicOS importance cap measured (`adhan_v2` at
+  `mImportance=4`, `mOriginalImp=5`, importance field locked).
+- **Still untested on real hardware:** reboot survival, battery-kill, multi-day
+  reliability, and **no notification of any kind has been watched arriving**.
+- **Prayer times come from the stored Kuwait coordinates, not the device.**
+  `ACCESS_COARSE_LOCATION: granted=false` on the phone. By design — Nouri is
+  never blocked on a permission — but they are not from GPS.
 - **وقت الموبايل is reported, not measured.** Nouri does not read device usage
   and asks for no usage permission. The reasoning is decision 7 in
   `docs/planner-decisions.md`; the card takes sittings rather than running a
@@ -160,9 +174,6 @@ itself tested both ways, so none can pass vacuously.
 - **A fasting day is the user's word, never inferred.** Nouri suggests the
   sunnah fasts but cannot know whether one was kept, and guessing wrong means
   nudging a fasting person to drink at noon.
-- **No notification of any kind has been watched arriving on the HONOR.** The
-  alarms register correctly on the emulator; nobody has seen one fire on the
-  phone.
 - **One place builds the alarm window's config**, `schedulingConfigFromDb`.
   There were two and they drifted, which cost قيام and the budget note on
   every launch. A guard fails the build on a second one.
