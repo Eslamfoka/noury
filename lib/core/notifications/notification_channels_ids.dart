@@ -13,10 +13,15 @@
 /// that, and neither can reinstalling — only a new ID starts clean.
 library;
 
+import 'adhan_sounds.dart';
 import 'task_alert.dart';
 
-/// Bumped v1 → v2 to reset the importance MagicOS locked at DEFAULT, and to
-/// adopt the full-screen intent that lets the adhan behave like an alarm.
+/// **Retired.** The single adhan channel became five, one per prayer — see
+/// `adhan_sounds.dart`. Kept only so the id can be named in
+/// [retiredChannelIds] and deleted from devices that still carry it.
+///
+/// It was itself a v1 → v2 bump, to reset the importance MagicOS had locked
+/// at DEFAULT and to adopt the full-screen intent.
 const channelAdhan = 'adhan_v2';
 const channelIqama = 'iqama_v1';
 const channelAthkar = 'athkar_v1';
@@ -27,7 +32,6 @@ const channelGeneral = 'general_v1';
 /// is the union, and it is what startup creates and what the settings screen
 /// reasons about.
 const coreChannelIds = <String>[
-  channelAdhan,
   channelIqama,
   channelAthkar,
   channelWird,
@@ -40,6 +44,7 @@ const coreChannelIds = <String>[
 /// forgotten here would create a channel nothing ever deletes, leaving a stray
 /// row in the user's system notification settings.
 final allChannelIds = <String>[
+  ...adhanChannelIds,
   ...coreChannelIds,
   for (final kind in TaskAlertKind.values) kind.channelId,
 ];
@@ -48,4 +53,9 @@ final allChannelIds = <String>[
 ///
 /// Without this the old row lingers in the system notification settings, so
 /// the user sees two «الأذان» entries and cannot tell which one is live.
-const retiredChannelIds = <String>['adhan_v1'];
+/// Superseded channels, deleted at startup.
+///
+/// `adhan_v2` joins the list because the single adhan channel became five,
+/// one per prayer. Leaving it would show the user a sixth «الأذان» row in
+/// system settings that nothing ever fires on.
+const retiredChannelIds = <String>['adhan_v1', 'adhan_v2'];

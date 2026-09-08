@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/notification_channels.dart';
+import 'package:nouri/core/notifications/adhan_sounds.dart';
 import 'package:nouri/core/notifications/task_alert.dart';
 
 void main() {
@@ -13,11 +14,18 @@ void main() {
     expect(nouriChannels.map((c) => c.id).toSet(), allChannelIds.toSet());
   });
 
-  test('there are five core channels plus one per alert kind', () {
-    // The count is not arbitrary: Android reads a notification's sound off its
-    // channel, so «a different sound for every task» and «a channel for every
-    // task» are the same sentence.
-    expect(nouriChannels.length, coreChannelIds.length + TaskAlertKind.values.length);
+  test('the count is five adhans, the core channels, and one per alert kind',
+      () {
+    // Not arbitrary: Android reads a notification's sound off its channel, so
+    // «a different sound for every task» and «a channel for every task» are
+    // the same sentence — and five recitations need five channels for the
+    // same reason.
+    expect(
+      nouriChannels.length,
+      adhanChannelIds.length +
+          coreChannelIds.length +
+          TaskAlertKind.values.length,
+    );
   });
 
   test('every alert kind has its channel, carrying its own sound', () {
@@ -31,15 +39,75 @@ void main() {
     }
   });
 
-  test('no two channels carry the same sound', () {
+  test('no two task channels carry the same sound', () {
     // The whole point of the slice: the user must be able to tell which task
     // is calling by ear.
+    //
+    // The five adhan channels are excluded, and legitimately: until real
+    // recitations are installed they all point at the same `chime`
+    // placeholder. That is the honest state, not a collision — and a test
+    // below pins it so it cannot be forgotten.
     final sounds = <String>[];
     for (final c in nouriChannels) {
+      if (isAdhanChannel(c.id)) continue;
       final s = c.sound;
       if (s is RawResourceAndroidNotificationSound) sounds.add(s.sound);
     }
     expect(sounds.toSet().length, sounds.length);
+  });
+
+  group('the five adhan channels', () {
+    test('there is one per prayer', () {
+      expect(adhanChannelIds.length, 5);
+      expect(adhanChannelIds.toSet().length, 5);
+      for (final p in adhanPrayers) {
+        expect(nouriChannels.any((c) => c.id == adhanChannelFor(p)), isTrue,
+            reason: p);
+      }
+    });
+
+    test('each is named for its prayer, so settings are legible', () {
+      // A user hunting for "the fajr adhan" in system settings must find a row
+      // that says so, not five rows all called «الأذان».
+      final names = adhanPrayers.map((p) => channel(adhanChannelFor(p)).name);
+      expect(names.toSet().length, 5);
+      expect(channel(adhanChannelFor('fajr')).name, contains('الفجر'));
+    });
+
+    test('every one keeps alarm volume and max importance', () {
+      // A prayer call at notification volume is easy to sleep through. This
+      // is the difference between hearing the adhan and missing it.
+      for (final p in adhanPrayers) {
+        final c = channel(adhanChannelFor(p));
+        expect(c.audioAttributesUsage, AudioAttributesUsage.alarm, reason: p);
+        expect(c.importance, Importance.max, reason: p);
+      }
+    });
+
+    test('every one can light a locked screen', () {
+      for (final p in adhanPrayers) {
+        final d = androidDetailsFor(adhanChannelFor(p));
+        expect(d.fullScreenIntent, isTrue, reason: p);
+        expect(d.category, AndroidNotificationCategory.alarm, reason: p);
+        expect(d.priority, Priority.max, reason: p);
+      }
+    });
+
+    test('all five still play the placeholder, and say so', () {
+      // No recitation has been installed. Nouri does not pretend the 1.90s
+      // chime is an adhan, and `adhanIsPlaceholder` is what the settings
+      // screen reads to say so.
+      for (final p in adhanPrayers) {
+        expect(adhanSoundFor(p), 'chime', reason: p);
+      }
+      expect(adhanIsPlaceholder, isTrue);
+    });
+
+    test('the old single channel is retired, not left in settings', () {
+      // Otherwise the user sees a sixth «الأذان» row that nothing fires on.
+      expect(retiredChannelIds, contains('adhan_v2'));
+      expect(allChannelIds, isNot(contains('adhan_v2')));
+    });
   });
 
   test('the kinds that summon you use alarm volume; the rest do not', () {
@@ -56,26 +124,16 @@ void main() {
     }
   });
 
-  group('the adhan channel', () {
-    test('carries the bundled chime, not the system default', () {
-      final sound = channel(channelAdhan).sound;
-      expect(sound, isA<RawResourceAndroidNotificationSound>());
-      expect((sound as RawResourceAndroidNotificationSound).sound,
-          adhanSoundResource);
-      expect(channel(channelAdhan).playSound, isTrue);
-    });
-
-    test('uses alarm audio so it plays at alarm volume', () {
-      // A prayer call at notification volume is easy to sleep through; this
-      // is the difference between hearing the adhan and missing it.
-      expect(
-        channel(channelAdhan).audioAttributesUsage,
-        AudioAttributesUsage.alarm,
-      );
-    });
-
-    test('is the most important channel', () {
-      expect(channel(channelAdhan).importance, Importance.max);
+  group('the adhan channels', () {
+    test('carry a bundled resource, not the system default', () {
+      for (final p in adhanPrayers) {
+        final sound = channel(adhanChannelFor(p)).sound;
+        expect(sound, isA<RawResourceAndroidNotificationSound>(), reason: p);
+        expect((sound! as RawResourceAndroidNotificationSound).sound,
+            adhanSoundFor(p),
+            reason: p);
+        expect(channel(adhanChannelFor(p)).playSound, isTrue, reason: p);
+      }
     });
   });
 
@@ -93,10 +151,9 @@ void main() {
     });
 
     test('are quieter than the adhan', () {
+      final adhan = channel(adhanChannelFor('fajr')).importance.value;
       for (final id in [channelAthkar, channelWird, channelGeneral]) {
-        expect(channel(id).importance.value,
-            lessThan(channel(channelAdhan).importance.value),
-            reason: id);
+        expect(channel(id).importance.value, lessThan(adhan), reason: id);
       }
     });
 
@@ -131,26 +188,20 @@ void main() {
     // did not yet exist, the receiver would have created a permanently silent
     // adhan channel from those empty details.
 
-    test('the adhan notification carries the sound, not just the channel id',
+    test('an adhan notification carries the sound, not just the channel id',
         () {
-      final d = androidDetailsFor(channelAdhan);
+      final d = androidDetailsFor(adhanChannelFor('fajr'));
       expect(d.sound, isA<RawResourceAndroidNotificationSound>());
       expect((d.sound! as RawResourceAndroidNotificationSound).sound,
-          adhanSoundResource);
+          adhanSoundFor('fajr'));
       expect(d.playSound, isTrue);
     });
 
-    test('the adhan notification keeps alarm usage and max importance', () {
-      final d = androidDetailsFor(channelAdhan);
+    test('an adhan notification keeps alarm usage and max importance', () {
+      final d = androidDetailsFor(adhanChannelFor('fajr'));
       expect(d.audioAttributesUsage, AudioAttributesUsage.alarm);
       expect(d.importance, Importance.max);
       expect(d.priority, Priority.max);
-    });
-
-    test('the adhan can light a locked screen', () {
-      expect(androidDetailsFor(channelAdhan).fullScreenIntent, isTrue);
-      expect(androidDetailsFor(channelAdhan).category,
-          AndroidNotificationCategory.alarm);
     });
 
     test('nothing but the adhan gets a full-screen intent', () {

@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'adhan_sounds.dart';
 import 'notification_channels_ids.dart';
 import 'task_alert.dart';
 
@@ -24,17 +25,6 @@ const adhanSoundResource = 'chime';
 /// notification's sound off its **channel**. "A different sound per task" and
 /// "a channel per task" are the same sentence on Android.
 const _coreChannels = <AndroidNotificationChannel>[
-  AndroidNotificationChannel(
-    channelAdhan,
-    'الأذان',
-    description: 'إشعار دخول وقت الصلاة',
-    importance: Importance.max,
-    playSound: true,
-    sound: RawResourceAndroidNotificationSound(adhanSoundResource),
-    // Alarm usage so the adhan plays at alarm volume and is treated as
-    // time-critical rather than as chatter.
-    audioAttributesUsage: AudioAttributesUsage.alarm,
-  ),
   AndroidNotificationChannel(
     channelIqama,
     'الإقامة',
@@ -68,7 +58,36 @@ const _coreChannels = <AndroidNotificationChannel>[
 /// than for chatter: «i need alarms for each task». The informational ones —
 /// the budget note, the phone cap, the review, the soft «عملتها؟» — stay at
 /// notification usage.
+/// The five adhan channels, one per prayer.
+///
+/// Separate so five different recitations are possible — Android reads the
+/// sound off the channel — and so the user can silence one prayer's call
+/// without touching the others. All five carry alarm usage and max
+/// importance: a prayer call at notification volume is easy to sleep through,
+/// and that is the difference between hearing the adhan and missing it.
+final adhanChannels = <AndroidNotificationChannel>[
+  for (final prayer in adhanPrayers)
+    AndroidNotificationChannel(
+      adhanChannelFor(prayer),
+      'الأذان — ${adhanArabicNames[prayer]}',
+      description: 'إشعار دخول وقت ${adhanArabicNames[prayer]}',
+      importance: Importance.max,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound(adhanSoundFor(prayer)),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    ),
+];
+
+const adhanArabicNames = <String, String>{
+  'fajr': 'الفجر',
+  'dhuhr': 'الظهر',
+  'asr': 'العصر',
+  'maghrib': 'المغرب',
+  'isha': 'العشاء',
+};
+
 final nouriChannels = <AndroidNotificationChannel>[
+  ...adhanChannels,
   ..._coreChannels,
   for (final kind in TaskAlertKind.values)
     AndroidNotificationChannel(
@@ -105,7 +124,9 @@ AndroidNotificationDetails androidDetailsFor(
   List<AndroidNotificationAction>? actions,
 }) {
   final channel = _channelFor(channelId);
-  final isAdhan = channelId == channelAdhan;
+  // Membership, not equality: the one adhan channel became five, and every one
+  // of them has to keep the full-screen intent and the alarm category.
+  final isAdhan = isAdhanChannel(channelId);
 
   return AndroidNotificationDetails(
     channel.id,

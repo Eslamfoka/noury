@@ -8,6 +8,7 @@ import '../../features/water/water_plan.dart';
 import '../time/geo_config.dart';
 import '../time/prayer_times_service.dart';
 import 'follow_up_plan.dart';
+import 'adhan_sounds.dart';
 import 'notification_channels_ids.dart';
 import 'notification_gateway.dart';
 import 'notification_slot.dart';
@@ -301,7 +302,9 @@ class RollingWindowScheduler {
             now,
             title: name,
             body: 'حان الآن موعد صلاة $name',
-            channel: channelAdhan,
+            // Each prayer's own channel, so five different recitations are
+            // possible and so silencing one does not silence the rest.
+            channel: adhanChannelFor(slot.name),
             payload: 'prayer:${slot.name}',
           );
 

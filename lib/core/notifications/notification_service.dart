@@ -5,6 +5,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'local_notification_gateway.dart';
+import 'adhan_sounds.dart';
 import 'notification_channels.dart';
 import 'notification_slot.dart';
 import 'notification_status.dart';
@@ -129,7 +130,7 @@ class NotificationService {
     await gateway.showNow(
       title: 'نوري — تجربة الأذان',
       body: 'كده هيبقى شكل تنبيه الأذان وصوته.',
-      channelId: channelAdhan,
+      channelId: adhanChannelFor('dhuhr'),
     );
   }
 
@@ -157,7 +158,7 @@ class NotificationService {
       when: when,
       title: 'نوري — تجربة الأذان',
       body: 'لو سمعت ده والتطبيق مقفول، يبقى الأذان هيوصلك في وقته.',
-      channelId: channelAdhan,
+      channelId: adhanChannelFor('dhuhr'),
     ));
 
     return when;

@@ -1,40 +1,47 @@
 #!/usr/bin/env bash
-# Installs an adhan recording as the notification channel sound.
+# Installs an adhan recording as one prayer's notification-channel sound.
 #
-# Usage: tool/install_adhan_sound.sh path/to/adhan.ogg
+# Usage: tool/install_adhan_sound.sh <prayer|all> path/to/adhan.ogg
+#          prayer: fajr | dhuhr | asr | maghrib | isha | all
 #
-# Validates the file, copies it into res/raw, and prints the exact source
-# changes needed. It deliberately does NOT edit the Dart itself: bumping the
-# channel version is a decision with a user-visible consequence (the old
-# channel is deleted and its settings are lost), so it stays a human's call.
+# Validates the file, copies it into res/raw under a per-prayer name, and
+# prints the exact source changes needed. It deliberately does NOT edit the
+# Dart itself: bumping a channel version has a user-visible consequence — the
+# old channel is deleted and any per-channel settings the user tuned are lost —
+# so it stays a human's call.
+#
+# NOTE ON RIGHTS. This tool copies whatever file it is given. Adhan recordings
+# are performances and are usually somebody's copyright; using one is the
+# repository owner's decision and their risk, not this script's. Nothing here
+# downloads anything.
 set -euo pipefail
 
 RAW_DIR="android/app/src/main/res/raw"
-IDS="lib/core/notifications/notification_channels_ids.dart"
-CHANNELS="lib/core/notifications/notification_channels.dart"
+SOUNDS="lib/core/notifications/adhan_sounds.dart"
 
 die() { printf '\033[31merror:\033[0m %s\n' "$1" >&2; exit 1; }
 note() { printf '\033[33m%s\033[0m\n' "$1"; }
 
-[ $# -eq 1 ] || die "usage: $0 path/to/adhan.ogg"
-SRC="$1"
+[ $# -eq 2 ] || die "usage: $0 <fajr|dhuhr|asr|maghrib|isha|all> path/to/adhan.ogg"
+PRAYER="$1"
+SRC="$2"
+
+case "$PRAYER" in
+  fajr|dhuhr|asr|maghrib|isha) PRAYERS="$PRAYER" ;;
+  all) PRAYERS="fajr dhuhr asr maghrib isha" ;;
+  *) die "unknown prayer '$PRAYER' (fajr|dhuhr|asr|maghrib|isha|all)" ;;
+esac
+
 [ -f "$SRC" ] || die "no such file: $SRC"
 [ -d "$RAW_DIR" ] || die "run this from the repo root (missing $RAW_DIR)"
+[ -f "$SOUNDS" ] || die "missing $SOUNDS"
 
-BASE="$(basename "$SRC")"
-NAME="${BASE%.*}"
-EXT="${BASE##*.}"
-
-# Android resource names are not filenames. An illegal character here does not
-# fail the build; it fails at playback, silently, on a user's phone at fajr.
-case "$NAME" in
-  *[!a-z0-9_]*) die "resource name '$NAME' must be lowercase a-z, 0-9 and _ only" ;;
-  [0-9]*)       die "resource name '$NAME' cannot start with a digit" ;;
-esac
+EXT="${SRC##*.}"
+EXT="$(printf '%s' "$EXT" | tr '[:upper:]' '[:lower:]')"
 
 case "$EXT" in
   ogg|mp3) ;;
-  wav) note "warning: WAV is uncompressed. A 2-minute file adds ~10 MB to the APK. Prefer OGG." ;;
+  wav) note "warning: WAV is uncompressed. A 2-minute file adds ~10 MB per prayer. Prefer OGG." ;;
   *) die "unsupported extension '.$EXT' (use .ogg)" ;;
 esac
 
@@ -44,30 +51,50 @@ MB=$(awk "BEGIN{printf \"%.1f\", $BYTES/1048576}")
 awk "BEGIN{exit !($BYTES > 5242880)}" && \
   note "warning: ${MB} MB is large for a bundled resource; consider a lower bitrate."
 
-cp "$SRC" "$RAW_DIR/$NAME.$EXT"
-printf 'installed %s -> %s/%s.%s (%s MB)\n' "$SRC" "$RAW_DIR" "$NAME" "$EXT" "$MB"
+if [ "$PRAYER" = "all" ]; then
+  note "note: installing the same recording for all five means five copies of"
+  note "      ${MB} MB in the APK. If they are meant to be identical, consider"
+  note "      installing it for one prayer and pointing the others at that name."
+fi
 
-CURRENT_ID=$(grep -oE "const channelAdhan = 'adhan_v[0-9]+'" "$IDS" | grep -oE 'adhan_v[0-9]+')
-CURRENT_N=${CURRENT_ID##*_v}
-NEXT_ID="adhan_v$((CURRENT_N + 1))"
+echo
+for P in $PRAYERS; do
+  NAME="adhan_$P"
+  cp "$SRC" "$RAW_DIR/$NAME.$EXT"
+  printf 'installed -> %s/%s.%s (%s MB)\n' "$RAW_DIR" "$NAME" "$EXT" "$MB"
+done
 
-cat <<EOF
+echo
+cat <<'EOF'
+Two source changes are required, and both of them. Android freezes a channel's
+sound at creation and ignores a later change to the same id, so without the
+version bump you would ship the new audio and keep hearing the old sound.
 
-Two source changes are required. Android freezes a channel's sound at creation
-and ignores a later change to the same id, so without the bump you would ship
-this audio and keep hearing the old one.
+In lib/core/notifications/adhan_sounds.dart:
+EOF
 
-  1. $CHANNELS
-       const adhanSoundResource = '$NAME';
+for P in $PRAYERS; do
+  CURRENT=$(grep -oE "'$P': [0-9]+," "$SOUNDS" | grep -oE '[0-9]+' | head -1)
+  NEXT=$(( ${CURRENT:-1} + 1 ))
+  cat <<EOF
 
-  2. $IDS
-       const channelAdhan = '$NEXT_ID';
-       const retiredChannelIds = <String>[..., '$CURRENT_ID'];
+  1. _adhanSounds
+       '$P': 'adhan_$P',
 
-  3. Update the tripwire in
-     test/core/notifications/notification_channels_test.dart
-     ('the adhan sound and the channel version move together') to
-       ['$NEXT_ID', '$NAME']
+  2. _adhanChannelVersions
+       '$P': $NEXT,        (was ${CURRENT:-1})
 
-Then: flutter test && flutter analyze
+  3. retiredChannelIds in notification_channels_ids.dart
+       add 'adhan_${P}_v${CURRENT:-1}'
+EOF
+done
+
+cat <<'EOF'
+
+Then: flutter test && flutter analyze && flutter build apk --release
+
+The test 'all five still play the placeholder, and say so' in
+test/core/notifications/notification_channels_test.dart will fail once a real
+recitation is installed — that is the tripwire working. Update it to expect the
+new resource for the prayers you changed.
 EOF
