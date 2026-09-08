@@ -9,10 +9,10 @@
 /// its own. It also means the user can silence, say, the fajr adhan alone
 /// without touching the other four, which a single channel could never offer.
 ///
-/// **All five point at `chime` until real recitations are installed.** The
-/// placeholder is 1.90 s and is not an adhan; Nouri says so plainly rather
-/// than pretending otherwise. `tool/install_adhan_sound.sh <prayer> <file>`
-/// installs one and prints the two changes it needs.
+/// **Five real recitations are installed**, one per prayer, all of them
+/// freely licensed — see `adhanCredits` for who made each and under what
+/// licence. `tool/install_adhan_sound.sh <prayer> <file>` replaces any of them
+/// and prints the two changes it needs.
 ///
 /// Each prayer carries its own version number so a recitation can be replaced
 /// one at a time — swapping fajr must not reset the channel the user has
@@ -29,20 +29,20 @@ const adhanPrayers = <String>['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
 /// one without the other ships new audio and keeps playing the old sound,
 /// silently, because the channel already exists on the device.
 const _adhanSounds = <String, String>{
-  'fajr': 'chime',
-  'dhuhr': 'chime',
-  'asr': 'chime',
-  'maghrib': 'chime',
-  'isha': 'chime',
+  'fajr': 'adhan_fajr',
+  'dhuhr': 'adhan_dhuhr',
+  'asr': 'adhan_asr',
+  'maghrib': 'adhan_maghrib',
+  'isha': 'adhan_isha',
 };
 
 /// Bumped whenever that prayer's sound changes. Never edited downward.
 const _adhanChannelVersions = <String, int>{
-  'fajr': 1,
-  'dhuhr': 1,
-  'asr': 1,
-  'maghrib': 1,
-  'isha': 1,
+  'fajr': 2,
+  'dhuhr': 2,
+  'asr': 2,
+  'maghrib': 2,
+  'isha': 2,
 };
 
 /// The raw resource name for one prayer's adhan.
@@ -66,7 +66,24 @@ bool isAdhanChannel(String channelId) => adhanChannelIds.contains(channelId);
 
 /// True while no real recitation has been installed for any prayer.
 ///
-/// The settings screen says so rather than letting the user believe the
-/// 1.90-second placeholder is the adhan they will hear at fajr.
+/// The settings screen reads this rather than letting the user believe a
+/// 1.90-second chime is the adhan they will hear at fajr.
 bool get adhanIsPlaceholder =>
     adhanPrayers.every((p) => adhanSoundFor(p) == 'chime');
+
+/// Who recorded each adhan, and under what licence.
+///
+/// **CC BY and CC BY-SA both require attribution**, so this is not a courtesy
+/// — it is the condition of use, and the About screen prints it. All five came
+/// from Wikimedia Commons, chosen because their licences can actually be
+/// stated: a famous recitation off an aggregator site cannot.
+///
+/// Keep this in step with [_adhanSounds]. A recording swapped in without its
+/// credit swapped too would leave the app claiming the wrong author.
+const adhanCredits = <String, String>{
+  'fajr': 'Adam-synagda — CC0',
+  'dhuhr': 'Andrewler — CC BY-SA 4.0',
+  'asr': 'Jarih — CC BY-SA 3.0',
+  'maghrib': 'Atcovi — CC BY-SA 4.0',
+  'isha': 'ejaz215 — CC BY 3.0',
+};

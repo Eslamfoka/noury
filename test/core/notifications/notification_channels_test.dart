@@ -93,14 +93,37 @@ void main() {
       }
     });
 
-    test('all five still play the placeholder, and say so', () {
-      // No recitation has been installed. Nouri does not pretend the 1.90s
-      // chime is an adhan, and `adhanIsPlaceholder` is what the settings
-      // screen reads to say so.
+    test('each plays its own recitation, not the placeholder', () {
       for (final p in adhanPrayers) {
-        expect(adhanSoundFor(p), 'chime', reason: p);
+        expect(adhanSoundFor(p), 'adhan_$p', reason: p);
       }
-      expect(adhanIsPlaceholder, isTrue);
+      expect(adhanIsPlaceholder, isFalse);
+    });
+
+    test('no two prayers share a recording', () {
+      // «different adhan for each prayer time, separate and different adhan
+      // sound» — five recitations, five sounds.
+      final sounds = adhanPrayers.map(adhanSoundFor).toList();
+      expect(sounds.toSet().length, sounds.length);
+    });
+
+    test('every recording that is bundled is credited', () {
+      // CC BY and CC BY-SA both make attribution a condition of use, and the
+      // About screen prints this map. A recording swapped in without its
+      // credit swapped too would have the app claiming the wrong author.
+      for (final p in adhanPrayers) {
+        expect(adhanCredits[p], isNotNull, reason: p);
+        expect(adhanCredits[p]!.trim(), isNotEmpty, reason: p);
+      }
+    });
+
+    test('the placeholder-era channels are retired', () {
+      // They were created while all five still pointed at `chime`. Android
+      // freezes a channel's sound at creation, so the real recitations needed
+      // new ids — and the old rows have to go.
+      for (final p in adhanPrayers) {
+        expect(retiredChannelIds, contains('adhan_${p}_v1'), reason: p);
+      }
     });
 
     test('the old single channel is retired, not left in settings', () {

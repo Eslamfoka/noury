@@ -58,4 +58,16 @@ final allChannelIds = <String>[
 /// `adhan_v2` joins the list because the single adhan channel became five,
 /// one per prayer. Leaving it would show the user a sixth «الأذان» row in
 /// system settings that nothing ever fires on.
-const retiredChannelIds = <String>['adhan_v1', 'adhan_v2'];
+const retiredChannelIds = <String>[
+  'adhan_v1',
+  'adhan_v2',
+  // The per-prayer channels' own v1, created while all five still pointed at
+  // the chime placeholder. Android freezes a channel's sound at creation, so
+  // installing the real recitations meant a new id for each — and the old ones
+  // have to go or the user sees ten «الأذان» rows.
+  'adhan_fajr_v1',
+  'adhan_dhuhr_v1',
+  'adhan_asr_v1',
+  'adhan_maghrib_v1',
+  'adhan_isha_v1',
+];

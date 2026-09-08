@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/arabic_numerals.dart';
+import '../../core/notifications/adhan_sounds.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
@@ -388,6 +389,31 @@ List<Widget> settingsSectionChildren(
                 ),
               ],
             ),
+          ),
+          const Divider(color: NouriColors.border, height: 26),
+          // **Required, not a courtesy.** Four of the five adhan recordings
+          // are CC BY or CC BY-SA, and both licences make attribution a
+          // condition of use. Printing it here is what makes using them
+          // legitimate.
+          Text('الأذان', style: cairo(size: 13, weight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text(
+            'تسجيلات الأذان من ويكيميديا كومنز، برخص حرة:',
+            style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
+          ),
+          const SizedBox(height: 6),
+          for (final prayer in adhanPrayers)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                '${prayerLabel(prayer)} — ${adhanCredits[prayer]}',
+                style: cairo(size: 10.5, color: NouriColors.muted),
+              ),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            'أصوات التنبيهات التانية من صنع نوري نفسه.',
+            style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
           ),
         ],
     };
