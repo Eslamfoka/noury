@@ -6,6 +6,7 @@ import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/athkar/athkar_item.dart';
 import '../../data/athkar/athkar_repository.dart';
+import '../../app.dart';
 import '../home/home_providers.dart';
 import '../tasks/task_done.dart';
 import '../shared/nouri_avatar.dart';
@@ -166,11 +167,8 @@ class _TasbeehTabState extends ConsumerState<_TasbeehTab> {
   }
 
   Future<void> _persist() async {
-    // Once the target is reached the tasbeeh is done, so its reminder and its
-    // question have been answered.
-    if (_controller.count >= _controller.target) {
-      await silenceTaskAlarms(ref, const ['tasbeeh']);
-    }
+    final notifications = ref.read(notificationServiceProvider);
+    final done = _controller.count >= _controller.target;
 
     await ref
         .read(databaseProvider)
@@ -181,6 +179,10 @@ class _TasbeehTabState extends ConsumerState<_TasbeehTab> {
           progress: _controller.count,
           target: _controller.target,
         );
+
+    // Only once the target is reached: a tasbeeh part-way through has not
+    // answered its reminder.
+    if (done) await silenceTaskAlarms(notifications, const ['tasbeeh']);
     ref.invalidate(todayAthkarProvider);
   }
 

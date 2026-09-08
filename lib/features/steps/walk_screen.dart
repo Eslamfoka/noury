@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
+import '../../app.dart';
 import '../home/home_providers.dart';
 import 'step_source.dart';
 import 'steps_providers.dart';
@@ -120,6 +121,7 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
     // may have been unmounted and `ref` throws -- which would lose the walk
     // at the last step, after the user had already done it.
     final db = ref.read(databaseProvider);
+    final notifications = ref.read(notificationServiceProvider);
     final weightFuture = ref.read(latestWeightGramsProvider.future);
     final settingsFuture = ref.read(settingsProvider.future);
 
@@ -136,8 +138,6 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
     // Written even when short of the target. Twelve minutes of a thirty-minute
     // walk is real, and discarding it would be Nouri telling the user it did
     // not count.
-    await silenceTaskAlarms(ref, const ['walk']);
-
     await db.stepsDao.addSession(
       startedAt: _startedAt ?? DateTime.now(),
       seconds: _elapsed.inSeconds,
@@ -146,6 +146,10 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
       kcal: stats.kcal,
       targetMinutes: _target,
     );
+
+    // After the write, never before: silencing first and then failing to write
+    // would take the reminder away for a walk Nouri has no record of.
+    await silenceTaskAlarms(notifications, const ['walk']);
 
     if (!mounted) return;
 

@@ -5,6 +5,7 @@ import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
+import '../../app.dart';
 import '../home/home_providers.dart';
 import '../planner/daily_tasks.dart';
 import '../planner/shift.dart';
@@ -209,9 +210,8 @@ class _LogKnowledgeState extends State<_LogKnowledge> {
     _saving = true;
 
     final db = widget.parentRef.read(databaseProvider);
-    // Read off the parent ref before the await, and silence today's reminder
-    // and its question: the log has just answered them.
-    await silenceTaskAlarms(widget.parentRef, knowledgeTaskIds);
+    // Read before the first await, like everything else off the ref here.
+    final notifications = widget.parentRef.read(notificationServiceProvider);
 
     await db.knowledgeDao.add(
       date: DateTime.now(),
@@ -219,6 +219,9 @@ class _LogKnowledgeState extends State<_LogKnowledge> {
       minutes: _minutes,
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
     );
+
+    // The log has just answered today's reminder and its question.
+    await silenceTaskAlarms(notifications, knowledgeTaskIds);
 
     try {
       widget.parentRef.invalidate(todayKnowledgeProvider);

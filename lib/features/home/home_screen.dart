@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app.dart';
 import '../../core/format/arabic_numerals.dart';
 import '../../core/format/arabic_plurals.dart';
 import '../../core/theme/nouri_colors.dart';
@@ -216,17 +217,22 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _toggleWird(WidgetRef ref, int currentPages) async {
-    // Only on the way *up*. Clearing the wird should put the reminder back,
-    // not silence it — the same rule prayer logging follows when an entry is
-    // cleared.
-    if (currentPages == 0) {
-      await silenceTaskAlarms(ref, const ['quran-wird']);
-    }
+    // Read before the first await, like every other ref read here: after one
+    // the widget may be gone and reading throws.
+    final notifications = ref.read(notificationServiceProvider);
+    final markingDone = currentPages == 0;
 
     await ref.read(databaseProvider).quranDao.upsert(
           date: DateTime.now(),
           pages: currentPages > 0 ? 0 : kDailyWirdPages,
         );
+
+    // Only on the way *up*, and only after the write. Clearing the wird should
+    // put the reminder back rather than silence it — the same rule prayer
+    // logging follows when an entry is cleared.
+    if (markingDone) {
+      await silenceTaskAlarms(notifications, const ['quran-wird']);
+    }
     ref.invalidate(todayQuranProvider);
     ref.invalidate(khatmaTotalPagesProvider);
   }

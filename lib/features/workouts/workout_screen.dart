@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
+import '../../app.dart';
 import '../home/home_providers.dart';
 import '../tasks/task_done.dart';
 import 'exercise.dart';
@@ -71,11 +72,10 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     // Read before the first await: after one the widget may be gone, and
     // losing the session at the last step would throw away work already done.
     final db = ref.read(databaseProvider);
+    final notifications = ref.read(notificationServiceProvider);
 
     // A partial session is written too. Five exercises out of twenty is real,
     // and discarding it would be Nouri telling the user it did not count.
-    await silenceTaskAlarms(ref, const ['workout']);
-
     await db.workoutDao.addSession(
       startedAt: _startedAt ?? DateTime.now(),
       routineId: t.routine.id,
@@ -83,6 +83,9 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       totalCount: t.totalCount,
       seconds: t.elapsed.inSeconds,
     );
+
+    // After the write, never before.
+    await silenceTaskAlarms(notifications, const ['workout']);
 
     if (!mounted) return;
     ref

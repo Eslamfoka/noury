@@ -1,34 +1,36 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../app.dart';
+import '../../core/notifications/notification_service.dart';
 import '../../core/notifications/task_alarm_ids.dart';
 
 /// Silences today's alarm and question for a task the user has just done.
 ///
-/// The same shape prayer logging already uses, and for the same reason: the
-/// alarm and its «عملتها؟» were armed hours in advance and have no way to
-/// learn they have been answered. Logging a meal at 18:05 would otherwise
-/// still be asked «كلت؟» at 18:30.
+/// The same shape prayer logging has used since `0690711`, and for the same
+/// reason: the alarm and its «عملتها؟» were armed hours in advance and have no
+/// way to learn they have been answered. Logging a meal at 18:05 would
+/// otherwise still be asked «كلت؟» at 18:30.
 ///
 /// The re-arm on the next launch would notice too — `completedTaskIdsFor`
-/// derives it from the same log — but the next launch may be hours away, and
+/// derives it from the same log — but the next launch may be hours away and
 /// the question fires in thirty minutes. This is the responsive half of the
 /// same fact.
 ///
-/// **Everything is read off `ref` before the first await.** A WidgetRef
-/// belongs to a widget, and after an await that widget may be gone, at which
-/// point reading it throws. This is the bug `0690711` had to fix in
-/// `logPrayer`, reached through a different door.
+/// **Takes the service, not a `WidgetRef`.** It did take a ref, and that was
+/// wrong: callers reach this *after* writing their row, by which point one or
+/// more awaits have passed, and a `WidgetRef` read after an await throws if
+/// the widget has gone. `walk_screen.dart` reached it after two awaits, in the
+/// very file whose comment says "every `ref` read happens before the first
+/// await". So the read is hoisted to the caller, where it belongs.
 ///
-/// **Best-effort.** If the cancel fails, the log is still correct and the
-/// worst case is one redundant question, so it must never take a write down
-/// with it.
+/// **Call it after the write, never before.** Silencing first and then failing
+/// to write would take away the reminder for something Nouri has no record of
+/// — the user would be left with neither the log nor the nudge.
+///
+/// **Best-effort.** A failed cancel costs one redundant question; it must
+/// never take a write down with it.
 Future<void> silenceTaskAlarms(
-  WidgetRef ref,
+  NotificationService? service,
   List<String> taskIds, {
   DateTime? on,
 }) async {
-  final service = ref.read(notificationServiceProvider);
   if (service == null) return;
 
   final date = on ?? DateTime.now();
@@ -40,8 +42,8 @@ Future<void> silenceTaskAlarms(
       try {
         await service.cancel(id);
       } catch (_) {
-        // The platform channel went away, or the widget did. Either way the
-        // row is written and the next re-arm will work it out.
+        // The platform channel went away. The row is written, and the next
+        // re-arm works it out from the log.
       }
     }
   }
