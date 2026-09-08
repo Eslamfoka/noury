@@ -5,10 +5,10 @@ Last updated **8 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `58146b3`, working tree clean |
-| Tests | **918 passing**, `flutter analyze` clean |
+| Head | `ce4d29b`, working tree clean |
+| Tests | **932 passing**, `flutter analyze` clean |
 | On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **three days stale** |
-| On the emulator | current build, `nourdm-api35` |
+| On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v10 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
@@ -101,8 +101,10 @@ Last updated **8 September 2026**, overnight session.
 - **The budget note is armed over two days, from the numbers at re-arm time.**
   Budget state is not knowable a fortnight ahead. If Nouri goes unopened the
   note reflects the last state it saw, which is honest but not current.
-- **قيام الليل has never been watched firing.** It is off by default, so it
-  will not appear until it is switched on in الإعدادات → الإشعارات.
+- **قيام الليل has never been watched *firing*.** Fourteen alarms were
+  confirmed armed at 01:32 on the emulator, one a night, and confirmed to
+  disappear on a night shift and return off one — but nobody has seen one
+  arrive. It is off by default.
 - **`docs/athkar-verification.md` has not been checked by a human** against a
   printed حصن المسلم. The mushaf rendering did not change a letter of it —
   enforced by a test — so that review is still valid and still outstanding.
@@ -126,13 +128,16 @@ itself tested both ways, so none can pass vacuously.
 | `notification_sound_test` | The adhan sound and channel drifting apart |
 | `notification_slot_test` | Slots outgrowing the stride; and it now also states *why* widening the stride orphans nothing |
 | `schema_test` | An accidental schema bump — a migration nobody wrote |
+| `scheduling_config_source_test` | A second place building the alarm config, which is how قيام and the budget note were silently dropped on every launch |
 
 ## Decisions already made (do not relitigate)
 
 - Prayer log states are append-only; reordering rewrites history. Same for
   `MealFeeling`, `ReminderRepeat` and `KnowledgeKind`.
 - **Anything day-scoped watches `currentDayProvider`**, never `DateTime.now()`
-  directly. It changes once a day, so the app turns over at midnight instead
+  directly. Five more reads were found still frozen at launch on 8 September —
+  the weekly report, البدن والمالية, the challenge window, the financial month
+  and the paced budget allowance — so check this when adding a provider. It changes once a day, so the app turns over at midnight instead
   of showing yesterday until something else invalidates it — which matters
   because the user works nights.
 - Alarms are scheduled in **UTC** — the plugin's zone round-trip disagreed with
@@ -158,6 +163,11 @@ itself tested both ways, so none can pass vacuously.
 - **No notification of any kind has been watched arriving on the HONOR.** The
   alarms register correctly on the emulator; nobody has seen one fire on the
   phone.
+- **One place builds the alarm window's config**, `schedulingConfigFromDb`.
+  There were two and they drifted, which cost قيام and the budget note on
+  every launch. A guard fails the build on a second one.
+- **Any setting that can change an alarm must re-arm.** The shift now can,
+  because قيام depends on it.
 - **The notification slot space was widened on 8 September** — `kSlotsPerDay`
   32 → 64, with 33 slots used. It is safe for one specific reason, written on
   the constant: `cancelAllBelow` enumerates what is *pending* rather than
