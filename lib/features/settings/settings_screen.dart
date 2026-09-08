@@ -316,14 +316,17 @@ class SettingsScreen extends ConsumerWidget {
               _StepperRow(
                 label: _prayerLabel(entry.key),
                 value: toArabicDigits('${entry.value} د'),
+                // A step, not a target. Sending `entry.value ± 5` was only
+                // correct while the row on screen was current, and it was not:
+                // the previous tap held the old value there for the length of
+                // a window re-arm, so the next tap wrote the same number
+                // again. Four presses, one move.
                 onDecrement: () async {
-                  await controller.updateIqamaOffset(
-                      entry.key, entry.value - 5);
+                  await controller.stepIqamaOffset(entry.key, -5);
                   ref.invalidate(settingsProvider);
                 },
                 onIncrement: () async {
-                  await controller.updateIqamaOffset(
-                      entry.key, entry.value + 5);
+                  await controller.stepIqamaOffset(entry.key, 5);
                   ref.invalidate(settingsProvider);
                 },
               ),

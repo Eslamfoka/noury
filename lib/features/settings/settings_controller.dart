@@ -61,6 +61,67 @@ class SettingsController {
 
   Future<SettingsRow> read() => db.settingsDao.get();
 
+  /// The re-arm currently running, if any.
+  Future<void>? _rearming;
+
+  /// True when a change landed while a re-arm was already in flight.
+  bool _rearmAgain = false;
+
+  /// Serialises read-modify-write pairs against the settings row.
+  Future<void> _queue = Future<void>.value();
+
+  /// Completes when every requested re-arm has finished.
+  ///
+  /// Nothing in the app awaits this — the UI deliberately does not wait for
+  /// the window. It exists so tests can wait for the background work instead
+  /// of sleeping and hoping.
+  Future<void> get pendingRearm async {
+    while (_rearming != null) {
+      await _rearming;
+    }
+  }
+
+  /// Requests a window rebuild without waiting for it.
+  ///
+  /// Arming costs ~11.7s (262 sequential platform-channel calls — see
+  /// [DeferredSchedulerPort]). Awaiting that before refreshing the screen is
+  /// what made the iqama stepper swallow three taps out of four: the row held
+  /// its old value for eleven seconds, and every tap in that window recomputed
+  /// `shown + 5` from the same stale number and wrote it again.
+  ///
+  /// Requests arriving while one is running collapse into a single follow-up,
+  /// so a burst of taps costs one re-arm *after* the burst rather than one
+  /// each — four taps would otherwise be 47 seconds of work for a setting
+  /// changed once. The follow-up always reads the row fresh, so the window
+  /// ends up matching the final state whatever order the taps landed in.
+  void _requestRearm() {
+    if (_rearming != null) {
+      _rearmAgain = true;
+      return;
+    }
+    _rearming = () async {
+      try {
+        do {
+          _rearmAgain = false;
+          await _rearmFromSettings();
+        } while (_rearmAgain);
+      } finally {
+        _rearming = null;
+      }
+    }();
+  }
+
+  /// Runs [work] after every write already queued.
+  ///
+  /// Without this, two taps can both read the settings row before either
+  /// writes, and the second write overwrites the first — the same lost update
+  /// the delta step exists to prevent, one layer down.
+  Future<T> _serialised<T>(Future<T> Function() work) {
+    final next = _queue.then((_) => work());
+    _queue = next.then((_) {}, onError: (_) {});
+    return next;
+  }
+
   Future<void> _rearmFromSettings() async {
     final s = await db.settingsDao.get();
 
@@ -101,7 +162,7 @@ class SettingsController {
       longitude: Value(longitude),
       cityLabel: Value(cityLabel),
     ));
-    await _rearmFromSettings();
+    _requestRearm();
   }
 
   /// Asks the device where it is and stores the result.
@@ -141,12 +202,12 @@ class SettingsController {
   Future<void> updateMethod(String method) async {
     await db.settingsDao
         .update(SettingsRowsCompanion(calculationMethod: Value(method)));
-    await _rearmFromSettings();
+    _requestRearm();
   }
 
   Future<void> updateMadhab(String madhab) async {
     await db.settingsDao.update(SettingsRowsCompanion(madhab: Value(madhab)));
-    await _rearmFromSettings();
+    _requestRearm();
   }
 
   /// Clamped to ±1 day: the civil calculation never differs from local
@@ -159,13 +220,42 @@ class SettingsController {
   }
 
   Future<void> updateIqamaOffset(String prayer, int minutes) async {
-    final s = await db.settingsDao.get();
-    final offsets = decodeIqamaOffsets(s.iqamaOffsetsJson)
-      ..[prayer] = minutes.clamp(0, 120);
-    await db.settingsDao.update(
-      SettingsRowsCompanion(iqamaOffsetsJson: Value(encodeIqamaOffsets(offsets))),
-    );
-    await _rearmFromSettings();
+    await _serialised(() async {
+      final s = await db.settingsDao.get();
+      final offsets = decodeIqamaOffsets(s.iqamaOffsetsJson)
+        ..[prayer] = minutes.clamp(0, 120);
+      await db.settingsDao.update(
+        SettingsRowsCompanion(
+            iqamaOffsetsJson: Value(encodeIqamaOffsets(offsets))),
+      );
+    });
+    _requestRearm();
+  }
+
+  /// Moves one iqama offset by [delta] minutes and returns where it landed.
+  ///
+  /// A delta rather than an absolute value, deliberately. The screen used to
+  /// compute `shown + 5` and send that, which is only correct while the shown
+  /// value is current — and it was not, because the previous tap was still
+  /// inside an 11.7-second re-arm. Two taps then wrote the same number twice
+  /// and the user saw one move for four presses.
+  ///
+  /// Resolving the delta against the row itself, inside the write queue, makes
+  /// overlapping taps compound. That is what a button pressed twice means.
+  Future<int> stepIqamaOffset(String prayer, int delta) async {
+    final landed = await _serialised(() async {
+      final s = await db.settingsDao.get();
+      final offsets = decodeIqamaOffsets(s.iqamaOffsetsJson);
+      final next = ((offsets[prayer] ?? 0) + delta).clamp(0, 120);
+      offsets[prayer] = next;
+      await db.settingsDao.update(
+        SettingsRowsCompanion(
+            iqamaOffsetsJson: Value(encodeIqamaOffsets(offsets))),
+      );
+      return next;
+    });
+    _requestRearm();
+    return landed;
   }
 
   Future<void> toggleChannel(String channel, bool enabled) async {
@@ -179,7 +269,7 @@ class SettingsController {
       _ => throw ArgumentError('unknown channel: $channel'),
     };
     await db.settingsDao.update(companion);
-    await _rearmFromSettings();
+    _requestRearm();
   }
 
   /// Does **not** rearm: the tasbeeh target has no bearing on any alarm.
@@ -236,7 +326,7 @@ class SettingsController {
   /// the window, exactly as logging a prayer cancels its follow-ups.
   Future<void> setFastingDay(DateTime date, bool fasting) async {
     await db.waterDao.setFasting(date, fasting);
-    await _rearmFromSettings();
+    _requestRearm();
   }
 
   Future<void> markOnboardingComplete() => db.settingsDao
