@@ -5,8 +5,8 @@ Last updated **8 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `550c0c9`, working tree clean |
-| Tests | **1050 passing**, `flutter analyze` clean |
+| Head | `ec8d732`, working tree clean |
+| Tests | **1096 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 8 Sep 13:12** (HONOR VNE-N41) |
 | On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v11 |
@@ -88,6 +88,13 @@ Last updated **8 September 2026**, overnight session.
 - **MagicOS caps the adhan channel at HIGH**, not MAX, and re-locks it within
   seconds of creation. HIGH is enough for the full-screen intent. A future
   channel bump will land at HIGH again — that is device policy, not a bug.
+- **Nobody has heard any of the five adhans**, and in particular **it is not
+  known which of them carries «الصلاة خير من النوم»** — the line that belongs
+  in the fajr adhan and nowhere else. Religious content, so it waits for a
+  human, like the athkar and the fasting days.
+- **A snooze has never been pressed on a real notification.** The store, the
+  ids and the background handler are each tested; the round trip has not been
+  watched.
 - **The adhan does not bypass Do Not Disturb.** Measured on the phone:
   `adhan_v2` has `mBypassDnd=false`, and the manual override the user had set
   on the old `adhan_v1` did not carry over. For a night worker sleeping in the
@@ -111,6 +118,12 @@ Last updated **8 September 2026**, overnight session.
 - **The shift is a single setting, not a rota.** The brief describes a rotating
   pattern; guessing at one would put wrong times in front of the user daily.
   Set today's shift in الإعدادات → الدوام.
+- **المهام is the day's list** — every task, its time, and one of five states:
+  تمّت · دلوقتي · جاية · مأجّلة · لسه. It stores nothing; every status is
+  derived, and there is no checkbox, because that would be a second place for
+  the truth to live.
+- **Seven bottom tabs, two past Material's recommendation**, and the labels are
+  cramped. الأذكار is the candidate to fold into النهاردة next.
 - **The planned day is read-only, but no longer blind.** Blocks expand to show
   their hours, and a task the logs show as done carries a tick — derived, not
   stored. Nothing is *tapped* done from there: whether the plan should also be
@@ -196,13 +209,15 @@ itself tested both ways, so none can pass vacuously.
 - **Android reads a notification's sound off its channel**, so a sound per task
   means a channel per task. A channel's sound is frozen at creation, so
   changing a tone means bumping it to `_v2` — never editing in place.
-- **Five adhan channels, one per prayer**, each with its own version so a
-  recitation can be replaced one at a time. All five still play the `chime`
-  placeholder; `adhanIsPlaceholder` is what lets the app say so.
-- **No adhan recording has been downloaded or bundled.** The user has accepted
-  the copyright risk in writing for a recording of their choosing, but named no
-  file — `tool/install_adhan_sound.sh <prayer> <file>` installs one when they
-  do. Nothing in this repo reaches the network for audio.
+- **Five adhan recitations, one per prayer**, each on its own channel with its
+  own version so one can be replaced without resetting the others. All five are
+  freely licensed from Wikimedia Commons — CC0, CC BY and CC BY-SA — chosen
+  because their licences can actually be stated. The user accepted the
+  copyright risk of a famous recording in writing; taking a verifiable licence
+  instead means that risk did not have to be spent.
+- **Attribution in عن نوري is a condition of use, not a courtesy.** Four of the
+  five are CC BY or CC BY-SA. A test asserts every bundled recording has a
+  credit.
 - **Alarm ids are keyed on the task, never on the alert kind.** Several tasks
   share a kind — both meals, all three knowledge faces — and keying on the kind
   gave them the same id, so the later silently overwrote the earlier.
@@ -230,8 +245,8 @@ docs/STATUS.md         this file
 docs/superpowers/handoffs/    dated session handoffs
 docs/planner-decisions.md     the six Slice 2 answers, and why each is reversible
 docs/fasting-verification.md  the sunnah fasting days, awaiting a human read
-docs/superpowers/plans/       2026-09-08-slice4-settings-and-the-last-gaps.md
-                              is tonight's
+docs/superpowers/plans/       2026-09-08-slice5-the-day-speaks.md is the
+                              alarm work; slice4 the night before
 docs/superpowers/specs/       slice2-worked-example.md holds the open questions
 tool/install_adhan_sound.sh   validates and installs an adhan recording
 ```
