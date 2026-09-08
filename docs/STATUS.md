@@ -5,9 +5,9 @@ Last updated **8 September 2026**, evening — after the phone install.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `ba62f13`, working tree clean |
-| Tests | **1111 passing**, `flutter analyze` clean |
-| On the phone | **current build, installed 8 Sep 19:43** (HONOR VNE-N41) — المهام, the nineteen tones, the five adhans, and the snooze receiver |
+| Head | `15268f8`, working tree clean |
+| Tests | **1118 passing**, `flutter analyze` clean |
+| On the phone | **current build, installed 8 Sep 20:04** (HONOR VNE-N41) — المهام, the nineteen tones, the five adhans, and the snooze receiver |
 | On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v11 |
 
@@ -58,7 +58,10 @@ Last updated **8 September 2026**, evening — after the phone install.
   and in the evening on the others
 - **A gentle budget note** — one line, one evening, when a category is running
   ahead of the month. Never صدقة, and never a category with no budget set
-- **الإعدادات is a menu** — seven sections, each its own page
+- **الإعدادات is a menu** — eight sections, each its own page
+- **الأصوات** — every adhan and every task tone with a «شغّل» beside it, so a
+  sound can be heard before the moment it fires rather than only at it. Posted
+  on the real channel, so it is the real file at the real volume
 - **The planned day announces itself** — one alarm per task at the time
   `planDay` gave it, over a **three-day** rolling window re-armed on every
   launch. Tapping one opens the screen where that task is done.
@@ -97,7 +100,8 @@ Last updated **8 September 2026**, evening — after the phone install.
 - **Nobody has heard any of the five adhans**, and in particular **it is not
   known which of them carries «الصلاة خير من النوم»** — the line that belongs
   in the fajr adhan and nowhere else. Religious content, so it waits for a
-  human, like the athkar and the fasting days.
+  human, like the athkar and the fasting days. **الإعدادات → الأصوات is now
+  where that gets settled** — it plays all five on demand.
 - **The whole notification chain is confirmed working on the emulator** —
   first time in this project. A task alert fires on its own channel, its
   snooze button puts it off five minutes without opening the app, and المهام

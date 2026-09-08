@@ -5,7 +5,7 @@ and asked to see المهام and hear the adhans. This is what went on the phon
 what I could prove without touching it, and the two faults that reading the
 device found — neither of which any test in the suite could have caught.
 
-**1111 tests passing**, `flutter analyze` clean, schema **v11**. Branch
+**1118 tests passing**, `flutter analyze` clean, schema **v11**. Branch
 `slice1-religious-core`, still **not merged to `master`**. Head `ba62f13`.
 
 ---
@@ -138,13 +138,35 @@ open Nouri. One launch re-arms them.
 
 ---
 
+## And a way to answer the questions I keep asking you
+
+**الإعدادات → الأصوات.** Every adhan and every task tone, each with a «شغّل».
+
+You have been asked in three handoffs running which adhan carries «الصلاة خير
+من النوم» and which of the nineteen tones do not read — and there was no way
+to answer either without living with the app for a day and remembering what
+each sound was. Now it is two minutes on the sofa.
+
+It posts a real notification on the real channel rather than playing the file
+through an audio player, because Android reads a sound off its **channel** —
+so what you hear is the actual file, at the actual volume, through any change
+you have made to that channel in your own system settings. The full-screen
+takeover is dropped for previews only; comparing five adhans that each seize
+the screen would be unusable.
+
+Each adhan carries its credit next to the button as well as in عن نوري. Four
+of the five are CC BY or CC BY-SA, where attribution is a condition of use.
+
 ## Still needing you
 
 Unchanged from the Slice 6 handoff, in priority order:
 
-1. **Listen to the five adhans**, and say whether the fajr one carries
-   «الصلاة خير من النوم». Religious content — it waits for a person.
-2. **Listen to the nineteen tones** and say which do not read.
+1. **Listen to the five adhans** in الإعدادات → الأصوات, and say whether the
+   fajr one carries «الصلاة خير من النوم». Religious content — it waits for a
+   person.
+2. **Listen to the nineteen tones** on the same screen and say which do not
+   read. They are synthesised, so any of them can be retuned by editing one
+   line of `tool/make_alert_sounds.py`.
 3. **The DND finding**, which matters most for a night worker: all five
    `adhan_*_v2` channels have `mBypassDnd=false`, so DND silences the adhan.
    Nouri cannot set it — `flutter_local_notifications` does not expose
