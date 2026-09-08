@@ -134,6 +134,33 @@ class NotificationService {
     );
   }
 
+  /// Plays one channel's sound on demand, for الأصوات.
+  ///
+  /// **Why a notification rather than an audio player.** Android reads a
+  /// notification's sound off its channel, so the only way to hear what an
+  /// alarm will *actually* sound like — the right file, at alarm volume,
+  /// through the channel the user may have retuned in system settings — is to
+  /// post one on that channel. Playing the raw asset with an audio plugin
+  /// would add a dependency and still answer a different question.
+  ///
+  /// Every preview reuses `testNotificationId`, so auditioning nineteen tones
+  /// leaves one notification in the shade rather than nineteen.
+  Future<void> previewSound(
+    String channelId, {
+    required String title,
+    required String body,
+  }) async {
+    await _ensureReady();
+    final status = await readStatus();
+    final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
+    await gateway.showNow(
+      title: title,
+      body: body,
+      channelId: channelId,
+      preview: true,
+    );
+  }
+
   /// Schedules a real adhan-style alarm a couple of minutes out.
   ///
   /// This is the only way to honestly test the thing that matters: not

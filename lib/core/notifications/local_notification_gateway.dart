@@ -135,13 +135,14 @@ class LocalNotificationGateway implements NotificationGateway {
     required String title,
     required String body,
     required String channelId,
+    bool preview = false,
   }) =>
       _plugin.show(
         id: testNotificationId,
         title: title,
         body: body,
         notificationDetails: NotificationDetails(
-          android: androidDetailsFor(channelId),
+          android: androidDetailsFor(channelId, preview: preview),
         ),
       );
 }

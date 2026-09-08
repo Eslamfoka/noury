@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/arabic_numerals.dart';
+import '../../app.dart';
 import '../../core/notifications/adhan_sounds.dart';
+import '../../core/notifications/task_alert.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
@@ -11,7 +13,7 @@ import '../shared/nouri_avatar.dart';
 import 'settings_controller.dart';
 import 'settings_widgets.dart';
 
-/// The seven parts of الإعدادات, each its own page.
+/// The eight parts of الإعدادات, each its own page.
 ///
 /// Reported from the phone on 8 September 2026:
 ///
@@ -31,6 +33,7 @@ enum SettingsSection {
   prayerTimes('مواقيت الصلاة', Icons.schedule),
   iqamaOffsets('فرق وقت الإقامة', Icons.more_time),
   wird('الورد', Icons.menu_book_outlined),
+  sounds('الأصوات', Icons.graphic_eq),
   about('عن نوري', Icons.info_outline);
 
   const SettingsSection(this.title, this.icon);
@@ -47,6 +50,7 @@ enum SettingsSection {
         SettingsSection.prayerTimes => 'المدينة، طريقة الحساب، التاريخ الهجري',
         SettingsSection.iqamaOffsets => 'كام دقيقة بين الأذان والإقامة',
         SettingsSection.wird => 'هدف التسبيح وصفحات المصحف',
+        SettingsSection.sounds => 'اسمع كل أذان وكل تنبيه قبل ميعاده',
         SettingsSection.about => 'نوري، وخصوصية بياناتك',
       };
 }
@@ -365,6 +369,42 @@ List<Widget> settingsSectionChildren(
             value: toArabicDigits('${s.khatmaTotalPages}'),
           ),
         ],
+      SettingsSection.sounds => [
+          Text(
+            'دوس «شغّل» عشان تسمع الصوت اللي هييجي في وقته بالظبط — '
+            'نفس النغمة ونفس مستوى الصوت.',
+            style: cairo(size: 11.5, color: NouriColors.muted, height: 1.8),
+          ),
+          const SizedBox(height: 4),
+          const Divider(color: NouriColors.border, height: 22),
+          Text('الأذان', style: cairo(size: 13, weight: FontWeight.w600)),
+          for (final prayer in adhanPrayers)
+            _SoundRow(
+              key: ValueKey('preview-adhan-$prayer'),
+              label: prayerLabel(prayer),
+              note: adhanCredits[prayer] ?? '',
+              channelId: adhanChannelFor(prayer),
+              title: 'نوري — ${prayerLabel(prayer)}',
+              body: 'تجربة أذان ${prayerLabel(prayer)}',
+            ),
+          const Divider(color: NouriColors.border, height: 26),
+          Text('تنبيهات المهام',
+              style: cairo(size: 13, weight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(
+            'كل مهمة ليها نغمة لوحدها، عشان تعرفها من صوتها من غير ما تبص.',
+            style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
+          ),
+          for (final kind in TaskAlertKind.values)
+            _SoundRow(
+              key: ValueKey('preview-${kind.name}'),
+              label: kind.soundName,
+              note: '',
+              channelId: kind.channelId,
+              title: kind.title,
+              body: kind.body,
+            ),
+        ],
       SettingsSection.about => [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -417,3 +457,63 @@ List<Widget> settingsSectionChildren(
           ),
         ],
     };
+
+/// One audition row: what it is, who made it where that matters, and «شغّل».
+///
+/// A `ConsumerWidget` rather than an `ActionRow` with a callback because the
+/// notification service is read at press time — reading it when the list is
+/// built would capture whatever was there before `_ensureReady` had run.
+class _SoundRow extends ConsumerWidget {
+  const _SoundRow({
+    super.key,
+    required this.label,
+    required this.note,
+    required this.channelId,
+    required this.title,
+    required this.body,
+  });
+
+  final String label;
+
+  /// The licence credit, on the adhans. Empty on the generated tones, which
+  /// are Nouri's own.
+  final String note;
+
+  final String channelId;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: cairo(size: 13.5)),
+                  if (note.isNotEmpty)
+                    Text(note,
+                        style: cairo(size: 10, color: NouriColors.muted)),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => ref
+                  .read(notificationServiceProvider)
+                  ?.previewSound(channelId, title: title, body: body),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.play_arrow_rounded,
+                  size: 18, color: NouriColors.gold),
+              label: Text('شغّل',
+                  style: cairo(size: 12.5, color: NouriColors.gold)),
+            ),
+          ],
+        ),
+      );
+}

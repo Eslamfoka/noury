@@ -206,6 +206,18 @@ enum TaskAlertKind {
     this.followUpQuestion,
   });
 
+  /// What this tone is called in الأصوات, where the user auditions them.
+  ///
+  /// Almost always the notification's own title, which is what they will read
+  /// when it arrives. The two exceptions are the ones titled «نوري» — a name,
+  /// not a subject — which would otherwise appear twice in the list with no
+  /// way to tell which was which.
+  String get soundName => switch (this) {
+        TaskAlertKind.followUp => 'سؤال المتابعة',
+        TaskAlertKind.review => 'مراجعة اليوم',
+        _ => title,
+      };
+
   /// Whether this plays at **alarm** volume rather than notification volume.
   ///
   /// The user asked for alarms — «i need alarms for each task» — and a nudge

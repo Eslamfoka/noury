@@ -39,13 +39,19 @@ class FakeNotificationGateway implements NotificationGateway {
   @override
   Future<List<int>> pendingIds() async => scheduled.map((n) => n.id).toList();
 
+  /// The channel ids passed to [showNow], in order — what الأصوات auditions.
+  final List<String> shownOn = [];
+
   @override
   Future<void> showNow({
     required String title,
     required String body,
     required String channelId,
-  }) async =>
-      shown.add(title);
+    bool preview = false,
+  }) async {
+    shown.add(title);
+    shownOn.add(channelId);
+  }
 
   Iterable<ScheduledNotification> ofSlot(NotificationSlot s) =>
       scheduled.where((n) => n.slot == s);

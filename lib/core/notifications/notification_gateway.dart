@@ -32,10 +32,15 @@ abstract class NotificationGateway {
 
   Future<List<int>> pendingIds();
 
-  /// Fires immediately — used by the "send test notification" action.
+  /// Fires immediately — used by the test action and by الأصوات.
+  ///
+  /// [preview] means the user is auditioning the sound rather than being
+  /// summoned by it: same channel, same tone, same volume, but no full-screen
+  /// takeover. See `androidDetailsFor`.
   Future<void> showNow({
     required String title,
     required String body,
     required String channelId,
+    bool preview = false,
   });
 }

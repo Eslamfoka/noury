@@ -116,6 +116,7 @@ AndroidNotificationChannel _channelFor(String id) =>
 AndroidNotificationDetails androidDetailsFor(
   String channelId, {
   List<AndroidNotificationAction>? actions,
+  bool preview = false,
 }) {
   final channel = _channelFor(channelId);
   // Membership, not equality: the one adhan channel became five, and every one
@@ -137,7 +138,12 @@ AndroidNotificationDetails androidDetailsFor(
     // Lets the adhan light the screen on a locked phone instead of waiting in
     // the shade. Only the adhan earns this — using it for the wird reminder
     // would be the kind of app that gets uninstalled.
-    fullScreenIntent: isAdhan,
+    //
+    // **Except when auditioning.** In الأصوات the user plays five adhans in a
+    // row to compare them; having each one seize the whole screen would make
+    // the screen unusable for the one thing it is for. The sound, the volume
+    // and the channel are all still the real ones — only the takeover goes.
+    fullScreenIntent: isAdhan && !preview,
     actions: actions,
   );
 }
