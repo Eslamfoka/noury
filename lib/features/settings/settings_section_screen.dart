@@ -45,7 +45,7 @@ class SettingsSectionScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(15, 6, 15, 24),
           children: [
             SettingsGroup(
-              title: section.title,
+              // No title: the app bar above already carries it.
               children:
                   settingsSectionChildren(section, context, ref, s, controller),
             ),

@@ -134,6 +134,40 @@ it. Both bugs came from the same instinct — trying to make the planner clever
 about the current moment — and both were caught by asking a test to state
 something obvious out loud.
 
+---
+
+## A seventh question, answered on 8 September
+
+### 7. Where does phone/social time come from?
+
+**Answer: the user's word, not the device.**
+
+§5.5 asks Nouri to reserve a slot for phone and social time and to say when
+the cap is passed. "Notifies if exceeded" could mean reading real usage. That
+needs `PACKAGE_USAGE_STATS` — a special-access permission granted through a
+system settings page, invisible to the emulator, and the heaviest privacy
+permission an Android app can hold.
+
+It would also make Nouri **infer** where every other pillar **asks**. A fasting
+day is the user's word. A prayer is logged, not detected. A walk is counted
+only while its screen is open and says so. Measuring phone use silently would
+be the one place Nouri watched rather than listened.
+
+So the user reports the sitting and Nouri keeps the total. The planner reserves
+an evening block the length of the cap — that reservation is the half the
+planner owns, and it is what stops phone time eating the hours the rest of the
+day was planned into.
+
+*To change:* a usage-stats source would replace the writer behind
+`PhoneTimeCard` without touching `phone_sessions` or the cap. The cap itself is
+a setting — الإعدادات → البدن والمشي → حد وقت الموبايل — defaulting to the same
+sixty minutes §5.5 already names for calls.
+
+**Sittings rather than a running timer** is the same kind of choice, one level
+down: it matches وقت المعرفة, which keeps the two cards legible together, and a
+live session wants the machinery the walk screen already needed. A timer slots
+in behind the same card later without changing anything stored.
+
 ## What is still not decided
 
 - **A rota.** The shift is a single current setting, not a repeating pattern.

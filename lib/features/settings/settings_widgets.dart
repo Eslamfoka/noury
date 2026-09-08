@@ -11,21 +11,23 @@ import '../../core/theme/nouri_theme.dart';
 /// the move — only where it lives.
 
 class SettingsGroup extends StatelessWidget {
-  const SettingsGroup(
-      {super.key, required this.title, required this.children});
+  const SettingsGroup({super.key, this.title, required this.children});
 
-  final String title;
+  /// Null on a section page, where the app bar already names it. Repeating the
+  /// title immediately under itself reads as a mistake.
+  final String? title;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, right: 2),
-            child:
-                Text(title, style: cairo(size: 14, weight: FontWeight.w600)),
-          ),
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8, right: 2),
+              child: Text(title!,
+                  style: cairo(size: 14, weight: FontWeight.w600)),
+            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             decoration: BoxDecoration(

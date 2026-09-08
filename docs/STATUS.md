@@ -1,15 +1,15 @@
 # Nouri — status
 
-Last updated **7 September 2026**, overnight session.
+Last updated **8 September 2026**, overnight session.
 
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `ac4b82f`, working tree clean |
-| Tests | **837 passing**, `flutter analyze` clean |
-| On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **two days stale** |
+| Head | `58146b3`, working tree clean |
+| Tests | **918 passing**, `flutter analyze` clean |
+| On the phone | build from 15:20 on 6 Sep (HONOR VNE-N41) — **three days stale** |
 | On the emulator | current build, `nourdm-api35` |
-| Schema | v8 |
+| Schema | v10 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
 
@@ -23,12 +23,13 @@ Last updated **7 September 2026**, overnight session.
 | **البدني** physical | Built. 16/8 window, meal log with symptom, weight, walking sessions, guided home workouts, sunnah fasting reminders, **water**. Now placed by the planner. |
 | **المالي** financial | Built. Pay-cycle month, budgets, expenses, savings rate. |
 | **تطوير الذات** self-development | **Tracking built.** Knowledge time logged on Home, in the report, and placed by the planner. The *recommending* — books, a skill path — is AI work for Slice 5. |
-| **الوقت والدوام** time & duty | **Built.** The planner places the day from the shift and the prayer times; Home shows it. Calendar reminders too. |
+| **الوقت والدوام** time & duty | **Built, and now complete against §5.5.** The planner places the day from the shift and the prayer times; Home shows it. Calendar reminders too. مكالمات is an hour placed by shift; وقت الموبايل is a reserved slot with a cap that reports. |
 | **المتابعة والذكاء** tracking & AI | Reports now cover **all three logged pillars** plus **challenges**. The Claude layer is Slice 5, unstarted. |
 
 ## What runs today
 
-- 230 exact alarms over a rolling 14-day window; follow-ups over 3 days
+- ~230 exact alarms over a rolling 14-day window; follow-ups over 3 days.
+  قيام adds one a night when it is on; the budget note adds at most two
 - Adhan on `adhan_v2` at HIGH with a full-screen intent — wakes a locked screen
 - Prayer logging from Home, from the review sheet, and from a notification tap
 - **Calendar reminders** — pick a day, write what to be reminded of, once or
@@ -44,6 +45,17 @@ Last updated **7 September 2026**, overnight session.
   does not change depending on when it is opened
 - **Water** — a count against a target in البدن, and a nudge after each prayer
   that disappears between fajr and maghrib on a day marked as a fast
+- **قيام الليل** — in the last third of the night, computed from tonight's isha
+  and tomorrow's fajr rather than a clock hour. **Off by default**, and silent
+  on a night shift, when the whole last third is duty time
+- **وقت الموبايل** — a reserved evening slot the length of the cap, a card on
+  Home, and a stated number when the cap is passed. The time is the user's
+  word; Nouri does not read device usage
+- **مكالمات** — the hour §5.5 asks for, placed after work on a morning shift
+  and in the evening on the others
+- **A gentle budget note** — one line, one evening, when a category is running
+  ahead of the month. Never صدقة, and never a category with no budget set
+- **الإعدادات is a menu** — seven sections, each its own page
 - **Knowledge time** — reading, skill or religious content, logged on Home and
   totalled in the weekly report as minutes *and* days
 - **Onboarding asks which shift**, so the first day Nouri shows is the right
@@ -69,9 +81,10 @@ Last updated **7 September 2026**, overnight session.
 - **A walk is only counted while its screen is open.** Android keeps counting
   in the OS, so a backgrounded session reconciles correctly on resume, but
   there is no foreground service and a killed app loses the session.
-- **Six bottom tabs**, one past Material's recommendation. Nothing was added
-  tonight: the calendar opens from the Home header, walking and workouts sit
-  inside البدن, challenges inside التقارير, the planned day inside Home.
+- **Six bottom tabs**, one past Material's recommendation, and unchanged
+  again: the calendar opens from the Home header, walking and workouts sit
+  inside البدن, challenges inside التقارير, the planned day inside Home, and
+  the two new cards sit on Home rather than claiming a tab.
 - **The shift is a single setting, not a rota.** The brief describes a rotating
   pattern; guessing at one would put wrong times in front of the user daily.
   Set today's shift in الإعدادات → الدوام.
@@ -79,8 +92,17 @@ Last updated **7 September 2026**, overnight session.
   is tapped done from there yet. Prayers are still logged from Home and from
   the notification.
 - **Untested on real hardware:** reboot survival, battery-kill, multi-day
-  reliability, and every one of tonight's five features. Emulator results say
+  reliability, and everything built on 7 and 8 September. Emulator results say
   nothing about MagicOS.
+- **وقت الموبايل is reported, not measured.** Nouri does not read device usage
+  and asks for no usage permission. The reasoning is decision 7 in
+  `docs/planner-decisions.md`; the card takes sittings rather than running a
+  live timer, which is the smaller half of the same choice.
+- **The budget note is armed over two days, from the numbers at re-arm time.**
+  Budget state is not knowable a fortnight ahead. If Nouri goes unopened the
+  note reflects the last state it saw, which is honest but not current.
+- **قيام الليل has never been watched firing.** It is off by default, so it
+  will not appear until it is switched on in الإعدادات → الإشعارات.
 - **`docs/athkar-verification.md` has not been checked by a human** against a
   printed حصن المسلم. The mushaf rendering did not change a letter of it —
   enforced by a test — so that review is still valid and still outstanding.
@@ -102,6 +124,8 @@ itself tested both ways, so none can pass vacuously.
 | `palette_test` | A red anywhere, and colour defined outside the palette |
 | `notification_receivers_test` | The boot receiver going missing |
 | `notification_sound_test` | The adhan sound and channel drifting apart |
+| `notification_slot_test` | Slots outgrowing the stride; and it now also states *why* widening the stride orphans nothing |
+| `schema_test` | An accidental schema bump — a migration nobody wrote |
 
 ## Decisions already made (do not relitigate)
 
@@ -131,9 +155,14 @@ itself tested both ways, so none can pass vacuously.
 - **A fasting day is the user's word, never inferred.** Nouri suggests the
   sunnah fasts but cannot know whether one was kept, and guessing wrong means
   nudging a fasting person to drink at noon.
-- **The notification slot space is full** — 31 of `kSlotsPerDay` = 32. Raising
-  it renumbers every alarm already on a device, so it needs a deliberate
-  re-arm rather than a quiet bump.
+- **No notification of any kind has been watched arriving on the HONOR.** The
+  alarms register correctly on the emulator; nobody has seen one fire on the
+  phone.
+- **The notification slot space was widened on 8 September** — `kSlotsPerDay`
+  32 → 64, with 33 slots used. It is safe for one specific reason, written on
+  the constant: `cancelAllBelow` enumerates what is *pending* rather than
+  recomputing IDs, so the first re-arm after the upgrade finds and clears the
+  old-stride alarms. A test states that property directly.
 - **Nouri recommends nothing.** No book, no skill path, no reading of the
   week. All of it is AI work for Slice 5, and every screen asks rather than
   claims — tests assert it makes no such claim.
@@ -148,7 +177,8 @@ docs/STATUS.md         this file
 docs/superpowers/handoffs/    dated session handoffs
 docs/planner-decisions.md     the six Slice 2 answers, and why each is reversible
 docs/fasting-verification.md  the sunnah fasting days, awaiting a human read
-docs/superpowers/plans/       2026-09-07-slice1b-five-features.md is tonight's
+docs/superpowers/plans/       2026-09-08-slice4-settings-and-the-last-gaps.md
+                              is tonight's
 docs/superpowers/specs/       slice2-worked-example.md holds the open questions
 tool/install_adhan_sound.sh   validates and installs an adhan recording
 ```
