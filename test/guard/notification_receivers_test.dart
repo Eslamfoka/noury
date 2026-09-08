@@ -52,15 +52,18 @@ void main() {
     }
   });
 
-  test('neither receiver is exported', () {
+  test('none of the receivers is exported', () {
     // They are internal to the app; exporting them would let any app on the
-    // device trigger Nouri's notifications.
+    // device trigger Nouri's notifications — or, for the action receiver,
+    // snooze the user's reminders.
     final receivers = RegExp(r'<receiver[^>]*>', multiLine: true)
         .allMatches(manifest)
         .map((m) => m.group(0)!)
         .where((r) => r.contains('flutterlocalnotifications'));
 
-    expect(receivers, hasLength(2));
+    // Three: the scheduled one, the boot one, and the action one. The plugin
+    // declares none of them itself, so all three are this app's to get right.
+    expect(receivers, hasLength(3));
     for (final r in receivers) {
       expect(r.contains('android:exported="false"'), isTrue, reason: r);
     }

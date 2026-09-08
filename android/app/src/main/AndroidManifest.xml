@@ -86,6 +86,26 @@
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false"/>
 
+        <!-- Delivers a notification ACTION to the background isolate.
+             WITHOUT THIS, A BUTTON THAT DOES NOT OPEN THE APP DOES NOTHING.
+             The tap reaches the app process — `dumpsys` shows it unfrozen —
+             and then stops: no engine starts, no handler runs, no log, no
+             error. Observed exactly that on the emulator with «فكّرني بعد ٥
+             دقايق», which was completely dead until this receiver existed.
+
+             This is the third turn of the same screw. The «صليت» action was
+             once silent for want of a registered Dart handler; the handler is
+             registered now, and the receiver is the other half. An action with
+             `showsUserInterface: false` needs BOTH.
+
+             `enabled` and `exported` are set explicitly: the plugin's own
+             manifest declares no receivers at all, so every one of them is
+             this app's responsibility. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false"/>
+
         <!-- Restores scheduled notifications after a reboot or an app update. -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"

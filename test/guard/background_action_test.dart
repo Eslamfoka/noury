@@ -44,6 +44,47 @@ void main() {
     );
   });
 
+  test('a silent action also needs its Android receiver declared', () {
+    // **The half that was still missing after the handler was added.**
+    //
+    // A registered Dart handler is not enough: the tap is delivered by
+    // `ActionBroadcastReceiver`, and `flutter_local_notifications` declares no
+    // receivers of its own — every one is this app's responsibility. Without
+    // it the press reaches the app process (dumpsys shows it unfrozen) and
+    // then stops. No engine, no handler, no log, no error.
+    //
+    // Observed on the emulator: «فكّرني بعد ٥ دقايق» was completely dead.
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+
+    if (!gateway.contains('showsUserInterface: false')) return;
+
+    expect(
+      manifest.contains(
+          'com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver'),
+      isTrue,
+      reason: 'a silent action is delivered by ActionBroadcastReceiver; '
+          'without it declared, the button does nothing at all',
+    );
+  });
+
+  test('the receivers the plugin needs are all declared', () {
+    // The plugin ships a manifest with no receivers in it, so all three are
+    // the app's to declare. Missing the scheduled one means nothing ever
+    // appears; missing the boot one means nothing survives a restart; missing
+    // the action one means buttons do nothing.
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+
+    for (final receiver in [
+      'ScheduledNotificationReceiver',
+      'ScheduledNotificationBootReceiver',
+      'ActionBroadcastReceiver',
+    ]) {
+      expect(manifest.contains(receiver), isTrue, reason: receiver);
+    }
+  });
+
   test('the handler is a real entry point, not just a function', () {
     // Without @pragma('vm:entry-point') the tree-shaker removes it from a
     // release build, and the button dies again — in release only, which is

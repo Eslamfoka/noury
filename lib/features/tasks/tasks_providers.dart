@@ -19,6 +19,17 @@ final snoozedTasksProvider = FutureProvider<Map<String, DateTime>>((ref) async {
   // drops yesterday's on read.
   ref.watch(currentDayProvider);
 
+  // **And re-read on the coarse clock.** The file is written by a different
+  // isolate — the one Android wakes when «فكّرني بعد ٥ دقايق» is pressed with
+  // the app closed — so nothing in this isolate knows it changed. Without
+  // this the provider is cached from launch and المهام goes on showing the
+  // old time until the app is restarted, which is exactly what happened the
+  // first time the round trip was watched on the emulator.
+  //
+  // It costs one small JSON read every thirty seconds, and only while the
+  // list is being looked at.
+  ref.watch(coarseClockProvider);
+
   try {
     final store = await openSnoozeStore();
     return store.read();
