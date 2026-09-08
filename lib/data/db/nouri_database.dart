@@ -49,7 +49,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -119,6 +119,12 @@ class NouriDatabase extends _$NouriDatabase {
           if (from < 10) {
             await m.createTable(phoneSessions);
             await m.addColumn(settingsRows, settingsRows.phoneCapMinutes);
+          }
+
+          // v11 adds the task-alarm switch. Additive, and it arrives on —
+          // an upgrade gets the feature rather than having to find it.
+          if (from < 11) {
+            await m.addColumn(settingsRows, settingsRows.notifyTasks);
           }
         },
       );

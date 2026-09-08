@@ -56,6 +56,7 @@ Future<SchedulingConfig> schedulingConfigFromDb(
     notifyFasting: s.notifyFasting,
     notifyWater: s.notifyWater,
     notifyQiyam: s.notifyQiyam,
+    notifyTasks: s.notifyTasks,
     // Only قيام reads this: on a night shift the whole last third is duty
     // time, so there is nothing to offer.
     shift: switch (s.shiftType) {

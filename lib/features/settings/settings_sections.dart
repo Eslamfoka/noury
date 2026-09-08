@@ -124,6 +124,23 @@ List<Widget> settingsSectionChildren(
             },
           ),
           SwitchRow(
+            key: const ValueKey('notify-tasks'),
+            label: 'تنبيهات مهام اليوم',
+            value: s.notifyTasks,
+            onChanged: (v) async {
+              await controller.toggleChannel('tasks', v);
+              ref.invalidate(settingsProvider);
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 2, bottom: 4),
+            child: Text(
+              'كل مهمة في خطة يومك ليها تنبيه في وقتها، وصوت مختلف تعرفها '
+              'منه من غير ما تفتح التطبيق. الأذان مالوش دعوة بالمفتاح ده.',
+              style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
+            ),
+          ),
+          SwitchRow(
             key: const ValueKey('notify-qiyam'),
             label: 'قيام الليل',
             value: s.notifyQiyam,

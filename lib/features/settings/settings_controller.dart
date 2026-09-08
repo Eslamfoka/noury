@@ -256,6 +256,7 @@ class SettingsController {
       'fasting' => SettingsRowsCompanion(notifyFasting: Value(enabled)),
       'water' => SettingsRowsCompanion(notifyWater: Value(enabled)),
       'qiyam' => SettingsRowsCompanion(notifyQiyam: Value(enabled)),
+      'tasks' => SettingsRowsCompanion(notifyTasks: Value(enabled)),
       _ => throw ArgumentError('unknown channel: $channel'),
     };
     await db.settingsDao.update(companion);

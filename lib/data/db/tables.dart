@@ -80,6 +80,13 @@ class SettingsRows extends Table {
   BoolColumn get notifyQiyam =>
       boolean().withDefault(const Constant(false))();
 
+  /// Whether the planned day announces itself, task by task.
+  ///
+  /// On by default: it is the point of the feature. Off is for the days when
+  /// a phone that speaks eight times is more than the user wants, and it
+  /// silences only the tasks — the adhan is never touched by this.
+  BoolColumn get notifyTasks => boolean().withDefault(const Constant(true))();
+
   /// The daily cap on phone and social time, in minutes.
   ///
   /// Sixty, matching the hour §5.5 already names for calls. "Hard-ish" in the
