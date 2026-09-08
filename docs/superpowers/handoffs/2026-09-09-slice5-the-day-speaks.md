@@ -79,13 +79,58 @@ at notification volume: the budget note, the phone cap, the fasting offer, the
 end-of-day review, and the soft «عملتها؟». Waking someone at alarm volume to
 mention a budget would be the kind of app that gets uninstalled.
 
-## The adhan is untouched
+## The adhan: architecture built, no audio installed
 
-At your instruction. `chime` and `adhan_v2` are exactly as they were, no adhan
-audio was downloaded, and the five-adhans-one-per-prayer task is **removed from
-this slice** and left for a decision of yours. When you want it: it needs five
-recitations you have chosen and are happy with the licence of, and a channel
-each. Nothing in this slice blocks it.
+Two instructions arrived in sequence and both are recorded here.
+
+**First:** *"Do not download or bundle copyrighted adhan recordings without my
+explicit approval. For now, keep adhan audio separate from the task-sound work
+and leave the current adhan sound unchanged."* Honoured — no adhan audio was
+touched during the sound work.
+
+**Then:** *"I understand that famous adhan recordings (like Sheikh Mohamed
+Rifat) may be copyrighted performances. I accept the risk and I want to proceed
+with integrating one such recording for testing... Document in the handoff that
+I explicitly accepted the copyright risk."*
+
+**Recorded: the user explicitly accepted the copyright risk**, in writing, for
+a recording of their choosing in their own personal build.
+
+**Nothing was installed, because the message named nothing.** It arrived with
+its placeholders unfilled — «Use *[اسم الملف أو الرابط]* as the adhan for
+*[fajr / all prayers]*» — so there is no file path and no link to act on. This
+has happened before in this project: two earlier design answers also arrived as
+unfilled templates, and the previous handoff says so.
+
+I also did not go looking for one. Sourcing a copyrighted recitation off the
+web is a different act from installing a file the owner hands over, and the
+second is the one this repo is set up for.
+
+**What is built, so that installing one is a single command:**
+
+- Five channels, `adhan_fajr_v1` … `adhan_isha_v1`, each named for its prayer
+  so system settings read «الأذان — الفجر» rather than five rows called
+  «الأذان». Android reads a notification's sound off its channel, so five
+  recitations need five channels.
+- A version number **per prayer**, so a recitation can be replaced one at a
+  time — swapping fajr must not reset the channel tuned for isha.
+- `tool/install_adhan_sound.sh <prayer|all> <file>`, which validates the file,
+  copies it, and prints the exact two source changes. It downloads nothing.
+- `adhan_v2` retired and deleted at startup, so no orphan row is left behind.
+
+**All five still play the 1.90-second `chime`**, and `adhanIsPlaceholder` exists
+so the app can say so rather than letting anyone believe that is the adhan they
+will hear at fajr.
+
+### To install one
+
+```
+tool/install_adhan_sound.sh fajr path/to/your-adhan.ogg
+```
+
+then make the two changes it prints and rebuild. Give me a real path and I will
+run it. **OGG, not WAV** — measured in this repo, two minutes as WAV is about
+10 MB *per prayer*.
 
 ---
 
@@ -207,13 +252,29 @@ window costs **38**, comfortably inside Android's ~500. Thirty of them fall in
 the rest of today, spread across the afternoon and evening as the plan places
 them.
 
-**The adhan is untouched**, checked rather than assumed:
+**The five adhan channels exist and the old one is gone**, checked rather than
+assumed:
 
 ```
-mId='adhan_v2' ... mSound=android.resource://com.nouri.nouri/raw/chime
+adhan_fajr_v1     imp=5  .../raw/chime      mDeleted=false
+adhan_dhuhr_v1    imp=5  .../raw/chime      mDeleted=false
+adhan_asr_v1      imp=5  .../raw/chime      mDeleted=false
+adhan_maghrib_v1  imp=5  .../raw/chime      mDeleted=false
+adhan_isha_v1     imp=5  .../raw/chime      mDeleted=false
+adhan_v2          imp=5  .../raw/chime      mDeleted=true
 ```
 
-Same channel, same placeholder, same everything.
+All five at importance 5 — MAX, which the emulator allows and MagicOS will
+knock back to 4 as it always does. All five still on the placeholder, which is
+the honest state until a recitation is installed. `adhan_v2` is retired:
+Android keeps deleted channels visible in `dumpsys` but they are gone from the
+user's settings.
+
+**304 alarms armed**, still comfortably inside Android's ~500.
+
+**A later run also confirmed the task work end to end:** the task alarms, their
+follow-ups, and the completed-task skip all behave as their tests say, and the
+whole set re-arms idempotently.
 
 ## Not verified anywhere
 
@@ -229,8 +290,13 @@ Same channel, same placeholder, same everything.
 
 ## What needs you
 
-1. **Listen to them**, and say which ones do not read. Retuning is cheap.
-2. **The adhan decision**, when you want it: five recitations, chosen by you.
+1. **A real file path for the adhan.** Your message accepting the copyright
+   risk arrived with «[اسم الملف أو الرابط]» unfilled, so there was nothing to
+   install. Put the OGG anywhere on this machine and tell me where, or run
+   `tool/install_adhan_sound.sh fajr path/to/it.ogg` yourself. **OGG, not
+   WAV** — two minutes as WAV is ~10 MB per prayer.
+2. **Listen to the nineteen tones**, and say which ones do not read. Retuning is
+   cheap.
 3. **Whether the planner should place a workout**, now that it has a sound.
 4. Still outstanding from before: `docs/fasting-verification.md`,
    `docs/athkar-verification.md`, the rota, the adhan recitation, and the DND
