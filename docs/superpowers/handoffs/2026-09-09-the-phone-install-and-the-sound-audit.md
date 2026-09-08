@@ -52,6 +52,29 @@ here.
 
 ---
 
+### المهام, seen on your phone at 20:04
+
+Not the emulator — your HONOR, your data, your day:
+
+```
+٤ من ١٠ خلصوا النهاردة · لسه فيه وقت
+ورد القرآن — ربع   ٤:٠٠   ✓ تمّت
+مشي ٣٠ دقيقة       ٤:٥٥   ✓ تمّت
+أذكار المساء       ٦:١٨     لسه
+تسبيح              ٦:٣٨   ✓ تمّت
+أول وجبة           ٧:٣٥     دلوقتي   ← the gold edge
+استماع لمحاضرة     ٨:١٠     جاية
+وقت الموبايل       ٨:٤٥   ✓ تمّت
+آخر وجبة          ١٠:٠٠     جاية
+مكالمات           ١٠:٣٥     جاية
+```
+
+All five states drawn, nothing red, no «فاتتك» anywhere, and the thing to be
+doing now is the one carrying the gold border. **٢٥٩ alarms armed** after the
+fix — down exactly twelve from 271, which is the four duplicated tasks over
+the three-day task window and nothing else. `iqama_v1` reads `mDeleted=true`
+on the device, so it has stopped cluttering your notification settings.
+
 ## What reading the device found
 
 Both of these were **live on your phone**, and both undo the one thing the
@@ -127,14 +150,14 @@ through the whole session — Messenger held the audio mode — and an adhan is
 loud. Firing one into a call would have been the wrong call to make on your
 behalf. Say the word and it takes a few seconds.
 
-**No screenshot of المهام.** Same reason: the focused window was your call,
-and after the earlier incident where blind taps opened your notification shade
-and a WhatsApp conversation, I do not drive this phone's UI without confirming
-Nouri is in front. Everything above came from `dumpsys` instead.
+**الأصوات has not been opened on the phone.** It is installed and its tests
+pass, but you asked me to stop with ten minutes to go, so the screen itself
+has only been seen in a widget test. Everything else above was watched on the
+device.
 
-**The app has not been launched on the phone since this fix was installed**,
-so the seven re-routed alarms are armed on the *old* channels until you next
-open Nouri. One launch re-arms them.
+Throughout, the rule from the earlier incident held: no screenshot and no tap
+without first confirming `mCurrentFocus` is Nouri. While you were on the call
+and in WhatsApp, Gmail and Facebook, everything came from `dumpsys` instead.
 
 ---
 

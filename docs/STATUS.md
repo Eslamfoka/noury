@@ -102,6 +102,10 @@ Last updated **8 September 2026**, evening — after the phone install.
   in the fajr adhan and nowhere else. Religious content, so it waits for a
   human, like the athkar and the fasting days. **الإعدادات → الأصوات is now
   where that gets settled** — it plays all five on demand.
+- **المهام is confirmed on the phone**, with real data: five states drawn,
+  «أول وجبة» carrying the gold edge as the thing due now, nothing red. 259
+  alarms armed — exactly twelve fewer than before the duplicate fix, which is
+  four tasks over the three-day window and nothing else.
 - **The whole notification chain is confirmed working on the emulator** —
   first time in this project. A task alert fires on its own channel, its
   snooze button puts it off five minutes without opening the app, and المهام
