@@ -77,6 +77,7 @@ class SchedulingConfig {
     this.notifyWater = true,
     this.notifyQiyam = false,
     this.notifyTasks = true,
+    this.completedTaskIds = const {},
     this.shift = ShiftType.morning,
     this.budgetNote,
     this.budgetNudgeHour = kBudgetNudgeHour,
@@ -107,6 +108,15 @@ class SchedulingConfig {
   /// On by default: it is the point of the feature — *"i don't need to open
   /// the app to know what i have to do"*.
   final bool notifyTasks;
+
+  /// The task ids the user has already done **today**, derived from the logs
+  /// they were already keeping.
+  ///
+  /// Only today's: nothing is done on a day that has not happened, so this is
+  /// applied to the first day of the window and no other. Read outside the
+  /// scheduler for the same reason `fastingDays` and `budgetNote` are — the
+  /// scheduler knows nothing about the database.
+  final Set<String> completedTaskIds;
 
   /// Whether to offer قيام الليل in the last third of the night.
   ///
@@ -164,6 +174,7 @@ class SchedulingConfig {
     bool? notifyWater,
     bool? notifyQiyam,
     bool? notifyTasks,
+    Set<String>? completedTaskIds,
     ShiftType? shift,
     String? budgetNote,
     int? budgetNudgeHour,
@@ -186,6 +197,7 @@ class SchedulingConfig {
         notifyWater: notifyWater ?? this.notifyWater,
         notifyQiyam: notifyQiyam ?? this.notifyQiyam,
         notifyTasks: notifyTasks ?? this.notifyTasks,
+        completedTaskIds: completedTaskIds ?? this.completedTaskIds,
         shift: shift ?? this.shift,
         budgetNote: budgetNote ?? this.budgetNote,
         budgetNudgeHour: budgetNudgeHour ?? this.budgetNudgeHour,
@@ -526,6 +538,13 @@ class RollingWindowScheduler {
         );
 
         for (final alert in taskAlertsFor(plan)) {
+          // Already done. Nouri does not ring to demand something it can see
+          // in the user's own log, and it does not ask «عملتها؟» about a
+          // question the log has already answered — that is nagging rather
+          // than helping. Today only: nothing is done on a day that has not
+          // happened yet.
+          if (i == 0 && cfg.completedTaskIds.contains(alert.taskId)) continue;
+
           final id = taskAlarmId(date, alert.taskId);
           if (id == null) continue;
 

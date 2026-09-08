@@ -149,6 +149,21 @@ void main() {
       expect(cfg.fastingDays, contains(DateTime(2026, 9, 10)));
     });
 
+    test('what is already done today reaches the config', () async {
+      // Derived from the logs, and the reason Nouri stops ringing about
+      // something it can see happened.
+      await db.quranDao.upsert(date: DateTime(2026, 9, 8), pages: 3);
+
+      final cfg = await schedulingConfigFromDb(db, now: DateTime(2026, 9, 8));
+
+      expect(cfg.completedTaskIds, contains('quran-wird'));
+    });
+
+    test('an untouched day reaches it as an empty set, not a null', () async {
+      final cfg = await schedulingConfigFromDb(db, now: DateTime(2026, 9, 8));
+      expect(cfg.completedTaskIds, isEmpty);
+    });
+
     test('nothing budgeted means no budget note', () async {
       final cfg = await schedulingConfigFromDb(db, now: DateTime(2026, 9, 8));
       expect(cfg.budgetNote, isNull);

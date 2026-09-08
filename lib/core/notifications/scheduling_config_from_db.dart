@@ -4,6 +4,7 @@ import '../../features/finance/budget_nudge.dart';
 import '../../features/finance/financial_month.dart';
 import '../../features/planner/shift.dart';
 import '../time/geo_config.dart';
+import 'completed_tasks.dart';
 import 'rolling_window_scheduler.dart';
 
 /// The single place a [SchedulingConfig] is built from stored settings.
@@ -64,6 +65,9 @@ Future<SchedulingConfig> schedulingConfigFromDb(
       _ => ShiftType.morning,
     },
     budgetNote: await _budgetNote(db, today, s.financialMonthStartDay),
+    // Derived from the logs the user already keeps, so Nouri stops ringing
+    // about something it can see happened.
+    completedTaskIds: await completedTaskIdsFor(db, today),
     fastingDays: {for (final f in fasting) dayOf(f.date)},
     hijriOffsetDays: s.hijriOffsetDays,
   );
