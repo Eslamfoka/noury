@@ -18,6 +18,7 @@ List<PlannedTask> dailyTasksFor({
   int eatingWindowStartHour = 12,
   bool includeQuranWird = true,
   bool includeWalk = true,
+  bool includeCalls = true,
 }) {
   final tasks = <PlannedTask>[];
 
@@ -123,8 +124,47 @@ List<PlannedTask> dailyTasksFor({
 
   tasks.add(knowledgeTaskFor(date, shift));
 
+  // --- الوقت والدوام ------------------------------------------------------
+
+  if (includeCalls) {
+    tasks.add(PlannedTask(
+      id: 'calls',
+      title: 'مكالمات',
+      // The same pillar the worked example gave it. There is no «وقت» pillar
+      // and adding one would ripple through the labels, the reports and their
+      // tests for a single task; كلام مع الأهل sits closer to تطوير than to
+      // anything else on the list.
+      pillar: TaskPillar.mind,
+      // An hour on the phone is not a heavy task: it needs no desk and no
+      // quiet, which is what «heavy» means to the placer.
+      weight: TaskWeight.light,
+      duration: const Duration(hours: 1),
+      anchor: FlexibleAnchor(preferredBlock: _callsBlockFor(shift)),
+    ));
+  }
+
   return tasks;
 }
+
+/// Where the hour of calls goes, by shift.
+///
+/// §5.5: "one hour, placed by shift — after morning/evening shift or before
+/// sleep; for the night shift, before duty or during it if there's a chance."
+///
+/// "During it if there's a chance" is not something Nouri can know, so it
+/// takes the half it can: on a night shift the hour goes in the evening,
+/// which is the only stretch that is both awake and free before duty starts
+/// at 22:00. Nouri never claims the call happened during duty.
+DayBlockKind _callsBlockFor(ShiftPattern shift) => switch (shift.type) {
+      // Home from 15:30 with the evening still ahead.
+      ShiftType.morning => DayBlockKind.afterWork,
+      // Home at 22:00; the free hours are the ones before leaving.
+      ShiftType.evening => DayBlockKind.evening,
+      // Before duty.
+      ShiftType.night => DayBlockKind.evening,
+      // A loose day; the evening still reads as an evening.
+      ShiftType.off => DayBlockKind.evening,
+    };
 
 /// The three faces of "knowledge time", rotating by day.
 ///

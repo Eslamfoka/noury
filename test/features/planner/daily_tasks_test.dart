@@ -93,10 +93,17 @@ void main() {
 
   group('rule 5 — knowledge time is one block, rotating', () {
     test('exactly one knowledge task a day, never three', () {
+      // By id, not by pillar. The pillar was standing in for "is a knowledge
+      // task" and stopped meaning that when مكالمات joined TaskPillar.mind —
+      // which would have made this fail for a reason that has nothing to do
+      // with the rotation it is testing.
+      const knowledgeIds = {
+        'knowledge-read',
+        'knowledge-listen',
+        'knowledge-skill',
+      };
       final tasks = dailyTasksFor(date: day, shift: ShiftPattern.morning);
-      final knowledge =
-          tasks.where((t) => t.pillar == TaskPillar.mind).toList();
-      expect(knowledge, hasLength(1));
+      expect(tasks.where((t) => knowledgeIds.contains(t.id)), hasLength(1));
     });
 
     test('all three faces appear across three consecutive days', () {
@@ -264,6 +271,92 @@ void main() {
       );
       expect(p.blocks, isNotEmpty);
       expect(p.sleep!.length, greaterThan(Duration.zero));
+    });
+  });
+
+  // §5.5: "Calls time: one hour, placed by shift — after morning/evening
+  // shift or before sleep; for the night shift, before duty or during it if
+  // there's a chance."
+  //
+  // It existed in `example_day.dart` — the day worked out by hand — and
+  // nowhere else, so the real planner had never placed it. The example was
+  // promising an hour the app did not schedule.
+  group('مكالمات', () {
+    test('is an hour, and it is planned every day', () {
+      for (final shift in [
+        ShiftPattern.morning,
+        ShiftPattern.evening,
+        ShiftPattern.night,
+        ShiftPattern.dayOff,
+      ]) {
+        final calls = dailyTasksFor(date: day, shift: shift)
+            .firstWhere((t) => t.id == 'calls');
+        expect(calls.duration, const Duration(hours: 1),
+            reason: shift.type.name);
+      }
+    });
+
+    test('is light — an hour on the phone is not a heavy task', () {
+      final calls = dailyTasksFor(date: day, shift: ShiftPattern.morning)
+          .firstWhere((t) => t.id == 'calls');
+      expect(calls.weight, TaskWeight.light);
+    });
+
+    test('on a morning shift it lands after work, not before it', () {
+      final calls = dailyTasksFor(date: day, shift: ShiftPattern.morning)
+          .firstWhere((t) => t.id == 'calls');
+      expect((calls.anchor as FlexibleAnchor).preferredBlock,
+          DayBlockKind.afterWork);
+    });
+
+    test('on a night shift it goes before duty, in the evening', () {
+      // Duty starts at 22:00, so the evening is the only stretch of the day
+      // that is both awake and free.
+      final calls = dailyTasksFor(date: day, shift: ShiftPattern.night)
+          .firstWhere((t) => t.id == 'calls');
+      expect((calls.anchor as FlexibleAnchor).preferredBlock,
+          DayBlockKind.evening);
+    });
+
+    test('the algorithm actually places it on an ordinary day', () {
+      // The point of the whole task: the example promised it, the planner
+      // never delivered it.
+      final p = planDay(
+        date: day,
+        shift: ShiftPattern.morning,
+        prayers: prayers,
+        tasks: dailyTasksFor(date: day, shift: ShiftPattern.morning),
+      );
+      final calls = find(p, 'calls');
+      expect(calls, isNotNull, reason: 'مكالمات was never scheduled');
+      expect(calls!.end.difference(calls.start), const Duration(hours: 1));
+    });
+
+    test('it does not push the wird or the walk off the day', () {
+      // An hour is a big thing to add to a working day. If it cannot fit,
+      // *it* is what gets deferred — the religious wird is not.
+      final p = planDay(
+        date: day,
+        shift: ShiftPattern.morning,
+        prayers: prayers,
+        tasks: dailyTasksFor(date: day, shift: ShiftPattern.morning),
+      );
+      expect(p.deferred.map((d) => d.task.id), isNot(contains('quran-wird')));
+    });
+
+    test('when it cannot fit it is deferred by name, never dropped', () {
+      // Nouri never silently shortens the day. Whatever happens to مكالمات,
+      // the plan says so.
+      final p = planDay(
+        date: day,
+        shift: ShiftPattern.morning,
+        prayers: prayers,
+        tasks: dailyTasksFor(date: day, shift: ShiftPattern.morning),
+      );
+      final placed = find(p, 'calls') != null;
+      final deferred = p.deferred.any((d) => d.task.id == 'calls');
+      expect(placed || deferred, isTrue,
+          reason: 'a task must be either in the day or named as deferred');
     });
   });
 }
