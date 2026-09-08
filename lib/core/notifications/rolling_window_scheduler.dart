@@ -1,4 +1,6 @@
 import '../../features/fasting/sunnah_fasting.dart';
+import '../../features/planner/shift.dart';
+import '../../features/prayers/qiyam.dart';
 import '../../features/water/water_plan.dart';
 import '../time/geo_config.dart';
 import '../time/prayer_times_service.dart';
@@ -46,6 +48,8 @@ class SchedulingConfig {
     this.notifyWird = true,
     this.notifyFasting = true,
     this.notifyWater = true,
+    this.notifyQiyam = false,
+    this.shift = ShiftType.morning,
     this.fastingDays = const {},
     this.hijriOffsetDays = 0,
     this.fastingEveHour = 20,
@@ -67,6 +71,18 @@ class SchedulingConfig {
 
   /// Whether to nudge the user to drink after each prayer.
   final bool notifyWater;
+
+  /// Whether to offer قيام الليل in the last third of the night.
+  ///
+  /// **Off unless the user turns it on.** Waking someone at two in the morning
+  /// for a voluntary prayer is not something an app should decide for them.
+  final bool notifyQiyam;
+
+  /// The shift the user is currently on.
+  ///
+  /// Only قيام uses it: on a night shift the whole last third is duty time,
+  /// so there is nothing to offer.
+  final ShiftType shift;
 
   /// The days the user has said they are fasting, as midnight-local dates.
   ///
@@ -99,6 +115,8 @@ class SchedulingConfig {
     bool? notifyWird,
     bool? notifyFasting,
     bool? notifyWater,
+    bool? notifyQiyam,
+    ShiftType? shift,
     Set<DateTime>? fastingDays,
     int? hijriOffsetDays,
     int? fastingEveHour,
@@ -116,6 +134,8 @@ class SchedulingConfig {
         notifyWird: notifyWird ?? this.notifyWird,
         notifyFasting: notifyFasting ?? this.notifyFasting,
         notifyWater: notifyWater ?? this.notifyWater,
+        notifyQiyam: notifyQiyam ?? this.notifyQiyam,
+        shift: shift ?? this.shift,
         fastingDays: fastingDays ?? this.fastingDays,
         hijriOffsetDays: hijriOffsetDays ?? this.hijriOffsetDays,
         fastingEveHour: fastingEveHour ?? this.fastingEveHour,
@@ -321,6 +341,31 @@ class RollingWindowScheduler {
           channel: channelWird,
           payload: 'quran',
         );
+      }
+
+      // قيام الليل, in the last third of the night that *starts* on this
+      // date — so it needs tomorrow's fajr as well as tonight's isha. Armed
+      // across the full window like the adhan rather than the short one: it
+      // is a standing invitation, not a question about something recent.
+      if (cfg.notifyQiyam) {
+        final tomorrow = DateTime(date.year, date.month, date.day + 1);
+        final at = qiyamTimeFor(
+          isha: times.isha,
+          fajrTomorrow: prayerTimes.forDate(tomorrow, cfg.geo).fajr,
+          shift: cfg.shift,
+        );
+        if (at != null) {
+          await _put(
+            date,
+            NotificationSlot.qiyam,
+            at,
+            now,
+            title: qiyamTitle,
+            body: qiyamBody,
+            channel: channelAthkar,
+            payload: 'qiyam',
+          );
+        }
       }
 
       // The evening before a sunnah fast, so the offer arrives while there is

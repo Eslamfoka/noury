@@ -70,6 +70,10 @@ enum NotificationSlot {
   waterAsr,
   waterMaghrib,
   waterIsha,
+
+  /// قيام الليل, in the last third of the night. Appended like the rest — the
+  /// 32nd slot, which is what the stride was widened to 64 for.
+  qiyam,
 }
 
 /// A notification's ID, derived purely from its date and slot.

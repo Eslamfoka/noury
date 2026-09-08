@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' show Value;
 import '../../core/notifications/rolling_window_scheduler.dart';
 import '../../core/time/geo_config.dart';
 import '../../core/time/location_service.dart';
+import '../planner/shift.dart';
 import '../../data/db/nouri_database.dart';
 
 /// Anything that can rebuild the alarm window.
@@ -147,6 +148,14 @@ class SettingsController {
       notifyWird: s.notifyWird,
       notifyFasting: s.notifyFasting,
       notifyWater: s.notifyWater,
+      notifyQiyam: s.notifyQiyam,
+      // Only قيام reads this: on a night shift the last third is duty time.
+      shift: switch (s.shiftType) {
+        'evening' => ShiftType.evening,
+        'night' => ShiftType.night,
+        'off' => ShiftType.off,
+        _ => ShiftType.morning,
+      },
       fastingDays: {for (final f in fasting) dayOf(f.date)},
       hijriOffsetDays: s.hijriOffsetDays,
     ));
@@ -266,6 +275,7 @@ class SettingsController {
       'wird' => SettingsRowsCompanion(notifyWird: Value(enabled)),
       'fasting' => SettingsRowsCompanion(notifyFasting: Value(enabled)),
       'water' => SettingsRowsCompanion(notifyWater: Value(enabled)),
+      'qiyam' => SettingsRowsCompanion(notifyQiyam: Value(enabled)),
       _ => throw ArgumentError('unknown channel: $channel'),
     };
     await db.settingsDao.update(companion);

@@ -70,6 +70,16 @@ class SettingsRows extends Table {
   /// entirely between fajr and maghrib on a day the user marks as fasting.
   BoolColumn get notifyWater => boolean().withDefault(const Constant(true))();
 
+  /// قيام الليل, in the last third of the night.
+  ///
+  /// **Off by default**, unlike every other religious reminder here. The
+  /// others arrive during waking hours; this one wakes the user at two in the
+  /// morning for a voluntary prayer, and that is not a thing an app should
+  /// opt anyone into. It is silent on a night shift whatever this says, since
+  /// the whole last third is duty time then.
+  BoolColumn get notifyQiyam =>
+      boolean().withDefault(const Constant(false))();
+
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
 

@@ -124,6 +124,23 @@ List<Widget> settingsSectionChildren(
             },
           ),
           SwitchRow(
+            key: const ValueKey('notify-qiyam'),
+            label: 'قيام الليل',
+            value: s.notifyQiyam,
+            onChanged: (v) async {
+              await controller.toggleChannel('qiyam', v);
+              ref.invalidate(settingsProvider);
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 2, bottom: 4),
+            child: Text(
+              'في الثلث الأخير من الليل. بيسكت لوحده في وردية الليل، '
+              'عشان الوقت ده كله دوام.',
+              style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
+            ),
+          ),
+          SwitchRow(
             key: const ValueKey('notify-fasting'),
             label: 'صيام الاتنين والخميس والأيام البيض',
             value: s.notifyFasting,

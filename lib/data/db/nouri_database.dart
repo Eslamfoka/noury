@@ -48,7 +48,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -106,6 +106,12 @@ class NouriDatabase extends _$NouriDatabase {
           // v8 adds knowledge time — the self-development pillar. Additive.
           if (from < 8) {
             await m.createTable(knowledgeLogs);
+          }
+
+          // v9 adds the قيام الليل toggle. Additive only, and it arrives off,
+          // which is also what an existing install gets.
+          if (from < 9) {
+            await m.addColumn(settingsRows, settingsRows.notifyQiyam);
           }
         },
       );
