@@ -74,6 +74,9 @@ enum NotificationSlot {
   /// قيام الليل, in the last third of the night. Appended like the rest — the
   /// 32nd slot, which is what the stride was widened to 64 for.
   qiyam,
+
+  /// One quiet line when a budget is running ahead of the month.
+  budgetNudge,
 }
 
 /// A notification's ID, derived purely from its date and slot.

@@ -3,8 +3,11 @@ import 'package:drift/drift.dart' show Value;
 import '../../core/notifications/rolling_window_scheduler.dart';
 import '../../core/time/geo_config.dart';
 import '../../core/time/location_service.dart';
-import '../planner/shift.dart';
 import '../../data/db/nouri_database.dart';
+import '../finance/budget_categories.dart';
+import '../finance/budget_nudge.dart';
+import '../finance/financial_month.dart';
+import '../planner/shift.dart';
 
 /// Anything that can rebuild the alarm window.
 ///
@@ -106,6 +109,17 @@ class SettingsController {
           _rearmAgain = false;
           await _rearmFromSettings();
         } while (_rearmAgain);
+      } catch (_) {
+        // Nobody awaits this any more, so a throw here would surface as an
+        // unhandled asynchronous error rather than reaching a caller. It can
+        // happen for ordinary reasons — the database closed underneath a
+        // re-arm still in flight, or the platform channel going away as the
+        // app is torn down — and the window is rebuilt from scratch on the
+        // next launch regardless, so losing this one costs nothing.
+        //
+        // Deliberately not silent about *scheduling* failures: those come
+        // back through NotificationStatus, which the settings panel reads
+        // live and states plainly.
       } finally {
         _rearming = null;
       }
@@ -135,6 +149,7 @@ class SettingsController {
       DateTime(today.year, today.month, today.day + 14),
     );
     await scheduler.rearm(SchedulingConfig(
+      budgetNote: await _budgetNote(today, s.financialMonthStartDay),
       geo: GeoConfig(
         latitude: s.latitude,
         longitude: s.longitude,
@@ -159,6 +174,34 @@ class SettingsController {
       fastingDays: {for (final f in fasting) dayOf(f.date)},
       hijriOffsetDays: s.hijriOffsetDays,
     ));
+  }
+
+  /// One quiet line about a budget running ahead of the month, or null.
+  ///
+  /// Read here rather than in the scheduler for the same reason the fasting
+  /// days are: the scheduler is pure and knows nothing about the database.
+  /// Budget state is not knowable ahead the way a prayer time is, so this is
+  /// the numbers as they stand right now — recomputed on every launch and
+  /// every settings change, which is when `rearm` runs.
+  Future<String?> _budgetNote(DateTime today, int startDay) async {
+    final month = FinancialMonth.containing(today, startDay: startDay);
+    final limits = await db.financeDao.budgetsFor(month.start);
+    if (limits.isEmpty) return null;
+
+    final spent = await db.financeDao.spendByCategory(month.start, month.end);
+
+    final statuses = <BudgetCategory, BudgetStatus>{};
+    for (final entry in limits.entries) {
+      final category = categoryFromName(entry.key);
+      if (category == null) continue;
+      statuses[category] = BudgetStatus(
+        limit: entry.value,
+        spent: spent[entry.key] ?? 0,
+        month: month,
+        now: today,
+      );
+    }
+    return budgetNudgeFor(statuses);
   }
 
   Future<void> updateLocation({

@@ -100,6 +100,7 @@ void main() {
   test('every channel can be toggled independently', () async {
     await controller.toggleChannel('adhan', false);
     await controller.toggleChannel('athkar', false);
+    await controller.pendingRearm;
     final s = await db.settingsDao.get();
     expect(s.notifyAdhan, isFalse);
     expect(s.notifyAthkar, isFalse);

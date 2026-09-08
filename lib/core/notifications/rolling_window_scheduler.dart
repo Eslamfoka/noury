@@ -1,4 +1,5 @@
 import '../../features/fasting/sunnah_fasting.dart';
+import '../../features/finance/budget_nudge.dart';
 import '../../features/planner/shift.dart';
 import '../../features/prayers/qiyam.dart';
 import '../../features/water/water_plan.dart';
@@ -38,6 +39,14 @@ const kWindowDays = 14;
 /// (14 x 14 core alarms + 3 x 11 follow-ups), well inside Android's ~500 cap.
 const kFollowUpWindowDays = 3;
 
+/// How many days the budget note is armed over.
+///
+/// Two. Budget state is not knowable ahead the way a prayer time is, so this
+/// is armed from the numbers as they stand at re-arm time. One day would miss
+/// anyone who opens Nouri after 20:00 — the slot would already have passed —
+/// and three would start showing figures old enough to be wrong.
+const kBudgetNudgeDays = 2;
+
 class SchedulingConfig {
   const SchedulingConfig({
     required this.geo,
@@ -50,6 +59,8 @@ class SchedulingConfig {
     this.notifyWater = true,
     this.notifyQiyam = false,
     this.shift = ShiftType.morning,
+    this.budgetNote,
+    this.budgetNudgeHour = kBudgetNudgeHour,
     this.fastingDays = const {},
     this.hijriOffsetDays = 0,
     this.fastingEveHour = 20,
@@ -77,6 +88,17 @@ class SchedulingConfig {
   /// **Off unless the user turns it on.** Waking someone at two in the morning
   /// for a voluntary prayer is not something an app should decide for them.
   final bool notifyQiyam;
+
+  /// One quiet line about a budget running ahead of the month, or null when
+  /// there is nothing to say — which is most days.
+  ///
+  /// Passed in already worded rather than computed here, for the same reason
+  /// `fastingDays` is: the scheduler stays pure and knows nothing about the
+  /// database. `budgetNudgeFor` decides whether there is anything to say.
+  final String? budgetNote;
+
+  /// The hour the budget note arrives.
+  final int budgetNudgeHour;
 
   /// The shift the user is currently on.
   ///
@@ -117,6 +139,8 @@ class SchedulingConfig {
     bool? notifyWater,
     bool? notifyQiyam,
     ShiftType? shift,
+    String? budgetNote,
+    int? budgetNudgeHour,
     Set<DateTime>? fastingDays,
     int? hijriOffsetDays,
     int? fastingEveHour,
@@ -136,6 +160,8 @@ class SchedulingConfig {
         notifyWater: notifyWater ?? this.notifyWater,
         notifyQiyam: notifyQiyam ?? this.notifyQiyam,
         shift: shift ?? this.shift,
+        budgetNote: budgetNote ?? this.budgetNote,
+        budgetNudgeHour: budgetNudgeHour ?? this.budgetNudgeHour,
         fastingDays: fastingDays ?? this.fastingDays,
         hijriOffsetDays: hijriOffsetDays ?? this.hijriOffsetDays,
         fastingEveHour: fastingEveHour ?? this.fastingEveHour,
@@ -430,6 +456,27 @@ class RollingWindowScheduler {
             payload: 'water',
           );
         }
+      }
+
+      // A quiet line about a budget running ahead of the month.
+      //
+      // Unlike the adhan, budget state is not knowable a fortnight ahead — it
+      // depends on what gets spent — so this is armed over two days only, from
+      // the numbers as they stand at re-arm time. Today alone would miss
+      // anyone who opens Nouri in the evening, since the 20:00 slot would
+      // already have passed; three days would start putting stale figures in
+      // front of the user. Every launch re-arms and overwrites both.
+      if (cfg.budgetNote != null && i < kBudgetNudgeDays) {
+        await _put(
+          date,
+          NotificationSlot.budgetNudge,
+          _at(date, cfg.budgetNudgeHour),
+          now,
+          title: 'الميزانية',
+          body: cfg.budgetNote!,
+          channel: channelGeneral,
+          payload: 'finance',
+        );
       }
 
       // The end-of-day review. Worded so it reads correctly whether or not
