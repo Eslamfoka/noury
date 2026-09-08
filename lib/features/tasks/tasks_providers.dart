@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../body/log_meal_sheet.dart';
 import '../home/home_providers.dart';
+import '../shell/app_shell.dart';
 import '../steps/walk_screen.dart';
 import '../workouts/workout_screen.dart';
 import 'snooze_store.dart';
@@ -75,10 +76,10 @@ Future<void> openTaskScreen(
     case 'first-meal' || 'last-meal':
       await showLogMealSheet(context, ref);
     default:
-      // Everything else is logged on a card that already lives on Home or in
-      // الأذكار. Sending the user to a screen that cannot record the thing
-      // would be worse than leaving them here, so this does nothing rather
-      // than pretending.
-      break;
+      // Everything else is logged on a card that already lives on another tab
+      // — the wird and knowledge time on النهاردة, the tasbeeh and the athkar
+      // on الأذكار. This used to do nothing at all, which made eight of the
+      // eleven rows a dead tap.
+      ref.read(requestedTabProvider.notifier).request(tabForTaskId(taskId));
   }
 }

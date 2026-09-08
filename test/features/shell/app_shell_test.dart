@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/theme/nouri_colors.dart';
 import 'package:nouri/features/shell/app_shell.dart';
@@ -112,6 +113,57 @@ void main() {
       final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(bar.selectedIndex, 1);
       expect(find.text('قريباً إن شاء الله'), findsNothing);
+    });
+  });
+
+  testWidgets('tapping a task in المهام lands on the tab that can log it',
+      (tester) async {
+    // Eight of the eleven rows used to be a dead tap: most tasks are logged
+    // on a card that lives on another tab, and a screen inside the
+    // IndexedStack cannot reach the shell's own state.
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('المهام'),
+      ));
+      await tester.pumpAndSettle();
+
+      final tasbeeh = find.byKey(const ValueKey('task-card-tasbeeh'));
+      if (tasbeeh.evaluate().isEmpty) return; // not in today's plan
+      await tester.tap(tasbeeh);
+      await tester.pumpAndSettle();
+
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 2, reason: 'التسبيح is logged in الأذكار');
+    });
+  });
+
+  testWidgets('a requested tab is acted on once, then forgotten',
+      (tester) async {
+    // Cleared as soon as it is drained; otherwise every later rebuild would
+    // jump the app back to that tab.
+    await withLargeSurface(tester, () async {
+      final db = inMemoryDatabase(tester);
+      late WidgetRef captured;
+      await tester.pumpWidget(testApp(
+        db: db,
+        child: Consumer(builder: (context, ref, _) {
+          captured = ref;
+          return const AppShell();
+        }),
+      ));
+      await tester.pumpAndSettle();
+
+      captured.read(requestedTabProvider.notifier).request(4);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        4,
+      );
+      expect(captured.read(requestedTabProvider), isNull,
+          reason: 'a request left standing would re-fire on every rebuild');
     });
   });
 

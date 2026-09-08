@@ -148,6 +148,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (next != null) _drain();
     });
 
+    // A tab switch asked for from inside another tab — see
+    // [requestedTabProvider]. Cleared immediately so a rebuild cannot repeat
+    // it, and guarded on `mounted` because the notifier fires outside build.
+    ref.listen(requestedTabProvider, (_, next) {
+      if (next == null || !mounted) return;
+      setState(() => _index = next);
+      ref.read(requestedTabProvider.notifier).clear();
+    });
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -241,6 +250,31 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
+
+/// A request to switch tabs, from a screen that is not the shell.
+///
+/// المهام needs it: most of its tasks are logged on a card that lives on
+/// another tab — the wird and knowledge time on النهاردة, the tasbeeh and the
+/// athkar on الأذكار — and a screen inside the `IndexedStack` cannot reach the
+/// shell's own state. Set it and the shell moves, then clears it.
+///
+/// Null means "nothing pending". It is cleared as soon as it is acted on, so
+/// a rebuild cannot make the app jump tabs a second time.
+///
+/// Same shape as [NotificationRouteQueue]: a queue of one, drained by the
+/// shell. Riverpod 3 has no `StateProvider`, and a Notifier is the clearer
+/// thing anyway — «request» and «clear» say what they do.
+class RequestedTab extends Notifier<int?> {
+  @override
+  int? build() => null;
+
+  void request(int tab) => state = tab;
+
+  void clear() => state = null;
+}
+
+final requestedTabProvider =
+    NotifierProvider<RequestedTab, int?>(RequestedTab.new);
 
 /// Which tab a planned task is done on.
 ///
