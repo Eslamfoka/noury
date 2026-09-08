@@ -315,9 +315,23 @@ class SettingsController {
 
   /// Does **not** rearm: the shift shapes the planned day, not the alarms.
   /// Prayer times come from the sun, and they do not care what shift it is.
-  Future<void> updateShift(String shiftType) => db.settingsDao.update(
-        SettingsRowsCompanion(shiftType: Value(shiftType)),
-      );
+  /// Sets today's duty pattern, and **rearms**.
+  ///
+  /// It did not use to: the shift decided how the day was *planned* and no
+  /// alarm depended on it, so rebuilding the window would have been 262
+  /// platform-channel calls for nothing.
+  ///
+  /// قيام الليل changed that. It is silent on a night shift — the whole last
+  /// third is duty time — so switching off a night shift has to arm it and
+  /// switching on to one has to clear it. Measured on the emulator: without
+  /// this, moving from ليلي to صباحي left zero قيام alarms until the app was
+  /// next opened.
+  Future<void> updateShift(String shiftType) async {
+    await db.settingsDao.update(
+      SettingsRowsCompanion(shiftType: Value(shiftType)),
+    );
+    _requestRearm();
+  }
 
   /// Marks a day as a fast, and **rearms**.
   ///

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/rolling_window_scheduler.dart';
 import 'package:nouri/core/time/location_service.dart';
 import 'package:nouri/data/db/nouri_database.dart';
+import 'package:nouri/features/planner/shift.dart';
 import 'package:nouri/features/settings/settings_controller.dart';
 
 /// Records how often the window was rebuilt, and with what.
@@ -238,6 +239,32 @@ void main() {
       expect(result.latitude, closeTo(25.2048, 0.0001));
       expect((await db.settingsDao.get()).cityLabel, 'دبي');
       expect(scheduler.rearmCount, 0);
+    });
+  });
+
+  group('the shift', () {
+    test('changing it rebuilds the window', () async {
+      // It did not use to, and that was right while no alarm depended on the
+      // shift. قيام الليل does: it is silent on a night shift, so switching
+      // off one has to arm it and switching to one has to clear it.
+      //
+      // Measured on the emulator before this: moving from ليلي to صباحي left
+      // zero قيام alarms until the app was next opened.
+      await controller.updateShift('night');
+      await controller.pendingRearm;
+
+      expect(scheduler.rearmCount, greaterThanOrEqualTo(1));
+      expect(scheduler.last!.shift, ShiftType.night);
+    });
+
+    test('and the new shift is what reaches the scheduler', () async {
+      await controller.updateShift('night');
+      await controller.pendingRearm;
+      await controller.updateShift('morning');
+      await controller.pendingRearm;
+
+      expect(scheduler.last!.shift, ShiftType.morning);
+      expect((await db.settingsDao.get()).shiftType, 'morning');
     });
   });
 
