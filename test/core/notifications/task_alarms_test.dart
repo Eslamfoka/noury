@@ -165,6 +165,40 @@ void main() {
     });
   });
 
+  test('the ids a completed task silences are exactly the ids armed',
+      () async {
+    // The cross-check that matters. `silenceTaskAlarms` cancels
+    // taskAlarmId(date, id) and its ask twin; if those ever stopped matching
+    // what the scheduler arms, logging a meal would cancel nothing and the
+    // «كلت؟» would still arrive — silently, and only on a real device.
+    await scheduler.rearm(config);
+
+    final today = DateTime(now.year, now.month, now.day);
+    var checked = 0;
+
+    for (final taskId in ['walk', 'first-meal', 'tasbeeh']) {
+      final armed = gateway.scheduled
+          .where((n) => n.payload == 'task:$taskId' && n.when.day == now.day)
+          .toList();
+      if (armed.isEmpty) continue;
+      checked++;
+
+      expect(armed.single.id, taskAlarmId(today, taskId),
+          reason: '$taskId alert');
+
+      final ask = gateway.scheduled
+          .where((n) =>
+              n.payload == 'taskask:$taskId' && n.when.day == now.day)
+          .toList();
+      if (ask.isNotEmpty) {
+        expect(ask.single.id, taskAlarmId(today, taskId, ask: true),
+            reason: '$taskId ask');
+      }
+    }
+
+    expect(checked, greaterThan(0), reason: 'nothing was actually checked');
+  });
+
   test('a night shift produces its own arrangement, not the morning\'s',
       () async {
     await scheduler.rearm(config);

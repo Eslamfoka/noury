@@ -10,6 +10,7 @@ import '../home/home_providers.dart';
 import 'step_source.dart';
 import 'steps_providers.dart';
 import 'walk_session.dart';
+import '../tasks/task_done.dart';
 
 /// A walking session: pick a length, start, watch it count.
 ///
@@ -135,6 +136,8 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
     // Written even when short of the target. Twelve minutes of a thirty-minute
     // walk is real, and discarding it would be Nouri telling the user it did
     // not count.
+    await silenceTaskAlarms(ref, const ['walk']);
+
     await db.stepsDao.addSession(
       startedAt: _startedAt ?? DateTime.now(),
       seconds: _elapsed.inSeconds,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../home/home_providers.dart';
+import '../tasks/task_done.dart';
 import 'body_providers.dart';
 import 'meal.dart';
 
@@ -46,6 +47,13 @@ class _LogMealState extends State<_LogMeal> {
   }
 
   Future<void> _save(MealFeeling feeling) async {
+    // Both meal ids: which of the two this row answers depends on how many
+    // are already logged, and `completedTaskIdsFor` works that out on the next
+    // re-arm. Silencing both now is the safe direction — a missed question
+    // costs nothing, a redundant one is the nagging this exists to stop.
+    await silenceTaskAlarms(
+        widget.parentRef, const ['first-meal', 'last-meal']);
+
     await widget.parentRef.read(databaseProvider).bodyDao.addMeal(
           at: DateTime.now(),
           feeling: feeling,

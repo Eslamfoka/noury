@@ -8,6 +8,7 @@ import '../../data/db/nouri_database.dart';
 import '../home/home_providers.dart';
 import '../planner/daily_tasks.dart';
 import '../planner/shift.dart';
+import '../tasks/task_done.dart';
 
 /// The minimum the brief asks for: ten minutes a day.
 const kKnowledgeMinimumMinutes = 10;
@@ -208,6 +209,10 @@ class _LogKnowledgeState extends State<_LogKnowledge> {
     _saving = true;
 
     final db = widget.parentRef.read(databaseProvider);
+    // Read off the parent ref before the await, and silence today's reminder
+    // and its question: the log has just answered them.
+    await silenceTaskAlarms(widget.parentRef, knowledgeTaskIds);
+
     await db.knowledgeDao.add(
       date: DateTime.now(),
       kind: widget.kind,

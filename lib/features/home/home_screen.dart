@@ -27,6 +27,7 @@ import 'widgets/progress_ring.dart';
 import 'widgets/wird_grid.dart';
 import '../knowledge/knowledge_card.dart';
 import '../phone/phone_time_card.dart';
+import '../tasks/task_done.dart';
 
 /// Home / النهاردة.
 ///
@@ -215,6 +216,13 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _toggleWird(WidgetRef ref, int currentPages) async {
+    // Only on the way *up*. Clearing the wird should put the reminder back,
+    // not silence it — the same rule prayer logging follows when an entry is
+    // cleared.
+    if (currentPages == 0) {
+      await silenceTaskAlarms(ref, const ['quran-wird']);
+    }
+
     await ref.read(databaseProvider).quranDao.upsert(
           date: DateTime.now(),
           pages: currentPages > 0 ? 0 : kDailyWirdPages,

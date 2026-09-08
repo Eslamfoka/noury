@@ -7,6 +7,7 @@ import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../home/home_providers.dart';
+import '../tasks/task_done.dart';
 import 'exercise.dart';
 import 'exercise_animation.dart';
 import 'interval_timer.dart';
@@ -73,6 +74,8 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
 
     // A partial session is written too. Five exercises out of twenty is real,
     // and discarding it would be Nouri telling the user it did not count.
+    await silenceTaskAlarms(ref, const ['workout']);
+
     await db.workoutDao.addSession(
       startedAt: _startedAt ?? DateTime.now(),
       routineId: t.routine.id,

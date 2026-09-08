@@ -7,6 +7,7 @@ import '../../core/theme/nouri_theme.dart';
 import '../../data/athkar/athkar_item.dart';
 import '../../data/athkar/athkar_repository.dart';
 import '../home/home_providers.dart';
+import '../tasks/task_done.dart';
 import '../shared/nouri_avatar.dart';
 import 'athkar_controller.dart';
 import 'tasbeeh_controller.dart';
@@ -165,6 +166,12 @@ class _TasbeehTabState extends ConsumerState<_TasbeehTab> {
   }
 
   Future<void> _persist() async {
+    // Once the target is reached the tasbeeh is done, so its reminder and its
+    // question have been answered.
+    if (_controller.count >= _controller.target) {
+      await silenceTaskAlarms(ref, const ['tasbeeh']);
+    }
+
     await ref
         .read(databaseProvider)
         .athkarDao
