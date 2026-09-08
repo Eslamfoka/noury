@@ -1,20 +1,63 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/notification_slot.dart';
 
+import '../../support/fake_notification_gateway.dart';
+
 void main() {
   test('there are fewer slots than the per-day stride', () {
     // The single most consequential invariant in the ID scheme. IDs are
     // `daysSince2020 * kSlotsPerDay + slot.index`, so one slot too many makes
     // the last slot of one day collide with the first slot of the next —
     // silently, and only for whoever's alarm gets overwritten.
-    //
-    // There are 31 slots against a stride of 32. **There is one left.** Adding
-    // two more means raising kSlotsPerDay, and that renumbers every alarm
-    // already sitting on a device, so it needs a deliberate re-arm rather than
-    // a quiet bump.
     expect(NotificationSlot.values.length, lessThan(kSlotsPerDay),
         reason: 'raise kSlotsPerDay deliberately, and re-arm — see the note '
             'on the enum');
+  });
+
+  test('a re-arm clears alarms it could never have numbered itself', () {
+    // The orphan question, asked out loud, because this is what makes raising
+    // kSlotsPerDay safe rather than merely survivable.
+    //
+    // Widening the stride renumbers every future alarm: what was
+    // `days * 32 + slot` becomes `days * 64 + slot`. Alarms already sitting in
+    // AlarmManager under the old numbering would be unreachable if clearing
+    // the window worked by *recomputing* IDs — the app would never name them
+    // again, so it could never cancel them, and they would go on firing.
+    //
+    // It does not work that way. `cancelAllBelow` enumerates what is actually
+    // pending and cancels everything under the ceiling, whatever its number.
+    // So the first re-arm after the upgrade — which happens on the next launch
+    // — finds the old-stride alarms and removes them.
+    final gateway = FakeNotificationGateway();
+
+    // An ID from the old stride of 32 that no current slot can produce.
+    const orphan = 78000 * 32 + 7;
+    // And a reminder, which lives above the base and must survive.
+    const reminder = kOutOfWindowIdBase + 1;
+    for (final id in [orphan, reminder]) {
+      gateway.schedule(ScheduledNotification(
+        id: id,
+        slot: NotificationSlot.adhanFajr,
+        when: DateTime(2026, 9, 9),
+        title: 't',
+        body: 'b',
+        channelId: 'adhan_v2',
+      ));
+    }
+
+    gateway.cancelAllBelow(kOutOfWindowIdBase);
+
+    expect(gateway.scheduled.map((n) => n.id), [reminder],
+        reason: 'the orphan goes, the reminder stays');
+  });
+
+  test('the widened stride still does not reach the reminder base', () {
+    // IDs climb ~23,400 a year at a stride of 64. The reminder floor is
+    // 900,000,000, which this does not approach for tens of thousands of
+    // years — but state the property rather than trusting the arithmetic.
+    final far = notificationIdFor(
+        DateTime(2100, 1, 1), NotificationSlot.values.last);
+    expect(far, lessThan(kOutOfWindowIdBase));
   });
 
   test('IDs are unique across a full year and every slot', () {

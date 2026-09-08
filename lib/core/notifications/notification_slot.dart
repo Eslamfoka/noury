@@ -1,9 +1,21 @@
 /// Stride between days in the ID space.
 ///
 /// Must exceed the slot count so `day * stride + slot` can never collide.
-/// There is deliberate headroom: adding a slot later must not renumber the
-/// alarms already scheduled on the user's device.
-const kSlotsPerDay = 32;
+///
+/// **Raised from 32 to 64 on 8 September 2026**, when the slot list stood at
+/// 31 of 32 and قيام الليل still had to fit. Widening it renumbers every
+/// future alarm — `days * 32 + slot` becomes `days * 64 + slot` — which is
+/// safe here for one specific reason, and only that reason:
+///
+/// `LocalNotificationGateway.cancelAllBelow` does not recompute the IDs it
+/// cancels. It reads `pendingNotificationRequests()` from the plugin and
+/// cancels every pending alarm below the ceiling, whatever its number. So the
+/// first re-arm after the upgrade — which happens on the next launch — finds
+/// the old-stride alarms and removes them. Nothing is orphaned.
+///
+/// `notification_slot_test` states that property directly. Do not widen this
+/// again without checking it still holds.
+const kSlotsPerDay = 64;
 
 /// The ID epoch.
 ///
@@ -50,11 +62,9 @@ enum NotificationSlot {
   fastingEve,
 
   /// A nudge to drink, shortly after each prayer. Five more, taking the count
-  /// to 31 — the last that fits under kSlotsPerDay = 32.
-  ///
-  /// **The slot space is now full.** Anything further needs kSlotsPerDay
-  /// raised, and raising it renumbers every alarm already on the device — so
-  /// it has to be done deliberately, with a re-arm, not as a side effect.
+  /// to 31 — which filled kSlotsPerDay when it was 32. The stride was widened
+  /// to 64 rather than these being dropped; see the note on kSlotsPerDay for
+  /// why that does not orphan anything.
   waterFajr,
   waterDhuhr,
   waterAsr,
