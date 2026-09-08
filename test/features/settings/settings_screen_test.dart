@@ -4,6 +4,8 @@ import 'package:nouri/core/notifications/notification_status.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 import 'package:nouri/features/settings/notification_status_panel.dart';
 import 'package:nouri/features/settings/settings_screen.dart';
+import 'package:nouri/features/settings/settings_section_screen.dart';
+import 'package:nouri/features/settings/settings_sections.dart';
 
 import '../../support/harness.dart';
 
@@ -132,6 +134,20 @@ void main() {
       await t.pumpAndSettle();
     }
 
+    /// Opens one section from the index.
+    ///
+    /// الإعدادات is a menu now: every control lives one page in. Tests that
+    /// exercise a control go through here, which is also what a user does.
+    Future<void> openSection(WidgetTester t, SettingsSection section) async {
+      final row = find.byKey(ValueKey('settings-section-${section.name}'));
+      await t.scrollUntilVisible(row, 300,
+          scrollable: find.byType(Scrollable).first);
+      await t.ensureVisible(row);
+      await t.pumpAndSettle();
+      await t.tap(row);
+      await t.pumpAndSettle();
+    }
+
     /// Brings [target] fully into view.
     ///
     /// scrollUntilVisible stops as soon as the target is *built*, and a lazy
@@ -149,24 +165,84 @@ void main() {
       await t.pumpAndSettle();
     }
 
-    testWidgets('renders every section', (t) async {
+    testWidgets('opens as a list of sections, not as every control at once',
+        (t) async {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
 
-        expect(find.text('الإشعارات'), findsOneWidget);
-        expect(find.text('الدوام'), findsOneWidget);
-        expect(find.text('البدن والمشي'), findsOneWidget);
+        for (final section in SettingsSection.values) {
+          expect(find.text(section.title), findsOneWidget, reason: section.name);
+        }
 
-        // Below the fold now that الدوام sits above them.
-        await scrollTo(t, find.text('مواقيت الصلاة'));
-        expect(find.text('مواقيت الصلاة'), findsOneWidget);
-        await scrollTo(t, find.text('فرق وقت الإقامة'));
-        expect(find.text('فرق وقت الإقامة'), findsOneWidget);
+        // A control from inside a section is not on the index.
+        expect(find.text('فرق التاريخ الهجري'), findsNothing);
+        expect(find.text('هدف التسبيح'), findsNothing);
+        expect(find.byType(Switch), findsNothing,
+            reason: 'no notification switch on the way in');
+      });
+    });
 
-        // Below the fold now that البدن والمشي sits above it.
-        await scrollTo(t, find.text('الورد'));
-        expect(find.text('الورد'), findsOneWidget);
+    // One test per section rather than a loop inside one test: each needs its
+    // own database and its own navigator, and reusing a tree across iterations
+    // leaves the previous section still pushed on top.
+    for (final section in SettingsSection.values) {
+      testWidgets('${section.title} opens, and does not open empty',
+          (t) async {
+        await withLargeSurface(t, () async {
+          db = inMemoryDatabase(t);
+          await pumpSettings(t);
+          await openSection(t, section);
+
+          expect(find.byType(SettingsSectionScreen), findsOneWidget);
+          expect(
+            find.descendant(
+              of: find.byType(SettingsSectionScreen),
+              matching: find.byType(Text),
+            ),
+            findsWidgets,
+            reason: '${section.title} opened with nothing in it',
+          );
+        });
+      });
+    }
+
+    testWidgets('a section holds its own controls and no others', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+        await openSection(t, SettingsSection.iqamaOffsets);
+
+        expect(find.text('الفجر'), findsOneWidget);
+        expect(find.text('العشاء'), findsOneWidget);
+        expect(find.text('هدف التسبيح'), findsNothing,
+            reason: 'الورد is a different page');
+      });
+    });
+
+    testWidgets('one tap on the plus moves the iqama offset once, by five',
+        (t) async {
+      // The reported bug, at the level the user meets it. The controller test
+      // covers the concurrency; this one covers the wiring, so a later
+      // refactor cannot quietly reconnect the button to an absolute setter.
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+        await openSection(t, SettingsSection.iqamaOffsets);
+
+        final before =
+            decodeIqamaOffsets((await db.settingsDao.get()).iqamaOffsetsJson);
+
+        final row = find.byKey(const ValueKey('iqama-dhuhr'));
+        await scrollTo(t, row);
+        await t.tap(find.descendant(of: row, matching: find.byIcon(Icons.add)));
+        await t.pumpAndSettle();
+
+        final after =
+            decodeIqamaOffsets((await db.settingsDao.get()).iqamaOffsetsJson);
+        expect(after['dhuhr'], before['dhuhr']! + 5);
+        expect(after['fajr'], before['fajr'],
+            reason: 'the other prayers are untouched');
       });
     });
 
@@ -174,6 +250,7 @@ void main() {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
+        await openSection(t, SettingsSection.duty);
 
         expect((await db.settingsDao.get()).shiftType, 'morning');
 
@@ -189,6 +266,7 @@ void main() {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
+        await openSection(t, SettingsSection.duty);
         for (final k in ['morning', 'evening', 'night', 'off']) {
           expect(find.byKey(ValueKey('shift-$k')), findsOneWidget, reason: k);
         }
@@ -199,6 +277,7 @@ void main() {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
+        await openSection(t, SettingsSection.prayerTimes);
         expect(find.text('الكويت'), findsWidgets);
         expect(find.text('شافعي'), findsOneWidget);
       });
@@ -209,23 +288,20 @@ void main() {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
-        await t.scrollUntilVisible(
-          find.text('عن نوري'),
-          400,
-          scrollable: find.byType(Scrollable).first,
-        );
+        await openSection(t, SettingsSection.about);
         expect(find.textContaining('من الفجر للعشاء'), findsOneWidget);
         expect(find.textContaining('الديني والبدني والمالي'), findsOneWidget,
             reason: 'the three pillars are named where identity lives');
       });
     });
 
-    testWidgets('states the privacy position plainly', (t) async {
+    testWidgets('states the privacy position plainly, on the way in',
+        (t) async {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
-        // The privacy note lives at the bottom of a lazily-built ListView, so
-        // it has to be scrolled into existence before it can be found.
+        // It stays on the index: it is a statement about the whole app rather
+        // than about any one setting, so it should not need a tap to find.
         await t.scrollUntilVisible(
           find.textContaining('على الجهاز ده بس'),
           400,
@@ -235,16 +311,28 @@ void main() {
       });
     });
 
+    testWidgets('the notification panel stays on the index, not two taps deep',
+        (t) async {
+      // An ungranted permission means the adhan does not fire. That warning
+      // belongs where it is seen on the way in.
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+        expect(find.byType(NotificationStatusPanel), findsOneWidget);
+      });
+    });
+
     testWidgets('raising the tasbeeh target persists it', (t) async {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
+        await openSection(t, SettingsSection.wird);
 
-        await scrollTo(t, find.text('الورد'));
         expect(find.text('١٠٠'), findsWidgets);
 
-        await scrollTo(t, find.byIcon(Icons.add).last);
-        await t.tap(find.byIcon(Icons.add).last);
+        final row = find.byKey(const ValueKey('tasbeeh-target'));
+        await scrollTo(t, row);
+        await t.tap(find.descendant(of: row, matching: find.byIcon(Icons.add)));
         await t.pumpAndSettle();
 
         expect((await db.settingsDao.get()).tasbeehTarget, 133);
@@ -255,6 +343,7 @@ void main() {
       await withLargeSurface(t, () async {
         db = inMemoryDatabase(t);
         await pumpSettings(t);
+        await openSection(t, SettingsSection.notifications);
 
         await t.tap(find.byType(Switch).first);
         await t.pumpAndSettle();
