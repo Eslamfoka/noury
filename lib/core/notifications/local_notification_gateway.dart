@@ -4,6 +4,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'notification_channels.dart';
 import 'notification_gateway.dart';
 import 'notification_slot.dart';
+import 'snooze.dart';
 import 'notification_status.dart';
 
 /// The real Android implementation.
@@ -71,30 +72,56 @@ class LocalNotificationGateway implements NotificationGateway {
         notificationDetails: NotificationDetails(
           android: androidDetailsFor(
             n.channelId,
-            // Only the follow-up gets an action: logging the prayer straight
-            // from the shade, without opening the app.
-            actions: (n.payload?.startsWith('log:') ?? false)
-                ? const <AndroidNotificationAction>[
-                    // Opens the app on the log sheet for this prayer.
-                    //
-                    // It was `showsUserInterface: false`, meaning to write the
-                    // log straight from the shade — but that routes the tap to
-                    // a background isolate, and no background handler was ever
-                    // registered, so the button did nothing at all. Opening the
-                    // app is the honest version: one extra tap, and it also
-                    // lets the user say *how* they prayed rather than guessing
-                    // a quality on their behalf.
-                    AndroidNotificationAction(
-                      actionLogged,
-                      'صليت',
-                      showsUserInterface: true,
-                      cancelNotification: true,
-                    ),
-                  ]
-                : null,
+            actions: _actionsFor(n),
           ),
         ),
       );
+
+  /// The buttons on a notification.
+  ///
+  /// Two shapes, and the difference matters. The prayer follow-up's «صليت»
+  /// **opens the app**, because logging a prayer means saying *how* it was
+  /// prayed and Nouri will not guess that. The task alert's snooze
+  /// **must not**: being dragged into a screen is the opposite of putting
+  /// something off, so it is handled in a background isolate.
+  static List<AndroidNotificationAction>? _actionsFor(
+      ScheduledNotification n) {
+    final payload = n.payload;
+    if (payload == null) return null;
+
+    if (payload.startsWith('task:')) {
+      return const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          actionSnooze,
+          'فكّرني بعد ٥ دقايق',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ];
+    }
+
+    if (payload.startsWith('log:')) {
+      return const <AndroidNotificationAction>[
+        // Only the follow-up gets this one: logging the prayer straight
+        // from the shade, without opening the app.
+        //
+        // It was once `showsUserInterface: false`, meaning to write the log
+        // straight from the shade — but that routes the tap to a background
+        // isolate, and no handler was registered, so the button did nothing
+        // at all. Opening the app is the honest version here: one extra tap,
+        // and it lets the user say *how* they prayed rather than having a
+        // quality guessed on their behalf.
+        AndroidNotificationAction(
+          actionLogged,
+          'صليت',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ];
+    }
+
+    return null;
+  }
 
   @override
   Future<void> cancel(int id) => _plugin.cancel(id: id);

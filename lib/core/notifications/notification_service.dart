@@ -47,12 +47,23 @@ class NotificationService {
 
   Future<void> init({
     DidReceiveNotificationResponseCallback? onResponse,
+    DidReceiveBackgroundNotificationResponseCallback? onBackgroundResponse,
   }) async {
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: onResponse,
+      // **The half that was missing.** An action declared with
+      // `showsUserInterface: false` is delivered to a *background isolate*,
+      // not to the running app — and with no handler registered here, the tap
+      // goes nowhere at all. That is exactly what happened to the «صليت»
+      // action, which was silently dead until it was changed to open the app.
+      //
+      // «فكّرني بعد ٥ دقايق» must not open the app — being dragged into a
+      // screen is the opposite of putting something off — so this time the
+      // handler is registered.
+      onDidReceiveBackgroundNotificationResponse: onBackgroundResponse,
     );
 
     // Delete superseded channels before creating the current ones, so the

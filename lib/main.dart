@@ -11,8 +11,10 @@ import 'core/notifications/notification_route.dart';
 import 'features/reminders/reminder_providers.dart';
 import 'features/reminders/reminder_scheduler.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/notifications/notification_status.dart';
 import 'core/notifications/pending_route_provider.dart';
 import 'core/notifications/rolling_window_scheduler.dart';
+import 'core/notifications/snooze.dart';
 import 'core/notifications/scheduling_config_from_db.dart';
 import 'core/time/location_service.dart';
 import 'core/time/prayer_times_service.dart';
@@ -79,8 +81,17 @@ Future<void> main() async {
     await _phase(
       'pluginInit',
       () => notifications.init(
-        onResponse: (response) =>
-            deliver(NotificationRoute.parse(response.payload)),
+        onResponse: (response) {
+          // «فكّرني بعد ٥ دقايق» pressed while the app happens to be running.
+          // Android delivers it here rather than to the background isolate,
+          // so both paths have to do the same thing.
+          if (response.actionId == actionSnooze) {
+            unawaited(snoozeFromResponse(response.payload));
+            return;
+          }
+          deliver(NotificationRoute.parse(response.payload));
+        },
+        onBackgroundResponse: onNotificationActionInBackground,
       ),
     );
   } catch (e) {
@@ -166,6 +177,9 @@ Future<void> _warmUpInBackground({
 
     final status = await _phase('readStatus', notifications.readStatus);
     final gateway = LocalNotificationGateway(plugin, mode: status.mode);
+    // So a snooze pressed while the app happens to be running reuses the
+    // gateway that already exists, rather than silently doing nothing.
+    _snoozeGateway = gateway;
     final scheduler = RollingWindowScheduler(
       gateway: gateway,
       prayerTimes: const PrayerTimesService(),
@@ -225,3 +239,79 @@ Future<void> _armWindow(NouriDatabase db, RollingWindowScheduler s) async {
   // alarms on the emulator, not by a test.
   await s.rearm(await schedulingConfigFromDb(db));
 }
+
+
+/// Handles a notification action pressed while Nouri is **not** running.
+///
+/// A top-level function with `@pragma('vm:entry-point')` because Android
+/// starts a fresh Dart isolate for this.
+///
+/// **This is the half that was missing before.** An action declared with
+/// `showsUserInterface: false` is delivered *only* here, and the «صليت»
+/// action was written that way with no handler registered — so it did nothing
+/// at all until it was changed to open the app. «فكّرني بعد ٥ دقايق» must not
+/// open the app, so this time the handler exists.
+@pragma('vm:entry-point')
+Future<void> onNotificationActionInBackground(
+  NotificationResponse response,
+) async {
+  if (response.actionId != actionSnooze) return;
+  final taskId = taskIdFromPayload(response.payload);
+  if (taskId == null) return;
+  await _scheduleSnooze(taskId);
+}
+
+/// A snooze pressed while the app **is** running.
+///
+/// Android delivers an action to the foreground callback when the app is
+/// alive and to the background isolate when it is not, so both paths have to
+/// work. This one reuses the gateway that already exists; before it does,
+/// [_scheduleSnooze] falls back to building its own, because a snooze that
+/// quietly did nothing during a cold start would be the same silent failure
+/// this whole change exists to fix.
+Future<void> snoozeFromResponse(String? payload) async {
+  final taskId = taskIdFromPayload(payload);
+  if (taskId == null) return;
+  await _scheduleSnooze(taskId, via: _snoozeGateway);
+}
+
+/// Puts one task off by five minutes.
+///
+/// Deliberately does almost nothing else: read the id, schedule one
+/// notification, stop. When this runs in the background isolate there are no
+/// providers, no database and no plugin instance — nothing from `main()`
+/// exists — so everything it needs, it builds. A background isolate is the
+/// worst place to open a database, and a snooze needs none.
+Future<void> _scheduleSnooze(String taskId, {NotificationGateway? via}) async {
+  final n = snoozedNotification(taskId: taskId, from: DateTime.now());
+  if (n == null) return;
+
+  try {
+    if (via != null) {
+      await via.schedule(n);
+      return;
+    }
+
+    // The isolate has no timezone database of its own, and scheduling without
+    // one would compute the instant against UTC.
+    await NotificationService.initTimezone();
+
+    final plugin = FlutterLocalNotificationsPlugin();
+    await plugin.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+    );
+    await LocalNotificationGateway(plugin, mode: NotificationMode.exact)
+        .schedule(n);
+  } catch (e) {
+    // A snooze that cannot be scheduled is a lost five minutes, not a crash.
+    // Throwing out of a background isolate surfaces as an opaque platform
+    // error the user could do nothing with.
+    debugPrint('Nouri: snooze failed: $e');
+  }
+}
+
+/// Set once the real gateway exists, so a foreground snooze reuses it rather
+/// than building a second plugin instance.
+NotificationGateway? _snoozeGateway;
