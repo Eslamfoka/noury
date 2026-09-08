@@ -13,7 +13,7 @@ import 'features/reminders/reminder_scheduler.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/notifications/pending_route_provider.dart';
 import 'core/notifications/rolling_window_scheduler.dart';
-import 'core/time/geo_config.dart';
+import 'core/notifications/scheduling_config_from_db.dart';
 import 'core/time/location_service.dart';
 import 'core/time/prayer_times_service.dart';
 import 'data/db/nouri_database.dart';
@@ -217,27 +217,11 @@ Future<void> _armReminders(
 /// the boot receiver in the manifest and the scheduler's own idempotence,
 /// which makes re-arming safe to repeat.
 Future<void> _armWindow(NouriDatabase db, RollingWindowScheduler s) async {
-  final settings = await db.settingsDao.get();
-  final today = DateTime.now();
-  final fasting = await db.waterDao.fastingBetween(
-    today,
-    DateTime(today.year, today.month, today.day + 14),
-  );
-  await s.rearm(SchedulingConfig(
-    geo: GeoConfig(
-      latitude: settings.latitude,
-      longitude: settings.longitude,
-      method: settings.calculationMethod,
-      madhab: settings.madhab,
-    ),
-    iqamaOffsets: decodeIqamaOffsets(settings.iqamaOffsetsJson),
-    notifyAdhan: settings.notifyAdhan,
-    notifyIqama: settings.notifyIqama,
-    notifyAthkar: settings.notifyAthkar,
-    notifyWird: settings.notifyWird,
-    notifyFasting: settings.notifyFasting,
-    notifyWater: settings.notifyWater,
-    fastingDays: {for (final f in fasting) dayOf(f.date)},
-    hijriOffsetDays: settings.hijriOffsetDays,
-  ));
+  // The config comes from one shared builder. It used to be assembled here
+  // *and* in SettingsController, and the two drifted: قيام الليل and the
+  // budget note reached the settings path only, so this launch re-arm
+  // rebuilt the window without them — overwriting what a settings change had
+  // just armed, and leaving قيام with no alarm at all. Found by counting
+  // alarms on the emulator, not by a test.
+  await s.rearm(await schedulingConfigFromDb(db));
 }

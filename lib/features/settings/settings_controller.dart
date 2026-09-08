@@ -1,13 +1,9 @@
 import 'package:drift/drift.dart' show Value;
 
 import '../../core/notifications/rolling_window_scheduler.dart';
-import '../../core/time/geo_config.dart';
+import '../../core/notifications/scheduling_config_from_db.dart';
 import '../../core/time/location_service.dart';
 import '../../data/db/nouri_database.dart';
-import '../finance/budget_categories.dart';
-import '../finance/budget_nudge.dart';
-import '../finance/financial_month.dart';
-import '../planner/shift.dart';
 
 /// Anything that can rebuild the alarm window.
 ///
@@ -138,70 +134,11 @@ class SettingsController {
   }
 
   Future<void> _rearmFromSettings() async {
-    final s = await db.settingsDao.get();
-
-    // The days the user has said they are fasting, over the window the water
-    // reminders actually cover. Read here rather than in the scheduler so the
-    // scheduler stays pure.
-    final today = DateTime.now();
-    final fasting = await db.waterDao.fastingBetween(
-      today,
-      DateTime(today.year, today.month, today.day + 14),
-    );
-    await scheduler.rearm(SchedulingConfig(
-      budgetNote: await _budgetNote(today, s.financialMonthStartDay),
-      geo: GeoConfig(
-        latitude: s.latitude,
-        longitude: s.longitude,
-        method: s.calculationMethod,
-        madhab: s.madhab,
-      ),
-      iqamaOffsets: decodeIqamaOffsets(s.iqamaOffsetsJson),
-      notifyAdhan: s.notifyAdhan,
-      notifyIqama: s.notifyIqama,
-      notifyAthkar: s.notifyAthkar,
-      notifyWird: s.notifyWird,
-      notifyFasting: s.notifyFasting,
-      notifyWater: s.notifyWater,
-      notifyQiyam: s.notifyQiyam,
-      // Only قيام reads this: on a night shift the last third is duty time.
-      shift: switch (s.shiftType) {
-        'evening' => ShiftType.evening,
-        'night' => ShiftType.night,
-        'off' => ShiftType.off,
-        _ => ShiftType.morning,
-      },
-      fastingDays: {for (final f in fasting) dayOf(f.date)},
-      hijriOffsetDays: s.hijriOffsetDays,
-    ));
-  }
-
-  /// One quiet line about a budget running ahead of the month, or null.
-  ///
-  /// Read here rather than in the scheduler for the same reason the fasting
-  /// days are: the scheduler is pure and knows nothing about the database.
-  /// Budget state is not knowable ahead the way a prayer time is, so this is
-  /// the numbers as they stand right now — recomputed on every launch and
-  /// every settings change, which is when `rearm` runs.
-  Future<String?> _budgetNote(DateTime today, int startDay) async {
-    final month = FinancialMonth.containing(today, startDay: startDay);
-    final limits = await db.financeDao.budgetsFor(month.start);
-    if (limits.isEmpty) return null;
-
-    final spent = await db.financeDao.spendByCategory(month.start, month.end);
-
-    final statuses = <BudgetCategory, BudgetStatus>{};
-    for (final entry in limits.entries) {
-      final category = categoryFromName(entry.key);
-      if (category == null) continue;
-      statuses[category] = BudgetStatus(
-        limit: entry.value,
-        spent: spent[entry.key] ?? 0,
-        month: month,
-        now: today,
-      );
-    }
-    return budgetNudgeFor(statuses);
+    // One shared builder, deliberately. This used to assemble its own config
+    // and so did `main.dart`, and they drifted: قيام and the budget note were
+    // added here and not there, so the launch re-arm rebuilt the window
+    // without them and overwrote what this had just armed.
+    await scheduler.rearm(await schedulingConfigFromDb(db));
   }
 
   Future<void> updateLocation({
