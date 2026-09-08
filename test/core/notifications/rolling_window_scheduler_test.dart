@@ -164,6 +164,7 @@ void main() {
       notifyWird: false,
       notifyFasting: false,
       notifyWater: false,
+      notifyTasks: false,
     ));
     expect(gateway.scheduled, isEmpty);
   });

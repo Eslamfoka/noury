@@ -229,8 +229,8 @@ void main() {
       // Fasting is excluded here rather than folded in: how many sunnah fasts
       // fall in a fortnight depends on the date, and a count that moved with
       // the calendar could not pin anything. It is bounded in the next test.
-      await scheduler.rearm(
-          config.copyWith(notifyFasting: false, notifyWater: false));
+      await scheduler.rearm(config.copyWith(
+          notifyFasting: false, notifyWater: false, notifyTasks: false));
       expect(gateway.scheduled.length, 229);
     });
 
@@ -239,10 +239,31 @@ void main() {
       // white days fall wholly inside it or not at all. Overlaps count once,
       // and the days fasting is prohibited are dropped — so the ceiling is
       // seven, and the floor is the four weekdays.
-      await scheduler.rearm(config.copyWith(notifyWater: false));
+      await scheduler.rearm(
+          config.copyWith(notifyWater: false, notifyTasks: false));
       final fasting = gateway.ofSlot(NotificationSlot.fastingEve).length;
       expect(fasting, inInclusiveRange(4, 7));
       expect(gateway.scheduled.length, 229 + fasting);
+    });
+
+    test('the task alarms cost what the short window promises', () async {
+      // The whole budget, with everything on. The adhan's fortnight is 229,
+      // fasting adds 4-7, water adds 15, and the planned day adds its own
+      // three-day window on top. Android starts dropping alarms somewhere
+      // past 500 — silently, which is the worst way to find out — so the
+      // total is pinned rather than trusted.
+      await scheduler.rearm(config.copyWith(notifyTasks: false));
+      final withoutTasks = gateway.scheduled.length;
+
+      gateway.scheduled.clear();
+      await scheduler.rearm(config);
+      final withTasks = gateway.scheduled.length;
+
+      final cost = withTasks - withoutTasks;
+      expect(cost, lessThan(60),
+          reason: 'ten tasks and their asks over three days');
+      expect(withTasks, lessThan(400),
+          reason: 'armed $withTasks of a cap around 500');
     });
 
     test('water rides the short window, not the fortnight', () async {

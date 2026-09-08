@@ -1,5 +1,7 @@
 import '../../features/fasting/sunnah_fasting.dart';
 import '../../features/finance/budget_nudge.dart';
+import '../../features/planner/daily_tasks.dart';
+import '../../features/planner/day_planner.dart';
 import '../../features/planner/shift.dart';
 import '../../features/prayers/qiyam.dart';
 import '../../features/water/water_plan.dart';
@@ -9,6 +11,9 @@ import 'follow_up_plan.dart';
 import 'notification_channels_ids.dart';
 import 'notification_gateway.dart';
 import 'notification_slot.dart';
+import 'task_alarm_ids.dart';
+import 'task_alarm_plan.dart';
+import 'task_alert.dart';
 
 /// How many days of alarms are kept armed at any time.
 ///
@@ -47,6 +52,19 @@ const kFollowUpWindowDays = 3;
 /// and three would start showing figures old enough to be wrong.
 const kBudgetNudgeDays = 2;
 
+/// How many days of **task** alarms are armed.
+///
+/// Three, at the user's own request: *"for personal tasks I prefer a short
+/// rolling window — today + next 2-3 days only. Every time I open the app it
+/// re-arms new task alarms for that short window and cancels old ones."*
+///
+/// It is also what the alarm budget allows. The adhan needs a fortnight
+/// because it must survive the app going unopened; a nudge to walk eleven days
+/// from now is worth nothing to anyone and would cost ~110 alarms out of
+/// Android's ~500, which the adhan has first call on. Ten tasks over three days
+/// costs about thirty.
+const kTaskAlarmWindowDays = 3;
+
 class SchedulingConfig {
   const SchedulingConfig({
     required this.geo,
@@ -58,6 +76,7 @@ class SchedulingConfig {
     this.notifyFasting = true,
     this.notifyWater = true,
     this.notifyQiyam = false,
+    this.notifyTasks = true,
     this.shift = ShiftType.morning,
     this.budgetNote,
     this.budgetNudgeHour = kBudgetNudgeHour,
@@ -82,6 +101,12 @@ class SchedulingConfig {
 
   /// Whether to nudge the user to drink after each prayer.
   final bool notifyWater;
+
+  /// Whether the planned day announces itself, task by task.
+  ///
+  /// On by default: it is the point of the feature — *"i don't need to open
+  /// the app to know what i have to do"*.
+  final bool notifyTasks;
 
   /// Whether to offer قيام الليل in the last third of the night.
   ///
@@ -138,6 +163,7 @@ class SchedulingConfig {
     bool? notifyFasting,
     bool? notifyWater,
     bool? notifyQiyam,
+    bool? notifyTasks,
     ShiftType? shift,
     String? budgetNote,
     int? budgetNudgeHour,
@@ -159,6 +185,7 @@ class SchedulingConfig {
         notifyFasting: notifyFasting ?? this.notifyFasting,
         notifyWater: notifyWater ?? this.notifyWater,
         notifyQiyam: notifyQiyam ?? this.notifyQiyam,
+        notifyTasks: notifyTasks ?? this.notifyTasks,
         shift: shift ?? this.shift,
         budgetNote: budgetNote ?? this.budgetNote,
         budgetNudgeHour: budgetNudgeHour ?? this.budgetNudgeHour,
@@ -479,6 +506,59 @@ class RollingWindowScheduler {
         );
       }
 
+      // The planned day, announcing itself. Each task at the time `planDay`
+      // gave it, on its own channel so it is recognisable by ear, and with
+      // the «عملتها؟» that follows the ones worth asking about.
+      //
+      // Short window, by the user's own instruction and by the alarm budget:
+      // see kTaskAlarmWindowDays. Ids come from their own range rather than
+      // from a day/slot pair, exactly as reminders do, so the slot below is
+      // only a label.
+      if (cfg.notifyTasks && i < kTaskAlarmWindowDays) {
+        final plan = planDay(
+          date: date,
+          shift: ShiftPattern.forType(cfg.shift),
+          prayers: times,
+          tasks: dailyTasksFor(
+            date: date,
+            shift: ShiftPattern.forType(cfg.shift),
+          ),
+        );
+
+        for (final alert in taskAlertsFor(plan)) {
+          final id = taskAlarmId(date, alert.taskId);
+          if (id == null) continue;
+
+          await _putRaw(
+            id: id,
+            slot: NotificationSlot.taskAlert,
+            when: alert.when,
+            now: now,
+            title: alert.kind.title,
+            body: alert.kind.body,
+            channel: alert.kind.channelId,
+            payload: 'task:${alert.taskId}',
+          );
+
+          final ask = alert.askAt;
+          final askId = taskAlarmId(date, alert.taskId, ask: true);
+          if (ask != null && askId != null) {
+            await _putRaw(
+              id: askId,
+              slot: NotificationSlot.taskFollowUp,
+              when: ask,
+              now: now,
+              title: alert.kind.title,
+              body: alert.kind.followUpQuestion!,
+              // The soft channel, whatever the task's own sound is: a question
+              // should not arrive at the same volume as the summons.
+              channel: TaskAlertKind.followUp.channelId,
+              payload: 'taskask:${alert.taskId}',
+            );
+          }
+        }
+      }
+
       // The end-of-day review. Worded so it reads correctly whether or not
       // anything is outstanding: the alarm is set days ahead and cannot know,
       // and a fixed «you missed prayers» would be wrong on a complete day.
@@ -497,6 +577,34 @@ class RollingWindowScheduler {
         );
       }
     }
+  }
+
+  /// Schedules with an **explicit** id rather than one derived from a slot.
+  ///
+  /// Task alarms and reminders both live outside the day/slot numbering, so
+  /// the slot they carry is only a label. Everything else about [_put] holds,
+  /// including never scheduling into the past.
+  Future<void> _putRaw({
+    required int id,
+    required NotificationSlot slot,
+    required DateTime when,
+    required DateTime now,
+    required String title,
+    required String body,
+    required String channel,
+    String? payload,
+  }) async {
+    if (!when.isAfter(now)) return;
+
+    await gateway.schedule(ScheduledNotification(
+      id: id,
+      slot: slot,
+      when: when,
+      title: title,
+      body: body,
+      channelId: channel,
+      payload: payload,
+    ));
   }
 
   DateTime _at(DateTime date, int hour) =>

@@ -77,6 +77,15 @@ enum NotificationSlot {
 
   /// One quiet line when a budget is running ahead of the month.
   budgetNudge,
+
+  /// A planned task announcing itself, and the question that may follow it.
+  ///
+  /// **Labels only.** Task alarms are numbered from their own base in
+  /// `task_alarm_ids.dart`, exactly as reminders are, so their ids do not
+  /// derive from these — appended anyway, because the enum's rule is append
+  /// and because a slot that meant nothing would read as an oversight.
+  taskAlert,
+  taskFollowUp,
 }
 
 /// A notification's ID, derived purely from its date and slot.

@@ -241,6 +241,34 @@ enum TaskAlertKind {
   final String? followUpQuestion;
 }
 
+/// Every task id that can carry an alarm, in a **fixed, append-only order**.
+///
+/// The order is load-bearing: `taskAlarmId` uses the index, so inserting into
+/// the middle would renumber alarms already sitting in AlarmManager. Append
+/// only, exactly like [NotificationSlot].
+///
+/// It is keyed on the *task* rather than the alert kind because several tasks
+/// share a kind — both meals, and all three faces of knowledge time. Keying
+/// the id on the kind gave أول وجبة and آخر وجبة the same id, so the later one
+/// silently overwrote the earlier and the first meal of the day was never
+/// announced. Found by a test asserting ids are unique.
+const alarmableTaskIds = <String>[
+  'morning-athkar',
+  'evening-athkar',
+  'sleep-athkar',
+  'tasbeeh',
+  'quran-wird',
+  'first-meal',
+  'last-meal',
+  'walk',
+  'workout',
+  'knowledge-read',
+  'knowledge-listen',
+  'knowledge-skill',
+  'calls',
+  'phone-time',
+];
+
 /// The alert a planned task should sound with, or null when it has none.
 ///
 /// The ids are the ones `dailyTasksFor` emits. A task the planner places but

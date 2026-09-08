@@ -102,6 +102,33 @@ void main() {
       expect(alertKindForTaskId('first-meal'), alertKindForTaskId('last-meal'));
     });
 
+    test('every alarmable id has both a sound and a number', () {
+      // The two halves have to agree. An id with a kind but no place in
+      // alarmableTaskIds gets no notification id and is silently skipped;
+      // one with a number but no kind has nothing to sound.
+      for (final id in alarmableTaskIds) {
+        expect(alertKindForTaskId(id), isNotNull,
+            reason: '$id is numbered but has no sound');
+      }
+    });
+
+    test('the numbering order is append-only', () {
+      // taskAlarmId uses the index, so inserting into the middle renumbers
+      // alarms already sitting in AlarmManager on the user's phone. This
+      // pins the prefix; adding to the end is fine.
+      expect(alarmableTaskIds.take(5), [
+        'morning-athkar',
+        'evening-athkar',
+        'sleep-athkar',
+        'tasbeeh',
+        'quran-wird',
+      ]);
+    });
+
+    test('no id appears twice in the numbering', () {
+      expect(alarmableTaskIds.toSet().length, alarmableTaskIds.length);
+    });
+
     test('an unknown id is null rather than a throw', () {
       // An alarm scheduled by an older version can still be in AlarmManager.
       expect(alertKindForTaskId('nonsense-from-2025'), isNull);
