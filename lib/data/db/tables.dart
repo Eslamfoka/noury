@@ -80,6 +80,13 @@ class SettingsRows extends Table {
   BoolColumn get notifyQiyam =>
       boolean().withDefault(const Constant(false))();
 
+  /// The daily cap on phone and social time, in minutes.
+  ///
+  /// Sixty, matching the hour §5.5 already names for calls. "Hard-ish" in the
+  /// brief's words: Nouri says when it is passed and never blocks anything —
+  /// it has no way to, and would not be right to if it had.
+  IntColumn get phoneCapMinutes => integer().withDefault(const Constant(60))();
+
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
 

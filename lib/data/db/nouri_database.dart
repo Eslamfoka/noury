@@ -41,6 +41,7 @@ String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
     WaterLogs,
     FastingDays,
     KnowledgeLogs,
+    PhoneSessions,
   ],
 )
 class NouriDatabase extends _$NouriDatabase {
@@ -48,7 +49,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -113,6 +114,12 @@ class NouriDatabase extends _$NouriDatabase {
           if (from < 9) {
             await m.addColumn(settingsRows, settingsRows.notifyQiyam);
           }
+
+          // v10 adds phone/social time and its cap. Additive only.
+          if (from < 10) {
+            await m.createTable(phoneSessions);
+            await m.addColumn(settingsRows, settingsRows.phoneCapMinutes);
+          }
         },
       );
 
@@ -121,6 +128,7 @@ class NouriDatabase extends _$NouriDatabase {
   late final athkarDao = AthkarDao(this);
   late final quranDao = QuranDao(this);
   late final financeDao = FinanceDao(this);
+  late final phoneDao = PhoneDao(this);
   late final bodyDao = BodyDao(this);
   late final reminderDao = ReminderDao(this);
   late final stepsDao = StepsDao(this);
@@ -745,6 +753,40 @@ class KnowledgeDao {
 
   /// Minutes on [date], across all three kinds — the brief treats them as one
   /// block, so the useful number is the total.
+  Future<int> minutesOn(DateTime date) async {
+    final rows = await forDate(date);
+    return rows.fold<int>(0, (a, r) => a + r.minutes);
+  }
+}
+
+class PhoneDao {
+  PhoneDao(this._db);
+  final NouriDatabase _db;
+
+  Future<int> log({required DateTime date, required int minutes}) =>
+      _db.into(_db.phoneSessions).insert(PhoneSessionsCompanion.insert(
+            date: dayOf(date),
+            minutes: minutes,
+            loggedAt: DateTime.now(),
+          ));
+
+  Future<void> delete(int id) =>
+      (_db.delete(_db.phoneSessions)..where((t) => t.id.equals(id))).go();
+
+  Future<List<PhoneSession>> forDate(DateTime date) =>
+      (_db.select(_db.phoneSessions)
+            ..where((t) => t.date.equals(dayOf(date)))
+            ..orderBy([(t) => OrderingTerm.desc(t.loggedAt)]))
+          .get();
+
+  Future<List<PhoneSession>> between(DateTime from, DateTime to) =>
+      (_db.select(_db.phoneSessions)
+            ..where((t) => t.date.isBetweenValues(dayOf(from), dayOf(to)))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+          .get();
+
+  /// Minutes on [date]. Several sittings in a day add up — the cap is on the
+  /// day, not on one sitting.
   Future<int> minutesOn(DateTime date) async {
     final rows = await forDate(date);
     return rows.fold<int>(0, (a, r) => a + r.minutes);

@@ -325,6 +325,17 @@ class SettingsController {
     _requestRearm();
   }
 
+  /// The daily cap on phone and social time.
+  ///
+  /// Clamped to 15 minutes–8 hours. A cap of zero would make every day read
+  /// as over it, which is a shape Nouri should not be able to get into.
+  ///
+  /// Does **not** rearm: nothing about the cap is on an alarm.
+  Future<void> updatePhoneCap(int minutes) => db.settingsDao.update(
+        SettingsRowsCompanion(
+            phoneCapMinutes: Value(minutes.clamp(15, 480))),
+      );
+
   /// Does **not** rearm: the tasbeeh target has no bearing on any alarm.
   Future<void> updateTasbeehTarget(int target) async {
     await db.settingsDao.update(

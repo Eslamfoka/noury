@@ -230,6 +230,20 @@ List<Widget> settingsSectionChildren(
               style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
             ),
           ),
+          const SizedBox(height: 6),
+          StepperRow(
+            key: const ValueKey('phone-cap'),
+            label: 'حد وقت الموبايل',
+            value: toArabicDigits('${s.phoneCapMinutes} د'),
+            onDecrement: () async {
+              await controller.updatePhoneCap(s.phoneCapMinutes - 15);
+              ref.invalidate(settingsProvider);
+            },
+            onIncrement: () async {
+              await controller.updatePhoneCap(s.phoneCapMinutes + 15);
+              ref.invalidate(settingsProvider);
+            },
+          ),
         ],
       SettingsSection.prayerTimes => [
           ActionRow(

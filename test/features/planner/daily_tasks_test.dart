@@ -344,6 +344,40 @@ void main() {
       expect(p.deferred.map((d) => d.task.id), isNot(contains('quran-wird')));
     });
 
+    test('وقت الموبايل gets a reserved slot, at the cap', () {
+      // §5.5: "Nouri reserves a fixed slot and notifies if exceeded". The
+      // reservation is the half the planner owns — it is what stops phone
+      // time eating the hours the rest of the day was planned into.
+      final phone = dailyTasksFor(date: day, shift: ShiftPattern.morning)
+          .firstWhere((t) => t.id == 'phone-time');
+      expect(phone.duration, const Duration(minutes: 60));
+      expect((phone.anchor as FlexibleAnchor).preferredBlock,
+          DayBlockKind.evening);
+    });
+
+    test('the reserved slot follows the cap when the cap changes', () {
+      final phone = dailyTasksFor(
+        date: day,
+        shift: ShiftPattern.morning,
+        phoneCapMinutes: 30,
+      ).firstWhere((t) => t.id == 'phone-time');
+      expect(phone.duration, const Duration(minutes: 30));
+    });
+
+    test('reserving it does not push the day over', () {
+      // An hour of calls and an hour of phone is two hours added to a working
+      // day. If either cannot fit it must be named, not dropped — and on an
+      // ordinary morning shift both should still land.
+      final p = planDay(
+        date: day,
+        shift: ShiftPattern.morning,
+        prayers: prayers,
+        tasks: dailyTasksFor(date: day, shift: ShiftPattern.morning),
+      );
+      expect(p.deferred.map((d) => d.task.id), isNot(contains('quran-wird')));
+      expect(p.deferred.map((d) => d.task.id), isNot(contains('walk')));
+    });
+
     test('when it cannot fit it is deferred by name, never dropped', () {
       // Nouri never silently shortens the day. Whatever happens to مكالمات,
       // the plan says so.

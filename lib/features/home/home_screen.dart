@@ -26,6 +26,7 @@ import 'widgets/next_prayer_card.dart';
 import 'widgets/progress_ring.dart';
 import 'widgets/wird_grid.dart';
 import '../knowledge/knowledge_card.dart';
+import '../phone/phone_time_card.dart';
 
 /// Home / النهاردة.
 ///
@@ -203,6 +204,11 @@ class HomeScreen extends ConsumerWidget {
           // in a tab of its own — it is a daily practice like the others, and
           // the shell is already one destination past the recommendation.
           const KnowledgeCard(),
+          const SizedBox(height: 14),
+          // وقت الموبايل, next to وقت المعرفة on purpose: they are the two
+          // halves of where the day's discretionary hours go, and reading
+          // them together is the point.
+          const PhoneTimeCard(),
         ],
       ),
     );

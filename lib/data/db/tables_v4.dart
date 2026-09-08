@@ -141,6 +141,27 @@ enum KnowledgeKind { reading, skill, religiousContent }
 /// table with a kind rather than three tables. What Nouri *recommends* — which
 /// book, which skill — is AI work and belongs with Slice 5; recording that the
 /// time happened does not, and the planner already schedules it.
+/// Time spent on the phone and on social apps, as the user reports it.
+///
+/// §5.5 asks Nouri to reserve a slot for this and to say when the cap is
+/// passed. **Nouri does not read device usage.** Doing so needs
+/// PACKAGE_USAGE_STATS — a special-access permission granted through a system
+/// settings page — and it would make Nouri infer where every other pillar
+/// asks: a fasting day is the user's word, a prayer is logged rather than
+/// detected. The user starts the slot and Nouri times it.
+///
+/// Reversible in both directions: a usage-stats source could replace the
+/// writer later without touching this table, and the cap is a setting.
+class PhoneSessions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Midnight local.
+  DateTimeColumn get date => dateTime()();
+  IntColumn get minutes => integer()();
+
+  DateTimeColumn get loggedAt => dateTime()();
+}
+
 class KnowledgeLogs extends Table {
   IntColumn get id => integer().autoIncrement()();
 

@@ -19,6 +19,8 @@ List<PlannedTask> dailyTasksFor({
   bool includeQuranWird = true,
   bool includeWalk = true,
   bool includeCalls = true,
+  bool includePhoneTime = true,
+  int phoneCapMinutes = 60,
 }) {
   final tasks = <PlannedTask>[];
 
@@ -140,6 +142,21 @@ List<PlannedTask> dailyTasksFor({
       weight: TaskWeight.light,
       duration: const Duration(hours: 1),
       anchor: FlexibleAnchor(preferredBlock: _callsBlockFor(shift)),
+    ));
+  }
+
+  if (includePhoneTime) {
+    tasks.add(PlannedTask(
+      id: 'phone-time',
+      title: 'وقت الموبايل',
+      pillar: TaskPillar.mind,
+      weight: TaskWeight.light,
+      duration: Duration(minutes: phoneCapMinutes),
+      // §5.5 asks Nouri to *reserve* the slot rather than to police it. A
+      // reserved evening hour is what stops phone time eating the hours the
+      // rest of the day was planned into — and it is also the honest place
+      // for it, since that is when it actually happens.
+      anchor: const FlexibleAnchor(preferredBlock: DayBlockKind.evening),
     ));
   }
 

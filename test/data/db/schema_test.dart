@@ -6,7 +6,8 @@ import 'package:nouri/data/db/nouri_database.dart';
 ///
 /// v4 added reminders, walking, workouts and challenges; v5 the sunnah
 /// fasting toggle; v6 the duty pattern the planner needs; v7 water and the
-/// fasting-day marker; v8 knowledge time; v9 the قيام الليل toggle. Every
+/// fasting-day marker; v8 knowledge time; v9 the قيام الليل toggle; v10 phone
+/// time and its cap. Every
 /// migration is additive, so the most important test
 /// here is the last one — that nothing from the religious core was disturbed
 /// on the way.
@@ -19,9 +20,9 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v9', () {
+  test('schema is at v10', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 9);
+    expect(fresh().schemaVersion, 10);
   });
 
   test('قيام الليل arrives off, on a fresh install and on an upgrade', () async {
