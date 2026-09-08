@@ -24,12 +24,18 @@ void main() {
       );
       final labels =
           tester.widgetList<Text>(inNav).map((w) => w.data).toList();
-      // البدن was inserted before المالية when the physical pillar was built.
-      // Six destinations is one past Material's recommended five; each of the
-      // three pillars needs a home and none is optional, so the crowding is
-      // deliberate. Worth revisiting alongside the Slice 2 structure.
+      // البدن was inserted before المالية when the physical pillar was built,
+      // and المهام after النهاردة when the day started announcing itself.
+      //
+      // **Seven destinations is two past Material's recommended five**, and
+      // that is now a real cost rather than a theoretical one — the labels are
+      // cramped. It is deliberate: each of the three pillars needs a home,
+      // none is optional, and المهام was asked for by name as the central
+      // daily view. الأذكار is the obvious candidate to fold into النهاردة
+      // when the shell is next revisited; see the handoff.
       expect(labels, [
         'النهاردة',
+        'المهام',
         'الأذكار',
         'التقارير',
         'البدن',
@@ -63,7 +69,7 @@ void main() {
       await tester.tap(find.text('الأذكار'));
       await tester.pumpAndSettle();
       final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(bar.selectedIndex, 1);
+      expect(bar.selectedIndex, 2, reason: 'المهام sits between them now');
     });
   });
 
@@ -90,6 +96,22 @@ void main() {
       await tester.tap(find.text('المالية'));
       await tester.pumpAndSettle();
       expect(find.textContaining('ابدأ بتسجيل أول مصروف'), findsOneWidget);
+    });
+  });
+
+  testWidgets('المهام is reachable and shows the day, not a placeholder',
+      (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('المهام'),
+      ));
+      await tester.pumpAndSettle();
+
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 1);
+      expect(find.text('قريباً إن شاء الله'), findsNothing);
     });
   });
 

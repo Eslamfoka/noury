@@ -5,8 +5,8 @@ Last updated **8 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `7bd2bad`, working tree clean |
-| Tests | **1041 passing**, `flutter analyze` clean |
+| Head | `550c0c9`, working tree clean |
+| Tests | **1050 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 8 Sep 13:12** (HONOR VNE-N41) |
 | On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v11 |
@@ -111,9 +111,10 @@ Last updated **8 September 2026**, overnight session.
 - **The shift is a single setting, not a rota.** The brief describes a rotating
   pattern; guessing at one would put wrong times in front of the user daily.
   Set today's shift in الإعدادات → الدوام.
-- **The planned day is read-only.** Blocks expand to show their hours; nothing
-  is tapped done from there yet. Prayers are still logged from Home and from
-  the notification.
+- **The planned day is read-only, but no longer blind.** Blocks expand to show
+  their hours, and a task the logs show as done carries a tick — derived, not
+  stored. Nothing is *tapped* done from there: whether the plan should also be
+  a place to log is still an open question about where the truth lives.
 - **Verified on the HONOR on 8 September:** no orphaned alarms across the
   stride change (232 old-stride alarms → 249, not ~470), a window spanning
   exactly 14 days, exact alarms permitted, Nouri whitelisted from battery

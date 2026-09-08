@@ -196,6 +196,45 @@ is load-bearing and pinned by its own test.
 
 ---
 
+## Then: a review pass over my own work, and what it found
+
+The same discipline the 7 September session used — go back over the night's
+work hunting the bug class this project has already fixed three times, state
+read off a `WidgetRef` after an await. It found mine.
+
+**`walk_screen.dart` read `ref` after two awaits.** `silenceTaskAlarms` took a
+`WidgetRef` and read the notification service inside itself, and the walk
+screen only reaches it after awaiting the weight and the settings. That file's
+own comment says *"Every `ref` read happens before the first await. After one,
+the widget may have been unmounted and `ref` throws — which would lose the walk
+at the last step, after the user had already done it."* I wrote the call three
+lines under that sentence.
+
+**And all six calls sat before their write, not after.** `logPrayer` writes
+first and cancels second, deliberately: silencing a reminder and then failing
+to write leaves the user with neither the log nor the nudge.
+
+Both fixed by changing the signature rather than by a comment asking nicely.
+`silenceTaskAlarms` takes the *service*, so the read **must** be hoisted by the
+caller — the type system now refuses the mistake. Every call moved after its
+write.
+
+## And one thing the derived completions unlocked
+
+**The planned day now shows what you have already done.** It has been
+read-only since it was built, and the open question — should it also be a
+*place to log*? — is still open, because `docs/planner-decisions.md` records
+that guessing at it has already cost two bugs.
+
+Deriving completions from the logs answered half of it without touching the
+other half. The truth is still the log; the plan is a window onto it. A done
+task carries a tick and its title goes muted. Nothing is tappable, no checkbox
+exists, and **nothing is ever crossed out** — the day is a plan, not a list of
+things to have failed at, which is the same rule that keeps anything from being
+red.
+
+---
+
 ## Decisions taken alone
 
 1. **Both meals share one sound.** They mean the same thing — eat — and giving

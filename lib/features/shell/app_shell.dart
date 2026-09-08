@@ -15,6 +15,7 @@ import '../prayers/notification_log_flow.dart';
 import '../reminders/calendar_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
+import '../tasks/tasks_screen.dart';
 import '../steps/walk_screen.dart';
 import '../workouts/workout_screen.dart';
 
@@ -37,9 +38,10 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
   bool _handling = false;
 
-  static const _tabForAthkar = 1;
-  static const _tabForBody = 3;
-  static const _tabForFinance = 4;
+  static const _tabForTasks = 1;
+  static const _tabForAthkar = 2;
+  static const _tabForBody = 4;
+  static const _tabForFinance = 5;
 
   // Six destinations is one past Material's recommended five. The three
   // pillars each need a home and none of them is optional, so the crowding is
@@ -93,11 +95,14 @@ class _AppShellState extends ConsumerState<AppShell> {
         // that lands on Home has not finished the job. Anything with no screen
         // of its own falls back to Home rather than throwing — an alarm armed
         // by an older build can still be in AlarmManager days later.
-        case TaskRoute(:final taskId) || TaskFollowUpRoute(:final taskId):
+        // The alert and the question that follows it go to different places,
+        // because they ask different things.
+        //
+        // «وقت المشي» means *do it now*: «open the app to do it», not merely
+        // "open the app", so it lands on the screen where the walk is
+        // actually recorded.
+        case TaskRoute(:final taskId):
           if (!mounted) return;
-          // «open the app to do it», not merely "open the app". A walk
-          // reminder that lands on Home has not finished the job, so the two
-          // tasks with a screen of their own get pushed onto it.
           setState(() => _index = tabForTaskId(taskId));
           if (taskId == 'walk') {
             await Navigator.of(context).push(
@@ -108,6 +113,12 @@ class _AppShellState extends ConsumerState<AppShell> {
               MaterialPageRoute<void>(builder: (_) => const WorkoutScreen()),
             );
           }
+
+        // «مشيت؟» is a question about the day, not an instruction, so it lands
+        // on المهام — where the whole day is, and where the answer is visible
+        // rather than having to be remembered.
+        case TaskFollowUpRoute():
+          if (mounted) setState(() => _index = _tabForTasks);
         case ReminderRoute(:final id):
           // Open the calendar on the reminder's own day. The row is read
           // fresh rather than trusted from the payload: the reminder may have
@@ -144,6 +155,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           index: _index,
           children: const [
             HomeScreen(),
+            TasksScreen(),
             AthkarScreen(),
             ReportsScreen(),
             BodyScreen(),
@@ -189,6 +201,14 @@ class _AppShellState extends ConsumerState<AppShell> {
               selectedIcon: const Icon(Icons.nightlight_round),
               label: l.tabToday,
             ),
+            const NavigationDestination(
+              icon: Icon(Icons.checklist_outlined),
+              selectedIcon: Icon(Icons.checklist),
+              // Not localised alongside the others: the shell's ARB has no
+              // key for it yet, and inventing one that only ever renders in
+              // Arabic would be a lie about being translated.
+              label: 'المهام',
+            ),
             NavigationDestination(
               icon: const Icon(Icons.circle_outlined),
               selectedIcon: const Icon(Icons.brightness_7),
@@ -231,11 +251,11 @@ class _AppShellState extends ConsumerState<AppShell> {
 /// older build of Nouri can still be sitting in AlarmManager days later, and
 /// crashing on tap would be a poor thanks for upgrading.
 int tabForTaskId(String taskId) => switch (taskId) {
-      'walk' || 'workout' || 'first-meal' || 'last-meal' => 3, // البدن
+      'walk' || 'workout' || 'first-meal' || 'last-meal' => 4, // البدن
       'tasbeeh' ||
       'morning-athkar' ||
       'evening-athkar' ||
       'sleep-athkar' =>
-        1, // الأذكار
+        2, // الأذكار
       _ => 0, // النهاردة — the wird, knowledge, calls and phone cards live here
     };

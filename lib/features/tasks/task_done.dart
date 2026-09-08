@@ -1,5 +1,6 @@
 import '../../core/notifications/notification_service.dart';
 import '../../core/notifications/task_alarm_ids.dart';
+import 'snooze_store.dart';
 
 /// Silences today's alarm and question for a task the user has just done.
 ///
@@ -46,6 +47,18 @@ Future<void> silenceTaskAlarms(
         // re-arm works it out from the log.
       }
     }
+  }
+
+  // And forget any snooze, so المهام does not show «مأجّلة» beside something
+  // that has just been finished. Separate try: the store is a nicety and the
+  // cancels above are the part that matters.
+  try {
+    final store = await openSnoozeStore();
+    for (final taskId in taskIds) {
+      await store.clear(taskId);
+    }
+  } catch (_) {
+    // A stale label until the next read, which drops it at day's end anyway.
   }
 }
 

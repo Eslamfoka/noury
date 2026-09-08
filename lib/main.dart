@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -22,6 +23,7 @@ import 'data/db/nouri_database.dart';
 import 'features/home/home_providers.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/tasks/snooze_store.dart';
 
 /// Times a startup phase and reports it, so "the app feels slow" becomes a
 /// number per phase instead of a guess. Costs nothing in release, where
@@ -258,6 +260,12 @@ Future<void> onNotificationActionInBackground(
   if (response.actionId != actionSnooze) return;
   final taskId = taskIdFromPayload(response.payload);
   if (taskId == null) return;
+
+  // Nothing from `main()` is alive in this isolate, including the plugin
+  // registry — without this, `path_provider` and the timezone lookup both
+  // throw and the snooze is lost.
+  DartPluginRegistrant.ensureInitialized();
+
   await _scheduleSnooze(taskId);
 }
 
@@ -286,9 +294,22 @@ Future<void> _scheduleSnooze(String taskId, {NotificationGateway? via}) async {
   final n = snoozedNotification(taskId: taskId, from: DateTime.now());
   if (n == null) return;
 
+  // Written down so المهام can show where the task went. Separately from the
+  // scheduling and after it: the alarm is the thing that matters, and a store
+  // that could not be written must not cost the user their reminder.
+  Future<void> recordIt() async {
+    try {
+      final store = await openSnoozeStore();
+      await store.record(taskId, n.when);
+    } catch (_) {
+      // Losing this costs a label in المهام, never an alarm.
+    }
+  }
+
   try {
     if (via != null) {
       await via.schedule(n);
+      await recordIt();
       return;
     }
 
@@ -304,6 +325,7 @@ Future<void> _scheduleSnooze(String taskId, {NotificationGateway? via}) async {
     );
     await LocalNotificationGateway(plugin, mode: NotificationMode.exact)
         .schedule(n);
+    await recordIt();
   } catch (e) {
     // A snooze that cannot be scheduled is a lost five minutes, not a crash.
     // Throwing out of a background isolate surfaces as an opaque platform
