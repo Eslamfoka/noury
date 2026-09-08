@@ -5,7 +5,7 @@ and asked to see المهام and hear the adhans. This is what went on the phon
 what I could prove without touching it, and the two faults that reading the
 device found — neither of which any test in the suite could have caught.
 
-**1110 tests passing**, `flutter analyze` clean, schema **v11**. Branch
+**1111 tests passing**, `flutter analyze` clean, schema **v11**. Branch
 `slice1-religious-core`, still **not merged to `master`**. Head `ba62f13`.
 
 ---
@@ -73,9 +73,20 @@ tab as the single source of truth for normal task reminders"*.
 comment says why: *"two notifications for one prayer, seconds apart, with
 different sounds"*. Nobody had applied the same argument to anything else.
 
-The legacy path is **gated, not deleted** — `notifyAthkar && !notifyTasks`. It
-is what someone who wants the athkar announced without the whole day
-announcing itself still gets.
+The legacy path is **gated, not deleted**, and the gate has two halves:
+
+```dart
+cfg.notifyAthkar && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)
+```
+
+It is what someone who wants the athkar announced without the whole day
+announcing itself still gets — and it is the **safety net past day three**.
+The task alarms reach three days, by your own instruction; these reach
+fourteen. Gating on `notifyTasks` alone would have quietly cut the athkar and
+the wird from a fortnight to three days for anyone who did not open Nouri over
+a long weekend. Past the task window there is no duplicate to avoid, so the
+old reminder stands in — with the generic tone, replaced by the task alarm the
+moment you next open the app.
 
 ### 2. Seven of the nineteen tones had nothing that could play them
 

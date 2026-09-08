@@ -378,9 +378,20 @@ class RollingWindowScheduler {
       // the screen. `task_alarm_plan.dart` refuses to do this to prayers and
       // says why; the same argument applies here.
       //
-      // The path is kept rather than deleted: it is what someone who wants the
-      // athkar announced *without* the whole day announcing itself still gets.
-      if (cfg.notifyAthkar && !cfg.notifyTasks) {
+      // The path is kept rather than deleted, and for two reasons.
+      //
+      // It is what someone who wants the athkar announced *without* the whole
+      // day announcing itself still gets — `notifyTasks` off.
+      //
+      // And it is the **safety net past day three**. The task alarms cover a
+      // three-day rolling window, by the user's own instruction; these cover
+      // fourteen. Gating on `notifyTasks` alone would have quietly cut the
+      // athkar and the wird from a fortnight to three days for anyone who did
+      // not open Nouri over a long weekend. Past the task window there is no
+      // duplicate to avoid, so the old reminder stands in — with the generic
+      // tone, which is the honest trade and is replaced by the task alarm the
+      // moment the app is next opened.
+      if (cfg.notifyAthkar && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)) {
         await _put(
           date,
           NotificationSlot.morningAthkar,
@@ -415,7 +426,7 @@ class RollingWindowScheduler {
         );
       }
 
-      if (cfg.notifyWird && !cfg.notifyTasks) {
+      if (cfg.notifyWird && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)) {
         await _put(
           date,
           NotificationSlot.quranWird,

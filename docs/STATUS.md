@@ -6,7 +6,7 @@ Last updated **8 September 2026**, evening — after the phone install.
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
 | Head | `ba62f13`, working tree clean |
-| Tests | **1110 passing**, `flutter analyze` clean |
+| Tests | **1111 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 8 Sep 19:43** (HONOR VNE-N41) — المهام, the nineteen tones, the five adhans, and the snooze receiver |
 | On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v11 |

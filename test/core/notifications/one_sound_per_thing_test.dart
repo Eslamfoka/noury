@@ -58,6 +58,9 @@ void main() {
     budgetNote: 'الميزانية سابقاك شوية',
   );
 
+  // Day 6 is inside the three-day task-alarm window from the frozen 5 Sep
+  // "now", so both paths would want it. That is the overlap the duplicate
+  // lived in.
   group('nothing is announced twice', () {
     for (final title in ['أذكار الصباح', 'أذكار المساء', 'أذكار النوم']) {
       test('$title rings once a day', () async {
@@ -90,6 +93,26 @@ void main() {
       expect(athkar.channelId, TaskAlertKind.athkarMorning.channelId);
       expect(athkar.payload, 'task:morning-athkar');
     });
+  });
+
+  test('past the task window the plain reminder stands in, alone', () async {
+    // The task alarms reach three days; these reach fourteen. Gating them on
+    // `notifyTasks` alone would have cut the athkar and the wird to three
+    // days for anyone who did not open Nouri over a long weekend — a quiet
+    // loss of a fortnight's cover, traded for a duplicate that is not even
+    // there that far out.
+    await scheduler.rearm(base);
+    final far = gateway.scheduled
+        .where((n) => n.title == 'أذكار الصباح' && n.when.day == 12)
+        .toList();
+    expect(far, hasLength(1), reason: 'one, and only one, on day 12');
+    expect(far.single.payload, 'athkar:morning',
+        reason: 'the old path is the one still standing that far out');
+
+    final wird = gateway.scheduled
+        .where((n) => n.title == 'ورد القرآن' && n.when.day == 12)
+        .toList();
+    expect(wird, hasLength(1));
   });
 
   test('turning the task alarms off brings the plain reminders back',
