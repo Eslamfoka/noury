@@ -18,7 +18,11 @@ DailyPrayerTimes _times(DateTime d) => DailyPrayerTimes(
 void main() {
   final day = DateTime(2026, 9, 7);
 
-  Future<void> pump(WidgetTester t, DateTime now) async {
+  Future<void> pump(
+    WidgetTester t,
+    DateTime now, {
+    Set<String> done = const {},
+  }) async {
     final plan = exampleDayPlan(date: now, prayers: _times(day));
     await t.pumpWidget(
       MaterialApp(
@@ -27,7 +31,7 @@ void main() {
           textDirection: TextDirection.rtl,
           child: Scaffold(
             body: SingleChildScrollView(
-              child: DayBlocks(plan: plan, now: now),
+              child: DayBlocks(plan: plan, now: now, done: done),
             ),
           ),
         ),
@@ -94,5 +98,49 @@ void main() {
         .where((b) => pillarColours.contains(b.color));
 
     expect(segments.length, collapsedTasks);
+  });
+  group('showing what is already done', () {
+    // The plan can *show* what has happened without becoming a second place to
+    // record it. The truth stays in the logs; this is a window onto them — so
+    // it costs none of the decisions that «should the plan be tappable» is
+    // still waiting on.
+
+    testWidgets('a done task carries a tick', (t) async {
+      await pump(t, DateTime(2026, 9, 7, 20, 0), done: const {'reading'});
+      expect(find.byKey(const ValueKey('task-done-reading')), findsOneWidget);
+    });
+
+    testWidgets('a day with nothing done carries none', (t) async {
+      // The block-level ticks that mark a finished block are a different
+      // thing and are expected; this looks only for a task's own.
+      await pump(t, DateTime(2026, 9, 7, 20, 0));
+      expect(find.byKey(const ValueKey('task-done-reading')), findsNothing);
+    });
+
+    testWidgets('nothing is ever crossed out', (t) async {
+      // A tick, not a strikethrough. The day is a plan, not a list of things
+      // to have failed at — the same rule that keeps anything from being red.
+      await pump(t, DateTime(2026, 9, 7, 20, 0), done: const {'reading'});
+
+      for (final text in t.widgetList<Text>(find.byType(Text))) {
+        expect(text.style?.decoration, isNot(TextDecoration.lineThrough),
+            reason: text.data);
+      }
+    });
+
+    testWidgets('the plan is still read-only — a task is not a button',
+        (t) async {
+      // Whether the plan should also be a place to log is an open question
+      // about where the truth lives. Showing does not answer it.
+      await pump(t, DateTime(2026, 9, 7, 20, 0), done: const {'reading'});
+
+      expect(
+        find.descendant(
+          of: find.byType(DayBlocks),
+          matching: find.byType(Checkbox),
+        ),
+        findsNothing,
+      );
+    });
   });
 }

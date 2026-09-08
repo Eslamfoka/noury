@@ -30,11 +30,21 @@ class DayBlocks extends StatefulWidget {
     super.key,
     required this.plan,
     required this.now,
+    this.done = const {},
     this.interactive = false,
   });
 
   final DayPlan plan;
   final DateTime now;
+
+  /// The task ids the logs say are already done today.
+  ///
+  /// **Shown, never written here.** The plan stays read-only: whether it
+  /// should also be a *place to log* is an open question about where the truth
+  /// lives, and `docs/planner-decisions.md` records why guessing at it has
+  /// already cost two bugs. Displaying what the logs already say costs no such
+  /// decision — the truth is still the log, and this is a window onto it.
+  final Set<String> done;
 
   /// False while this is a static preview: tapping a task would teach a habit
   /// the real planner then has to honour.
@@ -76,6 +86,7 @@ class _DayBlocksState extends State<DayBlocks> {
             isPast: _isPast(block),
             isExpanded: _expanded == block.kind,
             now: widget.now,
+            done: widget.done,
             onTap: () => setState(
               () => _expanded = _expanded == block.kind ? null : block.kind,
             ),
@@ -92,6 +103,7 @@ class _BlockCard extends StatelessWidget {
     required this.isPast,
     required this.isExpanded,
     required this.now,
+    required this.done,
     required this.onTap,
   });
 
@@ -100,6 +112,10 @@ class _BlockCard extends StatelessWidget {
   final bool isPast;
   final bool isExpanded;
   final DateTime now;
+
+  /// The task ids today's logs already show as done.
+  final Set<String> done;
+
   final VoidCallback onTap;
 
   /// A count tells you almost nothing about a block you are standing in. When
@@ -172,7 +188,11 @@ class _BlockCard extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  for (final t in block.tasks) _TaskRow(scheduled: t),
+                  for (final t in block.tasks)
+                    _TaskRow(
+                      scheduled: t,
+                      done: done.contains(t.task.id),
+                    ),
                 ],
               ),
             ),
@@ -195,9 +215,12 @@ class _BlockCard extends StatelessWidget {
 }
 
 class _TaskRow extends StatelessWidget {
-  const _TaskRow({required this.scheduled});
+  const _TaskRow({required this.scheduled, this.done = false});
 
   final ScheduledTask scheduled;
+
+  /// Whether the logs already show this as done.
+  final bool done;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +238,26 @@ class _TaskRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(child: Text(task.title, style: cairo(size: 12.5))),
+          if (done) ...[
+            // A tick, not a strikethrough. Nothing here is ever crossed out:
+            // the day is a plan, not a list of things to fail at.
+            Icon(
+              Icons.check,
+              key: ValueKey('task-done-${task.id}'),
+              size: 14,
+              color: NouriColors.success,
+            ),
+            const SizedBox(width: 5),
+          ],
+          Expanded(
+            child: Text(
+              task.title,
+              style: cairo(
+                size: 12.5,
+                color: done ? NouriColors.muted : NouriColors.text,
+              ),
+            ),
+          ),
           const SizedBox(width: 8),
           _Tag(text: task.pillar.arabicLabel),
           if (task.weight == TaskWeight.heavy) ...[

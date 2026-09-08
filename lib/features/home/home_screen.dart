@@ -271,6 +271,11 @@ class _TodaysPlan extends ConsumerWidget {
     final plan = ref.watch(todayPlanProvider).value;
     if (plan == null) return const SizedBox.shrink();
 
+    // What the logs already say. Shown, never written from here — the plan
+    // stays read-only, because whether it should also be a place to *log* is
+    // an open question about where the truth lives.
+    final done = ref.watch(todayCompletedTasksProvider).value ?? const <String>{};
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -285,7 +290,7 @@ class _TodaysPlan extends ConsumerWidget {
             ],
           ),
         ),
-        DayBlocks(plan: plan, now: now),
+        DayBlocks(plan: plan, now: now, done: done),
         if (plan.sleep != null) ...[
           const SizedBox(height: 8),
           Text(

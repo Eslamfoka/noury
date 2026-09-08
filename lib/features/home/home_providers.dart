@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/time/geo_config.dart';
 import '../../core/time/prayer_times_service.dart';
+import '../../core/notifications/completed_tasks.dart';
 import '../../data/db/nouri_database.dart';
 import '../../data/tips/daily_tip.dart';
 import '../planner/daily_tasks.dart';
@@ -90,6 +91,25 @@ final todayPrayerLogsProvider =
   final db = ref.watch(databaseProvider);
   final logs = await db.prayerDao.logsForDate(ref.watch(currentDayProvider));
   return {for (final l in logs) l.prayer: l.state};
+});
+
+/// The task ids today's logs already show as done.
+///
+/// Watched by the planned day so it can show a tick beside what has happened.
+/// Derived, never stored — the same set the scheduler uses to stop ringing
+/// about something it can see. Day-scoped, so it follows the clock over
+/// midnight like everything else here.
+final todayCompletedTasksProvider = FutureProvider<Set<String>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final today = ref.watch(currentDayProvider);
+
+  // Rebuilt whenever any of the logs it reads changes, so a walk finished at
+  // 16:00 shows a tick without waiting for the app to be reopened.
+  ref
+    ..watch(todayAthkarProvider)
+    ..watch(todayQuranProvider);
+
+  return completedTaskIdsFor(db, today);
 });
 
 /// Today's athkar and wird progress, keyed by type.
