@@ -71,8 +71,20 @@ void main() {
   test('it changes once a day, not once a tick', () async {
     // A provider that fired every thirty seconds would rebuild every
     // day-scoped query in the app all day long.
-    var notifications = 0;
+    //
+    // The subscription has to exist *before* the seeding tick. The clock
+    // override is a broadcast stream, which drops anything emitted while
+    // nothing is listening, and `currentDayProvider` falls back to
+    // `DateTime.now()` until its first event arrives. Seeding first left the
+    // provider holding the machine's real date, so this test only asserted
+    // anything at all on 7 September 2026 — and failed on the 8th.
+    final sub = container.listen(currentDayProvider, (_, _) {},
+        fireImmediately: true);
     await tick(DateTime(2026, 9, 7, 9, 0));
+    expect(sub.read(), DateTime(2026, 9, 7),
+        reason: 'the seeding tick must land before changes are counted');
+
+    var notifications = 0;
     container.listen(currentDayProvider, (_, _) => notifications++);
 
     for (var minute = 0; minute < 60; minute += 5) {
