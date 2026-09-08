@@ -18,15 +18,28 @@ import '../../support/harness.dart';
 /// that waited on wall-clock time would be slow and flaky. This gives the test
 /// the pump-by-pump control it needs.
 class ScriptedStepSource implements StepSource {
-  ScriptedStepSource({this.available = true});
+  ScriptedStepSource({this.available = true, StepSensorState? sensorState})
+      : sensorState = sensorState ??
+            (available ? StepSensorState.ready : StepSensorState.noSensor);
 
   final bool available;
+  StepSensorState sensorState;
+  int permissionRequests = 0;
+
   final _controller = StreamController<int>.broadcast();
 
   void emit(int cumulative) => _controller.add(cumulative);
 
   @override
-  Future<bool> isAvailable() async => available;
+  Future<StepSensorState> state() async => sensorState;
+
+  @override
+  Future<bool> requestPermission() async {
+    permissionRequests++;
+    if (sensorState == StepSensorState.noSensor) return false;
+    sensorState = StepSensorState.ready;
+    return true;
+  }
 
   @override
   Stream<int> cumulativeSteps() => _controller.stream;
@@ -39,8 +52,12 @@ void main() {
   late NouriDatabase db;
   late ScriptedStepSource source;
 
-  Future<void> pump(WidgetTester t, {bool sensor = true}) async {
-    source = ScriptedStepSource(available: sensor);
+  Future<void> pump(
+    WidgetTester t, {
+    bool sensor = true,
+    StepSensorState? sensorState,
+  }) async {
+    source = ScriptedStepSource(available: sensor, sensorState: sensorState);
     addTearDown(source.dispose);
 
     await t.pumpWidget(
@@ -54,6 +71,60 @@ void main() {
     );
     await t.pumpAndSettle();
   }
+
+  group('a phone with a sensor Nouri may not read', () {
+    // The HONOR VNE-N41, measured on 8 September 2026: it has an HONOR
+    // pedometer on android.sensor.step_counter(19), and Nouri held
+    // ACTIVITY_RECOGNITION as granted=false, having never asked for it.
+
+    testWidgets('is not told its phone has no sensor', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pump(t, sensorState: StepSensorState.needsPermission);
+
+        expect(find.byKey(const ValueKey('no-step-sensor')), findsNothing,
+            reason: 'the phone does have one — saying otherwise is untrue');
+        expect(
+            find.byKey(const ValueKey('steps-need-permission')), findsOneWidget);
+      });
+    });
+
+    testWidgets('is offered the one thing that fixes it', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pump(t, sensorState: StepSensorState.needsPermission);
+
+        expect(find.byKey(const ValueKey('walk-allow-steps')), findsOneWidget);
+        expect(find.byKey(const ValueKey('walk-start')), findsNothing,
+            reason: 'starting a walk that cannot count is worse than not '
+                'offering it');
+      });
+    });
+
+    testWidgets('granting turns the screen into a startable walk', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pump(t, sensorState: StepSensorState.needsPermission);
+
+        await t.tap(find.byKey(const ValueKey('walk-allow-steps')));
+        await t.pumpAndSettle();
+
+        expect(source.permissionRequests, 1);
+        expect(find.byKey(const ValueKey('walk-start')), findsOneWidget);
+      });
+    });
+
+    testWidgets('a device with truly no sensor still says so', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pump(t, sensorState: StepSensorState.noSensor);
+
+        expect(find.byKey(const ValueKey('no-step-sensor')), findsOneWidget);
+        expect(find.byKey(const ValueKey('walk-allow-steps')), findsNothing,
+            reason: 'there is nothing to permit');
+      });
+    });
+  });
 
   testWidgets('offers the four session lengths', (t) async {
     await withLargeSurface(t, () async {

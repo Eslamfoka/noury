@@ -8,8 +8,8 @@ import 'step_source.dart';
 /// The step source the walk screen will use.
 ///
 /// Overridden in tests with a [SimulatedStepSource]. In the app it is the real
-/// sensor; whether that sensor exists is a separate question the screen asks
-/// through [stepSensorAvailableProvider], because the answer changes what the
+/// sensor; whether it can be *read* is a separate question the screen asks
+/// through [stepSensorStateProvider], because the answer changes what the
 /// screen is allowed to offer.
 final stepSourceProvider = Provider<StepSource>((ref) {
   final source = SensorStepSource();
@@ -17,8 +17,10 @@ final stepSourceProvider = Provider<StepSource>((ref) {
   return source;
 });
 
-final stepSensorAvailableProvider = FutureProvider<bool>(
-  (ref) => ref.watch(stepSourceProvider).isAvailable(),
+/// What is standing between the user and a step count: a missing sensor, a
+/// missing permission, or nothing.
+final stepSensorStateProvider = FutureProvider<StepSensorState>(
+  (ref) => ref.watch(stepSourceProvider).state(),
 );
 
 /// Today's walking sessions.

@@ -7,13 +7,43 @@ import 'dart:async';
 /// a widget test has no platform channel at all. Everything above this line —
 /// the session arithmetic, the screen, the persistence — is tested against
 /// [SimulatedStepSource].
-abstract interface class StepSource {
-  /// Whether this device can count steps at all.
+/// What is standing between the user and a step count.
+///
+/// Three states, not two, because the middle one is real and was being
+/// reported as the wrong end. Measured on the HONOR VNE-N41: the phone has an
+/// HONOR `pedometer` reporting `android.sensor.step_counter(19)`, and Nouri
+/// held `ACTIVITY_RECOGNITION: granted=false`. Collapsing that into "no
+/// sensor" tells someone with a working pedometer that their phone has none,
+/// and hides the one action that would fix it.
+enum StepSensorState {
+  /// A sensor exists and Nouri may read it.
+  ready,
+
+  /// A sensor exists; Nouri has not been allowed to read it yet.
   ///
-  /// Answered honestly. A source that claimed availability and then produced
-  /// nothing would leave the user watching a counter stuck at zero with no
-  /// explanation.
-  Future<bool> isAvailable();
+  /// ACTIVITY_RECOGNITION is a runtime permission on Android 10 and later.
+  /// The manifest declaring it is not enough.
+  needsPermission,
+
+  /// This device cannot count steps. Most emulator images.
+  noSensor,
+}
+
+abstract interface class StepSource {
+  /// Whether this device can count steps **for Nouri**, and if not, why.
+  ///
+  /// Answered honestly, which now includes the permission. A source that
+  /// claimed availability and then produced nothing would leave the user
+  /// watching a counter stuck at zero with no explanation — and that is
+  /// exactly what a sensor-only check did on the real phone.
+  Future<StepSensorState> state();
+
+  /// Asks for the permission the sensor needs, returning whether it is now
+  /// readable.
+  ///
+  /// False when refused, and false when there is no sensor to permit — asking
+  /// cannot make hardware appear.
+  Future<bool> requestPermission();
 
   /// Steps **since the device booted**, not since the stream was listened to.
   ///
@@ -50,8 +80,12 @@ class SimulatedStepSource implements StepSource {
   StreamController<int>? _controller;
   Timer? _timer;
 
+  /// Always ready: it needs no hardware and no permission.
   @override
-  Future<bool> isAvailable() async => true;
+  Future<StepSensorState> state() async => StepSensorState.ready;
+
+  @override
+  Future<bool> requestPermission() async => true;
 
   @override
   Stream<int> cumulativeSteps() {

@@ -14,10 +14,10 @@ void main() {
       expect(await s.cumulativeSteps().take(3).toList(), [1002, 1004, 1006]);
     });
 
-    test('reports itself available', () async {
+    test('reports itself ready — no hardware, no permission needed', () async {
       final s = SimulatedStepSource();
       addTearDown(s.dispose);
-      expect(await s.isAvailable(), isTrue);
+      expect(await s.state(), StepSensorState.ready);
     });
   });
 

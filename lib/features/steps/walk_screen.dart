@@ -177,7 +177,7 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
   // ------------------------------------------------------------ before
 
   Widget _setupFace() {
-    final available = ref.watch(stepSensorAvailableProvider);
+    final sensorState = ref.watch(stepSensorStateProvider);
     final settings = ref.watch(settingsProvider);
     final allowSimulated = settings.value?.allowSimulatedSteps ?? false;
 
@@ -227,23 +227,63 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
             ],
           ),
           const SizedBox(height: 26),
-          available.when(
+          sensorState.when(
             loading: () => const Center(
               child: CircularProgressIndicator(color: NouriColors.gold),
             ),
             error: (_, _) => _noSensor(allowSimulated),
-            data: (ok) => ok
-                ? _startButton(
-                    key: const ValueKey('walk-start'),
-                    label: 'يلا نمشي',
-                    onTap: () => _start(simulated: false),
-                  )
-                : _noSensor(allowSimulated),
+            data: (state) => switch (state) {
+              StepSensorState.ready => _startButton(
+                  key: const ValueKey('walk-start'),
+                  label: 'يلا نمشي',
+                  onTap: () => _start(simulated: false),
+                ),
+              // A working pedometer Nouri has not been allowed to read. Saying
+              // «جهازك مافيهوش حسّاس» here would be a false statement about
+              // the user's phone, and it would hide the one thing that fixes
+              // it.
+              StepSensorState.needsPermission => _needsPermission(),
+              StepSensorState.noSensor => _noSensor(allowSimulated),
+            },
           ),
           const SizedBox(height: 18),
           _TodaySoFar(),
         ],
       ),
+    );
+  }
+
+  Widget _needsPermission() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: NouriColors.surface,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            'جهازك بيعدّ خطواتك، بس محتاج إذن منك عشان نوري يقراها.',
+            key: const ValueKey('steps-need-permission'),
+            textAlign: TextAlign.center,
+            style: cairo(size: 13, color: NouriColors.muted, height: 1.8),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _startButton(
+          key: const ValueKey('walk-allow-steps'),
+          label: 'اسمح لنوري',
+          onTap: () async {
+            // Read off ref before the await: the screen can be gone by the
+            // time the system dialog is answered.
+            final source = ref.read(stepSourceProvider);
+            await source.requestPermission();
+            if (!mounted) return;
+            ref.invalidate(stepSensorStateProvider);
+          },
+        ),
+      ],
     );
   }
 
