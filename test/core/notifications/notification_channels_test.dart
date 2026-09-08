@@ -162,8 +162,11 @@ void main() {
 
   group('the other channels', () {
     test('deliberately use the system default sound', () {
+      // `channelIqama` used to be on this list, and that was the bug: the one
+      // notification that most needs telling apart from the adhan sounded
+      // like every other app on the phone. It lives on `alert_iqama_v2` now
+      // and is retired here.
       for (final id in [
-        channelIqama,
         channelAthkar,
         channelWird,
         channelGeneral,
@@ -181,10 +184,14 @@ void main() {
     });
 
     test('none of them uses alarm audio', () {
-      // Only the adhan earns alarm volume. An athkar reminder at alarm volume
-      // would be the kind of thing that makes people uninstall an app.
+      // Only the adhan earns alarm volume *among these*. An athkar reminder
+      // at alarm volume would be the kind of thing that makes people
+      // uninstall an app.
+      //
+      // The alert channels are the other half of the argument and answer to
+      // `TaskAlertKind.asAlarm` instead: the user asked for alarms, and the
+      // iqama — a summons to stand up — is one of them.
       for (final id in [
-        channelIqama,
         channelAthkar,
         channelWird,
         channelGeneral,
@@ -228,13 +235,16 @@ void main() {
     });
 
     test('nothing but the adhan gets a full-screen intent', () {
-      for (final id in [
-        channelIqama,
-        channelAthkar,
-        channelWird,
-        channelGeneral,
-      ]) {
+      // Every channel, not a hand-kept list — a new alert kind that quietly
+      // took over the screen would otherwise slip through.
+      for (final id in allChannelIds) {
+        if (isAdhanChannel(id)) continue;
         expect(androidDetailsFor(id).fullScreenIntent, isFalse, reason: id);
+      }
+    });
+
+    test('nothing but the adhan and the alarms use alarm audio', () {
+      for (final id in [channelAthkar, channelWird, channelGeneral]) {
         expect(androidDetailsFor(id).audioAttributesUsage,
             isNot(AudioAttributesUsage.alarm),
             reason: id);

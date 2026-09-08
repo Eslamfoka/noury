@@ -357,13 +357,30 @@ class RollingWindowScheduler {
             now,
             title: 'الإقامة',
             body: 'إقامة صلاة $name',
-            channel: channelIqama,
+            // Its own sound, not the system default. The iqama stays
+            // outside the task system — it is a prayer, and the user
+            // asked for prayer/adhan/iqama to stay separate — but
+            // "separate" was never a reason for it to be
+            // unrecognisable by ear.
+            channel: TaskAlertKind.iqama.channelId,
             payload: 'prayer:${slot.name}',
           );
         }
       }
 
-      if (cfg.notifyAthkar) {
+      // **Only when the day plan is not already announcing them.**
+      //
+      // These four are planner tasks: Slice 5 gave each one its own alarm off
+      // `planDay`, on its own channel, at the time المهام shows. Leaving these
+      // armed as well meant two rings a day for one task — at *different*
+      // times, since these come from a fixed settings hour and the plan's come
+      // from a prayer anchor — and the one the user heard first disagreed with
+      // the screen. `task_alarm_plan.dart` refuses to do this to prayers and
+      // says why; the same argument applies here.
+      //
+      // The path is kept rather than deleted: it is what someone who wants the
+      // athkar announced *without* the whole day announcing itself still gets.
+      if (cfg.notifyAthkar && !cfg.notifyTasks) {
         await _put(
           date,
           NotificationSlot.morningAthkar,
@@ -398,7 +415,7 @@ class RollingWindowScheduler {
         );
       }
 
-      if (cfg.notifyWird) {
+      if (cfg.notifyWird && !cfg.notifyTasks) {
         await _put(
           date,
           NotificationSlot.quranWird,
@@ -430,7 +447,7 @@ class RollingWindowScheduler {
             now,
             title: qiyamTitle,
             body: qiyamBody,
-            channel: channelAthkar,
+            channel: TaskAlertKind.qiyam.channelId,
             payload: 'qiyam',
           );
         }
@@ -451,7 +468,7 @@ class RollingWindowScheduler {
             now,
             title: 'صيام بكرة؟',
             body: fastingEveBody(fast),
-            channel: channelGeneral,
+            channel: TaskAlertKind.fasting.channelId,
             payload: 'fasting',
           );
         }
@@ -494,7 +511,7 @@ class RollingWindowScheduler {
             body: waterReminderBody(
               afterFast: fastingToday && !at.isBefore(times.maghrib),
             ),
-            channel: channelGeneral,
+            channel: TaskAlertKind.water.channelId,
             payload: 'water',
           );
         }
@@ -516,7 +533,7 @@ class RollingWindowScheduler {
           now,
           title: 'الميزانية',
           body: cfg.budgetNote!,
-          channel: channelGeneral,
+          channel: TaskAlertKind.budget.channelId,
           payload: 'finance',
         );
       }
@@ -594,7 +611,7 @@ class RollingWindowScheduler {
           now,
           title: 'نوري',
           body: 'تحب نراجع صلوات النهاردة سوا؟',
-          channel: channelGeneral,
+          channel: TaskAlertKind.review.channelId,
           payload: 'review:daily',
         );
       }

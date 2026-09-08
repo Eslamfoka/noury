@@ -23,7 +23,14 @@ import 'task_alert.dart';
 /// It was itself a v1 → v2 bump, to reset the importance MagicOS had locked
 /// at DEFAULT and to adopt the full-screen intent.
 const channelAdhan = 'adhan_v2';
+
+/// **Retired.** The iqama moved to `alert_iqama_v2`, which carries a sound of
+/// its own rather than the system default — see the note at that call site.
+/// Kept only so the id can be named in [retiredChannelIds].
 const channelIqama = 'iqama_v1';
+
+/// Still live, but only when the day plan is *not* announcing the athkar
+/// itself. See the gate in `rolling_window_scheduler.dart`.
 const channelAthkar = 'athkar_v1';
 const channelWird = 'wird_v1';
 const channelGeneral = 'general_v1';
@@ -32,7 +39,6 @@ const channelGeneral = 'general_v1';
 /// is the union, and it is what startup creates and what the settings screen
 /// reasons about.
 const coreChannelIds = <String>[
-  channelIqama,
   channelAthkar,
   channelWird,
   channelGeneral,
@@ -70,4 +76,9 @@ const retiredChannelIds = <String>[
   'adhan_asr_v1',
   'adhan_maghrib_v1',
   'adhan_isha_v1',
+  // The iqama's own channel, superseded by `alert_iqama_v2`. It had the
+  // system default sound, which was the whole problem: the one notification
+  // that has to be told apart from the adhan sounded like every other app on
+  // the phone.
+  'iqama_v1',
 ];

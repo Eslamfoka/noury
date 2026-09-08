@@ -148,7 +148,12 @@ void main() {
   });
 
   test('disabling adhan still leaves the athkar and wird reminders', () async {
-    await scheduler.rearm(config.copyWith(notifyAdhan: false));
+    // `notifyTasks: false` because these two reminders are the *legacy* path
+    // — with the task alarms on, the day plan announces the athkar and the
+    // wird instead, and arming both meant two rings for one task. See
+    // one_sound_per_thing_test.
+    await scheduler
+        .rearm(config.copyWith(notifyAdhan: false, notifyTasks: false));
     expect(gateway.ofSlot(NotificationSlot.adhanFajr), isEmpty);
     expect(gateway.ofSlot(NotificationSlot.followUpFajr), isEmpty,
         reason: 'the follow-up belongs to the adhan');
@@ -215,7 +220,10 @@ void main() {
   });
 
   test('evening athkar ride on maghrib rather than a fixed hour', () async {
-    await scheduler.rearm(config);
+    // The legacy reminder, so `notifyTasks: false` — see above. The task
+    // alert that replaces it rides maghrib too, by a planner anchor rather
+    // than by this subtraction.
+    await scheduler.rearm(config.copyWith(notifyTasks: false));
     final maghrib = gateway.ofSlot(NotificationSlot.adhanMaghrib).first;
     final evening = gateway
         .ofSlot(NotificationSlot.eveningAthkar)

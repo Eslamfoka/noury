@@ -26,12 +26,6 @@ const adhanSoundResource = 'chime';
 /// "a channel per task" are the same sentence on Android.
 const _coreChannels = <AndroidNotificationChannel>[
   AndroidNotificationChannel(
-    channelIqama,
-    'الإقامة',
-    description: 'تنبيه قبل الإقامة',
-    importance: Importance.high,
-  ),
-  AndroidNotificationChannel(
     channelAthkar,
     'الأذكار',
     description: 'تذكير أذكار الصباح والمساء والنوم',

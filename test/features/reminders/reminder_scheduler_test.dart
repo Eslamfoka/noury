@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nouri/core/notifications/adhan_sounds.dart';
 import 'package:nouri/core/notifications/notification_channels_ids.dart';
 import 'package:nouri/core/notifications/notification_route.dart';
 import 'package:nouri/core/notifications/notification_slot.dart';
+import 'package:nouri/core/notifications/task_alert.dart';
 import 'package:nouri/core/notifications/rolling_window_scheduler.dart';
 import 'package:nouri/core/time/geo_config.dart';
 import 'package:nouri/core/time/prayer_times_service.dart';
@@ -77,11 +79,20 @@ void main() {
       expect(gateway.scheduled, isEmpty);
     });
 
-    test('rides the general channel, not the adhan', () async {
+    test('rides its own channel, not the adhan and not the general one',
+        () async {
       // "You asked me to remind you" is not a call to prayer, and must not
       // borrow its importance or its sound.
+      //
+      // Nor the general channel's, which it used to share with «صليت الظهر؟»
+      // — so a thing the user had asked to be told about arrived sounding
+      // exactly like a question from Nouri. `alert_reminder_v1` exists
+      // precisely so the two can be told apart by ear.
       await scheduler.arm([aReminder(id: 1)], now: DateTime(2026, 9, 19));
-      expect(gateway.scheduled.single.channelId, channelGeneral);
+      final id = gateway.scheduled.single.channelId;
+      expect(id, TaskAlertKind.reminder.channelId);
+      expect(isAdhanChannel(id), isFalse);
+      expect(id, isNot(channelGeneral));
     });
 
     test('carries a payload that routes back to the reminder', () async {

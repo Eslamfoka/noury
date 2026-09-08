@@ -1,6 +1,6 @@
-import '../../core/notifications/notification_channels_ids.dart';
 import '../../core/notifications/notification_gateway.dart';
 import '../../core/notifications/notification_slot.dart';
+import '../../core/notifications/task_alert.dart';
 import '../../data/db/nouri_database.dart';
 import 'reminder.dart';
 import 'reminder_ids.dart';
@@ -60,7 +60,11 @@ class ReminderScheduler {
         body: (r.note == null || r.note!.trim().isEmpty)
             ? _defaultBody
             : r.note!.trim(),
-        channelId: channelGeneral,
+        // The user's own reminders, on the sound made for them. They used
+        // to share `general_v1` with the prayer follow-ups, so a thing the
+        // user had asked to be told about sounded exactly like a question
+        // from Nouri.
+        channelId: TaskAlertKind.reminder.channelId,
         payload: 'reminder:${r.id}',
       ));
     }
