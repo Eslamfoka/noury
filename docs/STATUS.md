@@ -5,8 +5,8 @@ Last updated **8 September 2026**, overnight session.
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `ec8d732`, working tree clean |
-| Tests | **1096 passing**, `flutter analyze` clean |
+| Head | `aeb763e`, working tree clean |
+| Tests | **1100 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 8 Sep 13:12** (HONOR VNE-N41) |
 | On the emulator | current build, `nourdm-api35`, verified |
 | Schema | v11 |
@@ -92,9 +92,19 @@ Last updated **8 September 2026**, overnight session.
   known which of them carries «الصلاة خير من النوم»** — the line that belongs
   in the fajr adhan and nowhere else. Religious content, so it waits for a
   human, like the athkar and the fasting days.
-- **A snooze has never been pressed on a real notification.** The store, the
-  ids and the background handler are each tested; the round trip has not been
-  watched.
+- **The whole notification chain is confirmed working on the emulator** —
+  first time in this project. A task alert fires on its own channel, its
+  snooze button puts it off five minutes without opening the app, and المهام
+  shows the new time. The maghrib adhan and a «مشيت؟» follow-up were seen in
+  the same run.
+- **Check POST_NOTIFICATIONS before concluding anything about alarms.** It is
+  a runtime permission on SDK 33+, it was never granted on the emulator, and
+  every alarm this project armed there fired into nothing for weeks. That is
+  the whole explanation for "no notification has ever been watched arriving".
+- **`flutter_local_notifications` declares no receivers of its own.** All three
+  are the app's to declare, and a *silent* notification action needs the third
+  one — `ActionBroadcastReceiver` — or the button does nothing at all, with no
+  log and no error.
 - **The adhan does not bypass Do Not Disturb.** Measured on the phone:
   `adhan_v2` has `mBypassDnd=false`, and the manual override the user had set
   on the old `adhan_v1` did not carry over. For a night worker sleeping in the

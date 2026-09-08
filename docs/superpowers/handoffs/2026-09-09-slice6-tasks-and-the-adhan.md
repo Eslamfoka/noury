@@ -173,17 +173,76 @@ Five live, five distinct sounds, every placeholder-era channel retired.
 **The audio shipped:** all five present in the release APK, 7.15 MB in total.
 The APK went 62.7 → 69.7 MB.
 
+---
+
+## The night's real finding: nothing had ever been delivered
+
+Every handoff since Slice 1 has carried the line *"no notification has been
+watched arriving"*. It turns out that was not for want of trying. Pressing the
+button on the emulator found **three faults in a row**, none of which a test
+could have caught.
+
+### 1. Notifications were never permitted on the emulator
+
+`POST_NOTIFICATIONS: granted=false`, `importance=NONE`. It is a **runtime**
+permission on SDK 33+, the emulator runs 35, and it had never been granted.
+
+**Every alarm this project has armed on the emulator, in every session, fired
+into nothing.** The alarms were always right; the delivery was always blocked.
+Granting it produced the first Nouri notification ever confirmed delivered.
+
+The app already asks for this and the settings panel already warns about it —
+nobody had ever said yes on this emulator. Worth knowing for every future
+device test: **check the permission before concluding anything about alarms.**
+
+### 2. The snooze button did nothing at all
+
+`ActionBroadcastReceiver` was not declared in the manifest.
+`flutter_local_notifications` ships a manifest with **no receivers in it** —
+the app's own manifest comment says so — and an earlier session declared the
+two it needed then. A *silent* action is delivered by a third.
+
+Without it the press reaches the app process (`dumpsys` shows it unfrozen) and
+then stops. No engine starts, no handler runs, no log, no error.
+
+**This is the third turn of the same screw.** «صليت» was once silent for want
+of a registered Dart handler. The handler is registered now — and the receiver
+was the other half. The guard added the night before checked only the Dart
+side, so it passed happily while the feature was dead. It requires both now,
+and `notification_receivers_test` expects three receivers rather than two.
+
+### 3. المهام never showed the snooze
+
+The store is written by a *different isolate*, so nothing in the app's isolate
+knew the file had changed and the provider stayed cached from launch. It
+re-reads on the coarse clock now.
+
+### Watched end to end, in order
+
+1. The task alert fires on its own channel — `alert_athkar_evening_v1`
+2. «فكّرني بعد ٥ دقايق» is on it
+3. Pressing it **does not open the app**
+4. Alarms 291 → 292
+5. The notification dismisses itself
+6. `snoozes.json` = `{"evening-athkar":"2026-09-08T18:23:42"}` — five minutes on
+7. المهام shows **٦:٢٣ · كان ٦:١٨ · مأجّلة**
+
+The **maghrib adhan fired on `adhan_maghrib_v2`** in the same run, and the
+**«مشيت؟» follow-up arrived**. Both first sightings.
+
 ## Not verified anywhere
 
-- **No adhan has been heard.** The channels carry the right resources and the
-  alarms are armed; whether a recitation sounds right is a thing only an ear
-  can check.
-- **No notification has been watched arriving**, on either device.
-- **A snooze has never been pressed on a real notification.** The store, the
-  ids and the background handler are each tested, but the round trip —
-  press, isolate wakes, file written, المهام shows the new time — has not been
-  watched end to end.
-- Nothing at all on the HONOR since the Slice 4 build.
+- **No adhan has been *heard*.** The maghrib one was confirmed to fire on its
+  own channel, but whether a recitation sounds right — and which carries
+  «الصلاة خير من النوم» — only an ear can settle.
+- **Nothing on the HONOR since the Slice 4 build**, and the phone predates all
+  of this: المهام, the task alarms, the sounds, the adhans, and the
+  `ActionBroadcastReceiver` fix. **Its snooze button would be dead too.**
+- **The pure background-isolate path.** The snooze was watched with the app
+  backgrounded but alive, which is the common case; a snooze pressed after
+  Android has killed the process takes the isolate branch, which differs by
+  the plugin registrant and building its own gateway. `force-stop` cannot test
+  it — it cancels the app's alarms.
 
 ## What needs you
 
