@@ -7,7 +7,8 @@ import 'package:nouri/data/db/nouri_database.dart';
 /// v4 added reminders, walking, workouts and challenges; v5 the sunnah
 /// fasting toggle; v6 the duty pattern the planner needs; v7 water and the
 /// fasting-day marker; v8 knowledge time; v9 the قيام الليل toggle; v10 phone
-/// time and its cap; v11 the task-alarm switch. Every
+/// time and its cap; v11 the task-alarm switch; v12 الملف الشخصي, the profile
+/// «ابني خطتي» is assembled from. Every
 /// migration is additive, so the most important test
 /// here is the last one — that nothing from the religious core was disturbed
 /// on the way.
@@ -20,9 +21,30 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v11', () {
+  test('schema is at v12', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 11);
+    expect(fresh().schemaVersion, 12);
+  });
+
+  test('the profile arrives empty rather than absent', () async {
+    // Read before written: a database that predates v12 must answer the first
+    // question asked of it, not fail. Every field is nullable because the
+    // screen never demands anything — a form that has to be completed before
+    // the app is useful is the stress Nouri exists to remove.
+    final p = await fresh().profileDao.get();
+    expect(p.name, isNull);
+    expect(p.occupation, isNull);
+    expect(await fresh().profileDao.customFields(), isEmpty);
+  });
+
+  test('a custom field the user adds keeps the place he put it', () async {
+    final db = fresh();
+    await db.profileDao.addCustomField(label: 'نادي', value: 'الجمعة');
+    await db.profileDao.addCustomField(label: 'مواصلات', value: 'أتوبيس');
+
+    final fields = await db.profileDao.customFields();
+    expect(fields.map((f) => f.label), ['نادي', 'مواصلات']);
+    expect(fields.map((f) => f.position), [0, 1]);
   });
 
   test('task alarms arrive on, so an upgrade gets the feature', () async {

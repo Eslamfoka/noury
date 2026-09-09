@@ -42,6 +42,8 @@ String encodeIqamaOffsets(Map<String, int> offsets) => jsonEncode(offsets);
     FastingDays,
     KnowledgeLogs,
     PhoneSessions,
+    ProfileRows,
+    ProfileFieldRows,
   ],
 )
 class NouriDatabase extends _$NouriDatabase {
@@ -49,7 +51,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,6 +128,16 @@ class NouriDatabase extends _$NouriDatabase {
           if (from < 11) {
             await m.addColumn(settingsRows, settingsRows.notifyTasks);
           }
+
+          // v12 adds الملف الشخصي — who the user is, as opposed to how Nouri
+          // should behave. Two new tables and not one column touched
+          // elsewhere: the profile is the input to «ابني خطتي», and an
+          // upgrade must never cost the user a row of what they already
+          // logged.
+          if (from < 12) {
+            await m.createTable(profileRows);
+            await m.createTable(profileFieldRows);
+          }
         },
       );
 
@@ -142,6 +154,7 @@ class NouriDatabase extends _$NouriDatabase {
   late final challengeDao = ChallengeDao(this);
   late final waterDao = WaterDao(this);
   late final knowledgeDao = KnowledgeDao(this);
+  late final profileDao = ProfileDao(this);
 
   static QueryExecutor _open() => LazyDatabase(() async {
         final dir = await getApplicationDocumentsDirectory();
@@ -797,4 +810,86 @@ class PhoneDao {
     final rows = await forDate(date);
     return rows.fold<int>(0, (a, r) => a + r.minutes);
   }
+}
+
+/// الملف الشخصي — the one profile row, and the fields the user added himself.
+///
+/// Mirrors [SettingsDao]'s shape: a single row that is created on first read
+/// rather than at install, so a database that predates v12 answers the first
+/// question asked of it instead of failing.
+class ProfileDao {
+  ProfileDao(this._db);
+  final NouriDatabase _db;
+
+  /// The profile, creating the empty one if this is the first ever read.
+  Future<ProfileRow> get() async {
+    final existing = await (_db.select(_db.profileRows)
+          ..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
+    if (existing != null) return existing;
+
+    await _db
+        .into(_db.profileRows)
+        .insert(const ProfileRowsCompanion(id: Value(1)));
+    return (_db.select(_db.profileRows)..where((t) => t.id.equals(1)))
+        .getSingle();
+  }
+
+  Stream<ProfileRow> watch() =>
+      (_db.select(_db.profileRows)..where((t) => t.id.equals(1)))
+          .watchSingleOrNull()
+          .asyncMap((row) async => row ?? await get());
+
+  /// Writes only the fields the companion names.
+  ///
+  /// `updatedAt` is stamped here rather than by every caller, so «آخر تعديل»
+  /// cannot quietly go stale because one screen forgot.
+  Future<void> update(ProfileRowsCompanion patch) async {
+    await get();
+    await (_db.update(_db.profileRows)..where((t) => t.id.equals(1)))
+        .write(patch.copyWith(updatedAt: Value(DateTime.now())));
+  }
+
+  Future<List<ProfileFieldRow>> customFields() =>
+      (_db.select(_db.profileFieldRows)
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.position),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
+          .get();
+
+  Stream<List<ProfileFieldRow>> watchCustomFields() =>
+      (_db.select(_db.profileFieldRows)
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.position),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
+          .watch();
+
+  /// Adds a field of the user's own, at the end.
+  Future<int> addCustomField({
+    required String label,
+    required String value,
+  }) async {
+    final existing = await customFields();
+    return _db.into(_db.profileFieldRows).insert(
+          ProfileFieldRowsCompanion.insert(
+            label: label,
+            value: value,
+            position: Value(existing.length),
+            addedAt: DateTime.now(),
+          ),
+        );
+  }
+
+  Future<void> updateCustomField(int id, {String? label, String? value}) =>
+      (_db.update(_db.profileFieldRows)..where((t) => t.id.equals(id))).write(
+        ProfileFieldRowsCompanion(
+          label: label == null ? const Value.absent() : Value(label),
+          value: value == null ? const Value.absent() : Value(value),
+        ),
+      );
+
+  Future<void> removeCustomField(int id) =>
+      (_db.delete(_db.profileFieldRows)..where((t) => t.id.equals(id))).go();
 }

@@ -176,3 +176,97 @@ class KnowledgeLogs extends Table {
 
   DateTimeColumn get loggedAt => dateTime()();
 }
+
+/// Who the user is, in the terms a plan has to be built from.
+///
+/// **One row, like [SettingsRows].** It is a profile, not a log: there is
+/// exactly one person using this app and nothing here is historical.
+///
+/// Kept separate from settings even so, because the two answer different
+/// questions. Settings is *how Nouri should behave*; this is *who it is
+/// behaving for*, and it is the payload that gets summarised and sent when the
+/// user presses «ابني خطتي». Keeping them apart is what lets a test assert
+/// that nothing from the logging tables ever leaves the device.
+///
+/// Every column is nullable and the screen never demands anything. A half-
+/// filled profile still builds a plan — a worse one, and Nouri says so —
+/// because a form that must be completed before the app is useful is the
+/// stress this app exists to remove.
+class ProfileRows extends Table {
+  IntColumn get id => integer().withDefault(const Constant(1))();
+
+  TextColumn get name => text().nullable()();
+
+  /// Free text rather than an enum. The user asked for «النوع» without saying
+  /// what the options were, and inventing a closed list on his behalf is the
+  /// kind of guess this project has already paid for twice.
+  TextColumn get gender => text().nullable()();
+
+  DateTimeColumn get birthDate => dateTime().nullable()();
+
+  /// `employee` · `student` · `both` · null.
+  ///
+  /// The branch the whole plan turns on: it decides whether the day is built
+  /// around shifts or around lectures. Stored as text, not an enum index,
+  /// because an enum's order is a migration hazard and this one is read by
+  /// name when the summary is assembled.
+  TextColumn get occupation => text().nullable()();
+
+  /// A second job. Time that has to come out of the same day.
+  TextColumn get secondJob => text().nullable()();
+
+  /// The stage a student is at — «تانية ثانوي», «سنة تالتة هندسة».
+  TextColumn get studyStage => text().nullable()();
+
+  /// Lectures or classes in a normal week.
+  IntColumn get weeklyLectures => integer().nullable()();
+
+  /// Private-lesson hours in a normal week. Named separately from
+  /// [weeklyLectures] because they sit at different times of day and the
+  /// planner has to place them differently.
+  IntColumn get weeklyPrivateLessons => integer().nullable()();
+
+  /// How he eats and drinks, and how he sleeps, in his own words.
+  ///
+  /// Nouri already holds the *numbers* — the 16/8 window, the water target,
+  /// the sleep length. These are the sentences around them: «بصوم الاتنين
+  /// والخميس», «مبعرفش أنام قبل الفجر». Claude can read those; a column of
+  /// integers cannot express them.
+  TextColumn get eatingNotes => text().nullable()();
+  TextColumn get sleepNotes => text().nullable()();
+
+  /// What he is interested in. **The only input to the book recommendations**,
+  /// which is the one thing he asked for that nothing else in the app knows.
+  TextColumn get interests => text().nullable()();
+
+  /// Where the profile photo is on disk.
+  ///
+  /// A path, not the bytes. A few hundred KB of JPEG in a row that every read
+  /// of this table touches would slow every one of those reads down for the
+  /// sake of one screen.
+  TextColumn get photoPath => text().nullable()();
+
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+}
+
+/// The fields the user added himself.
+///
+/// His words: «وحاجة كمان ممكن المستخدم يضيف … انا مش عارف احصرها» — he
+/// could not enumerate them, so neither should the schema. A label and a
+/// value, in his own language, passed through to Claude verbatim under a
+/// heading that says these are the user's own.
+///
+/// Nouri deliberately does **not** try to interpret them. Reading an arbitrary
+/// sentence is the thing the model is for, and a keyword matcher here would be
+/// a worse version of the part being called.
+class ProfileFieldRows extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get label => text()();
+  TextColumn get value => text()();
+
+  /// Ordering is the user's, and stable: he sees them where he put them.
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
+  DateTimeColumn get addedAt => dateTime()();
+}
