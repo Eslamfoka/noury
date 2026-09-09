@@ -6,6 +6,7 @@ import '../../core/format/arabic_numerals.dart';
 import '../../core/notifications/notification_status.dart';
 import '../../core/time/location_service.dart';
 import '../../core/theme/nouri_colors.dart';
+import '../profile/profile_screen.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../home/home_providers.dart';
 import '../shared/nouri_avatar.dart';
@@ -167,6 +168,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 20),
 
+        // الملف الشخصي sits above the settings sections rather than among
+        // them, because it is not a setting. Settings are how Nouri behaves;
+        // this is who it is behaving for, and it is the one row here that
+        // leads somewhere the user is meant to *finish* something.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _ProfileRow(),
+        ),
+
         for (final section in SettingsSection.values) ...[
           _SectionRow(section: section),
           const SizedBox(height: 10),
@@ -184,6 +194,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 /// One tappable row on the index.
+/// The way into الملف الشخصي and «ابني خطتي».
+class _ProfileRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        key: const ValueKey('open-profile'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+          decoration: BoxDecoration(
+            color: NouriColors.surfaceActive,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: NouriColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.person_outline, color: NouriColors.gold),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('الملف الشخصي',
+                        style: cairo(size: 14, weight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text('بياناتك، وزرار «ابني خطتي»',
+                        style:
+                            cairo(size: 11.5, color: NouriColors.muted)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_left, color: NouriColors.muted),
+            ],
+          ),
+        ),
+      );
+}
+
 class _SectionRow extends StatelessWidget {
   const _SectionRow({required this.section});
 
