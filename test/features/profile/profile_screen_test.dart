@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/data/db/nouri_database.dart';
+import 'package:nouri/features/planner/ai/plan_request.dart';
 import 'package:nouri/features/profile/profile_screen.dart';
 
 import '../../support/harness.dart';
@@ -106,6 +107,65 @@ void main() {
         expect(find.byKey(const ValueKey('profile-field-شغل تاني')),
             findsOneWidget);
       });
+    });
+  });
+
+  group('a date can be taken back', () {
+    testWidgets('an unset date offers nothing to clear', (t) async {
+      await withLargeSurface(t, size: tall, () async {
+        await pump(t);
+        expect(find.byKey(const ValueKey('profile-birthdate-clear')),
+            findsNothing);
+      });
+    });
+
+    testWidgets('a set date can be cleared back to empty', (t) async {
+      // Every other field on this screen can be emptied — text by deleting it,
+      // a choice chip by tapping the selected one. The date could only ever be
+      // *replaced*, because a picker has no "none". So a value set by mistake
+      // was permanent, which is how 2001/1/1 — the picker's own default —
+      // ended up in the real profile on 9 September 2026, written by a stray
+      // gesture and impossible to take back.
+      await db.profileDao.update(
+        ProfileRowsCompanion(birthDate: Value(DateTime(2001, 1, 1))),
+      );
+      await pump(t);
+
+      expect(find.text('2001/1/1'), findsOneWidget);
+
+      await t.tap(find.byKey(const ValueKey('profile-birthdate-clear')));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 50));
+
+      expect((await db.profileDao.get()).birthDate, isNull);
+      expect(find.text('اختار التاريخ'), findsOneWidget);
+    });
+
+    testWidgets('clearing it takes the age out of what Claude is told',
+        (t) async {
+      // The point of the field. A wrong birth date is not cosmetic — it is a
+      // wrong age in the summary, and the age shapes sleep and exercise advice.
+      await db.profileDao.update(
+        ProfileRowsCompanion(birthDate: Value(DateTime(2001, 1, 1))),
+      );
+      await pump(t);
+      await t.tap(find.byKey(const ValueKey('profile-birthdate-clear')));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 50));
+
+      final payload = PlanRequest(
+        profile: await db.profileDao.get(),
+        customFields: const [],
+        days: const [],
+        shiftType: 'night',
+        prayerTimesByDay: const {},
+        targetSleepHours: 7,
+        eatingWindowStartHour: 12,
+        eatingWindowHours: 8,
+        waterTargetGlasses: 8,
+      ).toPrompt(allowedTaskIds: const ['walk']);
+
+      expect(payload, isNot(contains('السن')));
     });
   });
 

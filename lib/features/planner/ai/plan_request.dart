@@ -81,6 +81,12 @@ class PlanRequest {
     final age = _age();
     if (age != null) _line(b, 'السن', '$age سنة');
     _line(b, 'شغل ولا دراسة', _occupationLabel(profile.occupation));
+    // The length of a shift, which is what decides how much of a day is left
+    // once duty is taken out. The *type* goes in the الثوابت block below,
+    // because it comes from settings rather than from the profile.
+    _line(b, 'ساعات الوردية', profile.dutyHours == null
+        ? null
+        : '${profile.dutyHours} ساعة');
     _line(b, 'شغل تاني', profile.secondJob);
     _line(b, 'المرحلة الدراسية', profile.studyStage);
     _line(b, 'محاضرات في الأسبوع', profile.weeklyLectures?.toString());

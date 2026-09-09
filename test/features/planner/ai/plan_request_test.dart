@@ -135,6 +135,25 @@ void main() {
           reason: 'the fixed anchors are known even when the profile is not');
     });
 
+    test('the length of a shift is sent, not just its kind', () async {
+      // Knowing someone works nights says when their duty falls; it says
+      // nothing about whether that is eight hours or sixteen, and the plan
+      // has to place everything in what is left.
+      await db.profileDao
+          .update(const ProfileRowsCompanion(dutyHours: Value(12)));
+
+      final payload = requestFrom(await db.profileDao.get())
+          .toPrompt(allowedTaskIds: ['walk']);
+
+      expect(payload, contains('ساعات الوردية: 12 ساعة'));
+    });
+
+    test('an unanswered shift length is simply absent', () async {
+      final payload = requestFrom(await db.profileDao.get())
+          .toPrompt(allowedTaskIds: ['walk']);
+      expect(payload, isNot(contains('ساعات الوردية')));
+    });
+
     test('the shift is spelled out, not passed as a code word', () async {
       final payload = requestFrom(await db.profileDao.get())
           .toPrompt(allowedTaskIds: ['walk']);

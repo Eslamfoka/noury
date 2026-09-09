@@ -212,6 +212,18 @@ class ProfileRows extends Table {
   /// name when the summary is assembled.
   TextColumn get occupation => text().nullable()();
 
+  /// How long one shift is, in hours.
+  ///
+  /// **Separate from the shift *type*, which lives in settings**, and the pair
+  /// is what the user actually asked for: «نوع دوامك ايه وعدد ساعاتك دوامك
+  /// ايه». The type says *when* a shift falls; this says *how much of the day
+  /// it eats*, and nothing else in Nouri knew it.
+  ///
+  /// A plain number rather than an enum, because 8, 12, 16 and 24 are the
+  /// common answers but not the only ones — a seven-hour shift is what this
+  /// user actually works, and a closed list would have no room for it.
+  IntColumn get dutyHours => integer().nullable()();
+
   /// A second job. Time that has to come out of the same day.
   TextColumn get secondJob => text().nullable()();
 

@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 
@@ -8,7 +9,7 @@ import 'package:nouri/data/db/nouri_database.dart';
 /// fasting toggle; v6 the duty pattern the planner needs; v7 water and the
 /// fasting-day marker; v8 knowledge time; v9 the قيام الليل toggle; v10 phone
 /// time and its cap; v11 the task-alarm switch; v12 الملف الشخصي, the profile
-/// «ابني خطتي» is assembled from. Every
+/// «ابني خطتي» is assembled from; v13 the length of a shift. Every
 /// migration is additive, so the most important test
 /// here is the last one — that nothing from the religious core was disturbed
 /// on the way.
@@ -21,9 +22,25 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v12', () {
+  test('schema is at v13', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 12);
+    expect(fresh().schemaVersion, 13);
+  });
+
+  test('the length of a shift is remembered, and is not the shift type',
+      () async {
+    // Two different questions, and the user asked both: «نوع دوامك ايه وعدد
+    // ساعاتك دوامك ايه». The type stays in settings — one setting, one place —
+    // and the hours live here, because nothing in Nouri knew them.
+    final db = fresh();
+    expect((await db.profileDao.get()).dutyHours, isNull);
+
+    await db.profileDao
+        .update(const ProfileRowsCompanion(dutyHours: Value(12)));
+
+    expect((await db.profileDao.get()).dutyHours, 12);
+    expect((await db.settingsDao.get()).shiftType, 'morning',
+        reason: 'the type is a setting and the hours must not disturb it');
   });
 
   test('the profile arrives empty rather than absent', () async {

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format/arabic_numerals.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
@@ -100,7 +101,12 @@ class ProfileScreen extends ConsumerWidget {
                 onSave: (v) =>
                     _save(ref, ProfileRowsCompanion(occupation: Value(v))),
               ),
-              if (p.occupation == 'employee' || p.occupation == 'both')
+              if (p.occupation == 'employee' || p.occupation == 'both') ...[
+                _HoursRow(
+                  value: p.dutyHours,
+                  onSave: (v) =>
+                      _save(ref, ProfileRowsCompanion(dutyHours: Value(v))),
+                ),
                 _TextRow(
                   label: 'شغل تاني',
                   explain: 'لو فيه شغل تاني، ساعاته بتتخصم من نفس اليوم — '
@@ -109,6 +115,7 @@ class ProfileScreen extends ConsumerWidget {
                   onSave: (v) =>
                       _save(ref, ProfileRowsCompanion(secondJob: Value(v))),
                 ),
+              ],
               if (p.occupation == 'student' || p.occupation == 'both') ...[
                 _TextRow(
                   label: 'المرحلة الدراسية',
@@ -412,6 +419,105 @@ class _NumberRowState extends State<_NumberRow> {
       );
 }
 
+/// «ساعات الوردية» — how long one shift runs.
+///
+/// The other half of what the user asked for: *«نوع دوامك ايه وعدد ساعاتك
+/// دوامك ايه»*. The **type** already lives in الإعدادات → الدوام and is not
+/// duplicated here — one setting, one place. This is the **length**, which
+/// nothing in Nouri knew, and it is what decides how much of a day is left
+/// once duty is taken out.
+///
+/// Chips for the four common answers he named, and a free field beside them,
+/// because his own shifts are seven and nine hours and a closed list would
+/// have had no room for the person it was built for.
+class _HoursRow extends StatefulWidget {
+  const _HoursRow({required this.value, required this.onSave});
+
+  final int? value;
+  final ValueChanged<int?> onSave;
+
+  @override
+  State<_HoursRow> createState() => _HoursRowState();
+}
+
+class _HoursRowState extends State<_HoursRow> {
+  static const _common = [8, 12, 16, 24];
+
+  late final TextEditingController _controller = TextEditingController(
+    text: _isCommon(widget.value) ? '' : (widget.value?.toString() ?? ''),
+  );
+
+  static bool _isCommon(int? v) => v != null && _common.contains(v);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _FieldFrame(
+        label: 'ساعات الوردية',
+        explain: 'الوردية الواحدة بتاخد كام ساعة. ده اللي بيحدّد الوقت '
+            'اللي فاضل في يومك بعد الشغل.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final h in _common)
+                  ChoiceChip(
+                    key: ValueKey('duty-hours-$h'),
+                    label: Text(toArabicDigits('$h'), style: cairo(size: 12)),
+                    selected: widget.value == h,
+                    showCheckmark: false,
+                    backgroundColor: NouriColors.background,
+                    selectedColor: NouriColors.surfaceActive,
+                    side: BorderSide(
+                      color: widget.value == h
+                          ? NouriColors.gold
+                          : NouriColors.border,
+                    ),
+                    // Tapping the chosen one clears it, as everywhere else on
+                    // this screen — an answer given by mistake must be
+                    // reversible without wiping the profile.
+                    onSelected: (on) {
+                      if (on) _controller.clear();
+                      widget.onSave(on ? h : null);
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('duty-hours-other'),
+              controller: _controller,
+              keyboardType: TextInputType.number,
+              style: cairo(size: 13),
+              decoration: _fieldDecoration()
+                  .copyWith(hintText: 'أو اكتب عدد تاني — ٧، ٩…'),
+              onTapOutside: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                _commitOther();
+              },
+              onSubmitted: (_) => _commitOther(),
+            ),
+          ],
+        ),
+      );
+
+  void _commitOther() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    final parsed = int.tryParse(text);
+    // Silently ignored rather than shown as an error: a stray character in a
+    // field nobody is required to fill is not worth a red line.
+    if (parsed == null || parsed <= 0 || parsed > 24) return;
+    widget.onSave(parsed);
+  }
+}
+
 class _ChoiceRow extends StatelessWidget {
   const _ChoiceRow({
     required this.label,
@@ -456,6 +562,17 @@ class _ChoiceRow extends StatelessWidget {
       );
 }
 
+/// A date, with a way back out of it.
+///
+/// **The clear button is not a nicety.** A picker has no "none", so before it
+/// existed a date could only ever be *replaced* — and a date set by accident
+/// was therefore permanent. That is not hypothetical: on 9 September 2026 a
+/// stray gesture on the real phone opened this picker and confirmed its own
+/// default, writing 2001/1/1 into the profile with no way to take it back.
+///
+/// It matters more than a wrong string would, because the age computed from
+/// this is sent to Claude and shapes what it says about sleep and effort. A
+/// wrong birth date is a wrong plan, quietly.
 class _DateRow extends StatelessWidget {
   const _DateRow({
     required this.label,
@@ -473,35 +590,51 @@ class _DateRow extends StatelessWidget {
   Widget build(BuildContext context) => _FieldFrame(
         label: label,
         explain: explain,
-        child: InkWell(
-          key: const ValueKey('profile-birthdate'),
-          onTap: () async {
-            final now = DateTime.now();
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: value ?? DateTime(now.year - 25, 1, 1),
-              firstDate: DateTime(now.year - 90, 1, 1),
-              lastDate: now,
-            );
-            if (picked != null) onSave(picked);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              color: NouriColors.background,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: NouriColors.border),
-            ),
-            child: Text(
-              value == null
-                  ? 'اختار التاريخ'
-                  : '${value!.year}/${value!.month}/${value!.day}',
-              style: cairo(
-                size: 13,
-                color: value == null ? NouriColors.muted : NouriColors.text,
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                key: const ValueKey('profile-birthdate'),
+                onTap: () async {
+                  final now = DateTime.now();
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: value ?? DateTime(now.year - 25, 1, 1),
+                    firstDate: DateTime(now.year - 90, 1, 1),
+                    lastDate: now,
+                  );
+                  if (picked != null) onSave(picked);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: NouriColors.background,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: NouriColors.border),
+                  ),
+                  child: Text(
+                    value == null
+                        ? 'اختار التاريخ'
+                        : '${value!.year}/${value!.month}/${value!.day}',
+                    style: cairo(
+                      size: 13,
+                      color:
+                          value == null ? NouriColors.muted : NouriColors.text,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            if (value != null)
+              IconButton(
+                key: const ValueKey('profile-birthdate-clear'),
+                tooltip: 'امسح التاريخ',
+                icon: const Icon(Icons.close,
+                    size: 18, color: NouriColors.muted),
+                onPressed: () => onSave(null),
+              ),
+          ],
         ),
       );
 }

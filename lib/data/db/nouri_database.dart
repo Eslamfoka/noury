@@ -51,7 +51,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -137,6 +137,14 @@ class NouriDatabase extends _$NouriDatabase {
           if (from < 12) {
             await m.createTable(profileRows);
             await m.createTable(profileFieldRows);
+          }
+
+          // v13 adds the length of a shift. The profile captured which *kind*
+          // of duty the user works but never how many hours it runs, which is
+          // half of what he asked for and the half that decides how much of
+          // the day is left to place anything in.
+          if (from < 13) {
+            await m.addColumn(profileRows, profileRows.dutyHours);
           }
         },
       );
