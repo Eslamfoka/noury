@@ -56,11 +56,52 @@ class _NoopScheduler implements SchedulerPort {
 /// means the adhan will not fire, and that belongs where it is seen on the way
 /// in, not two taps deep. And the privacy line stays at the bottom, because it
 /// is a statement about the whole app rather than about any one setting.
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  /// Re-reads the device when the user comes back from a system screen.
+  ///
+  /// Three of the four rows in the panel send the user out of Nouri to grant
+  /// something, and Android gives no callback when they return. Without this
+  /// the panel would go on saying «مش مفعّل» about a permission the user just
+  /// granted, until the next cold launch.
+  ///
+  /// Do Not Disturb needs more than a re-read: a channel's bypass is fixed at
+  /// creation, so granting the access means building the adhan channels again
+  /// on the bypassing variant and re-arming the fortnight onto them. That is
+  /// the standing rule of this project — any setting that can change an alarm
+  /// must re-arm — reached by a slightly unusual road.
+  AppLifecycleListener? _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _onResume);
+  }
+
+  @override
+  void dispose() {
+    _lifecycle?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onResume() async {
+    final service = ref.read(notificationServiceProvider);
+    if (service == null) return;
+
+    await service.refreshAdhanChannels();
+    if (!mounted) return;
+    ref.read(settingsControllerProvider).rearmAfterExternalChange();
+    ref.invalidate(notificationStatusProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final status = ref.watch(notificationStatusProvider);
     final service = ref.read(notificationServiceProvider);
 
@@ -89,6 +130,24 @@ class SettingsScreen extends ConsumerWidget {
           onRequestBattery: () async {
             await service?.requestBatteryExemption();
             ref.invalidate(notificationStatusProvider);
+          },
+          onRequestDndBypass: () async {
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            final opened = await service?.openDndSettings() ?? false;
+            if (!opened) {
+              messenger?.showSnackBar(SnackBar(
+                duration: const Duration(seconds: 6),
+                backgroundColor: NouriColors.surfaceActive,
+                content: Text(
+                  'الجهاز ده مش فاتح شاشة إذن «عدم الإزعاج». ادخل إعدادات '
+                  'النظام → الإشعارات → عدم الإزعاج، وادِّي نوري إذن الوصول.',
+                  style: cairo(size: 13),
+                ),
+              ));
+            }
+            // Nothing is applied here. The user is now on a system screen, and
+            // whatever they choose there takes effect when they come back —
+            // see _onResume, which rebuilds the channels and re-arms.
           },
           onSendTest: () => service?.sendTestNotification(),
           onScheduleTestAdhan: () async {

@@ -150,10 +150,20 @@ class NotificationService {
     final batteryExempt =
         await Permission.ignoreBatteryOptimizations.isGranted;
 
+    // Read off the live channel, not from the request. `setBypassDnd(true)` is
+    // accepted and silently ignored without policy access, so the only honest
+    // answer comes from asking the system what the channel actually is.
+    final report = await const DndBypass().channelReport();
+    final adhanIds = {...adhanChannelIds, ...adhanBypassChannelIds};
+    final adhanRows = report.where((c) => adhanIds.contains(c.id));
+    final bypassing =
+        adhanRows.isNotEmpty && adhanRows.every((c) => c.bypassDnd);
+
     return NotificationStatus(
       notificationsEnabled: enabled,
       exactAlarmsAllowed: exact,
       batteryOptimised: !batteryExempt,
+      adhanBypassesDnd: bypassing,
     );
   }
 
@@ -168,6 +178,23 @@ class NotificationService {
   Future<void> requestBatteryExemption() async {
     await Permission.ignoreBatteryOptimizations.request();
   }
+
+  /// Sends the user to the system screen that lets the adhan through DND.
+  ///
+  /// Returns false when that screen could not be opened — a few manufacturers
+  /// remove it — so the caller can say so rather than leaving the user waiting
+  /// for something that will never appear.
+  ///
+  /// Granting it is not the end of the job. The bypass is fixed when a channel
+  /// is created, so the channels have to be built again on the other variant
+  /// and the window re-armed onto them; the caller does that on return.
+  Future<bool> openDndSettings() => const DndBypass().openPolicySettings();
+
+  /// Rebuilds the adhan channels against the current policy-access state.
+  ///
+  /// Called when the user comes back from the system screen. Cheap, and safe
+  /// to call when nothing changed.
+  Future<void> refreshAdhanChannels() => _createAdhanChannels();
 
   /// Fires immediately, so the whole chain can be verified on the real device
   /// in seconds rather than by waiting for a prayer.

@@ -133,6 +133,19 @@ class SettingsController {
     return next;
   }
 
+  /// Rebuilds the window from the current settings, on demand.
+  ///
+  /// The one caller is the return from a system permission screen: granting
+  /// notification-policy access moves the adhan onto a different channel, and
+  /// fourteen days of alarms are already armed pointing at the old one. Every
+  /// other re-arm in this class follows a write Nouri made itself; this one
+  /// follows a change made outside the app entirely, which is why it needs a
+  /// door of its own.
+  ///
+  /// Goes through the same collapsing request as the rest, so returning to the
+  /// app twice in quick succession still costs one re-arm.
+  void rearmAfterExternalChange() => _requestRearm();
+
   Future<void> _rearmFromSettings() async {
     // One shared builder, deliberately. This used to assemble its own config
     // and so did `main.dart`, and they drifted: قيام and the budget note were

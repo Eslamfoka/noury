@@ -17,6 +17,7 @@ class NotificationStatusPanel extends StatelessWidget {
     required this.onRequestNotifications,
     required this.onRequestExactAlarms,
     required this.onRequestBattery,
+    required this.onRequestDndBypass,
     required this.onSendTest,
     required this.onScheduleTestAdhan,
   });
@@ -25,6 +26,10 @@ class NotificationStatusPanel extends StatelessWidget {
   final VoidCallback onRequestNotifications;
   final VoidCallback onRequestExactAlarms;
   final VoidCallback onRequestBattery;
+
+  /// Opens the system screen that lets the adhan through Do Not Disturb.
+  final VoidCallback onRequestDndBypass;
+
   final VoidCallback onSendTest;
 
   /// Schedules a real alarm a couple of minutes out, so the user can close the
@@ -65,6 +70,33 @@ class NotificationStatusPanel extends StatelessWidget {
               ok: !s.batteryOptimised,
               onFix: onRequestBattery,
             ),
+            _StatusRow(
+              label: 'الأذان بيعدّي وضع «عدم الإزعاج»',
+              ok: s.adhanBypassesDnd,
+              onFix: onRequestDndBypass,
+            ),
+            if (!s.adhanBypassesDnd) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: NouriColors.background,
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: NouriColors.border),
+                ),
+                child: Text(
+                  'وانت نايم بالنهار بعد وردية ليل، لو «عدم الإزعاج» شغّال '
+                  'الأذان هيوصل من غير صوت. الإذن ده بيتاخد من إعدادات '
+                  'النظام — نوري ما يقدرش ياخده لوحده — ولما تديه، نوري '
+                  'هيعيد بناء قنوات الأذان ويظبط التنبيهات من تاني.',
+                  style: cairo(
+                    size: 11.5,
+                    color: NouriColors.muted,
+                    height: 1.8,
+                  ),
+                ),
+              ),
+            ],
             if (s.mode == NotificationMode.inexact) ...[
               const SizedBox(height: 10),
               Container(

@@ -22,6 +22,7 @@ void main() {
                   onRequestNotifications: () {},
                   onRequestExactAlarms: () {},
                   onRequestBattery: () {},
+                  onRequestDndBypass: () {},
                   onSendTest: () {},
                   onScheduleTestAdhan: () {},
                 ),
@@ -64,6 +65,28 @@ void main() {
     });
 
     testWidgets('a fully granted state offers nothing to fix', (t) async {
+      // Four rows now, not three: letting the adhan through Do Not Disturb is
+      // the fourth thing the user has to grant, and it is the one that matters
+      // most to a man who sleeps by day with DND on.
+      await pumpPanel(
+        t,
+        const NotificationStatus(
+          notificationsEnabled: true,
+          exactAlarmsAllowed: true,
+          batteryOptimised: false,
+          adhanBypassesDnd: true,
+        ),
+      );
+      expect(find.text('اسمح'), findsNothing);
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(4));
+    });
+
+    testWidgets('an adhan DND can silence says so, and why it matters',
+        (t) async {
+      // The explanation has to name the situation rather than the API: the
+      // user is not going to act on «mBypassDnd=false», but he will act on
+      // "you are asleep during the day and this is the alarm that will not
+      // sound".
       await pumpPanel(
         t,
         const NotificationStatus(
@@ -72,8 +95,10 @@ void main() {
           batteryOptimised: false,
         ),
       );
-      expect(find.text('اسمح'), findsNothing);
-      expect(find.byIcon(Icons.check_circle), findsNWidgets(3));
+      expect(find.textContaining('عدم الإزعاج'), findsWidgets);
+      expect(find.textContaining('نايم بالنهار'), findsOneWidget);
+      // And it is offered as something to fix, not merely reported.
+      expect(find.text('اسمح'), findsOneWidget);
     });
 
     testWidgets('states the inexact-alarm limitation plainly', (t) async {

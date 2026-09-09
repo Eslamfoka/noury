@@ -24,10 +24,24 @@ import 'package:nouri/features/steps/step_source.dart';
 /// "A source that claimed availability and then produced nothing would leave
 /// the user watching a counter stuck at zero with no explanation."
 void main() {
-  group('the three states a device can be in', () {
+  group('the states a device can be in', () {
     test('no sensor at all is its own answer', () async {
       final s = FakeStepSource(state_: StepSensorState.noSensor);
       expect(await s.state(), StepSensorState.noSensor);
+    });
+
+    test('a permission refused for good is not the same as one not yet asked',
+        () async {
+      // The dead-button trap. Once Android records "don't ask again",
+      // `request()` returns denied *without showing anything at all* — so a
+      // screen that answers refusal by offering the same «اسمح لنوري» button
+      // gives the user a control that visibly does nothing, forever, with no
+      // way to discover that the only remaining route is the app's own page in
+      // system settings.
+      final s = FakeStepSource(state_: StepSensorState.permissionBlocked);
+      expect(await s.state(), StepSensorState.permissionBlocked);
+      expect(await s.state(), isNot(StepSensorState.needsPermission));
+      expect(await s.state(), isNot(StepSensorState.noSensor));
     });
 
     test('a sensor Nouri may not read is NOT the same as no sensor', () async {
@@ -95,9 +109,16 @@ class FakeStepSource implements StepSource {
 
   StepSensorState state_;
   final bool grantOnRequest;
+  int appSettingsOpened = 0;
 
   @override
   Future<StepSensorState> state() async => state_;
+
+  @override
+  Future<bool> openAppSettings() async {
+    appSettingsOpened++;
+    return true;
+  }
 
   @override
   Future<bool> requestPermission() async {

@@ -250,6 +250,8 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
               // the user's phone, and it would hide the one thing that fixes
               // it.
               StepSensorState.needsPermission => _needsPermission(),
+              StepSensorState.permissionBlocked =>
+                _permissionBlocked(allowSimulated),
               StepSensorState.noSensor => _noSensor(allowSimulated),
             },
           ),
@@ -288,6 +290,49 @@ class _WalkScreenState extends ConsumerState<WalkScreen> {
             await source.requestPermission();
             if (!mounted) return;
             ref.invalidate(stepSensorStateProvider);
+          },
+        ),
+      ],
+    );
+  }
+
+  /// The permission has been refused for good.
+  ///
+  /// Offering «اسمح لنوري» again here would be offering a button that does
+  /// nothing: Android stops showing the prompt after a refusal with "don't ask
+  /// again", and `request()` then returns denied without putting anything on
+  /// screen. So this says what happened, says where the switch now lives, and
+  /// takes the user there in one tap.
+  ///
+  /// Nothing is red and nothing is scolded. Refusing a permission is a choice,
+  /// not a failure, and البدن keeps working without it — only the step count
+  /// is missing.
+  Widget _permissionBlocked(bool allowSimulated) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: NouriColors.surface,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            'الإذن مقفول من إعدادات النظام، والأندرويد مش هيسأل تاني. '
+            'لو حابب نوري يعدّ خطواتك، افتح إعدادات التطبيق وفعّل '
+            '«النشاط البدني».',
+            key: const ValueKey('steps-permission-blocked'),
+            textAlign: TextAlign.center,
+            style: cairo(size: 13, color: NouriColors.muted, height: 1.8),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _startButton(
+          key: const ValueKey('walk-open-app-settings'),
+          label: 'افتح إعدادات التطبيق',
+          onTap: () async {
+            final source = ref.read(stepSourceProvider);
+            await source.openAppSettings();
           },
         ),
       ],

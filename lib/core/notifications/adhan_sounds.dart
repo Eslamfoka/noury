@@ -9,10 +9,18 @@
 /// its own. It also means the user can silence, say, the fajr adhan alone
 /// without touching the other four, which a single channel could never offer.
 ///
-/// **Five real recitations are installed**, one per prayer, all of them
-/// freely licensed — see `adhanCredits` for who made each and under what
-/// licence. `tool/install_adhan_sound.sh <prayer> <file>` replaces any of them
-/// and prints the two changes it needs.
+/// **Five real recitations are installed**, one per prayer — see
+/// [adhanCredits] for who recites each. `tool/install_adhan_sound.sh` replaces
+/// any of them and prints the changes it needs.
+///
+/// **On rights, stated plainly.** These five are well-known recitations taken
+/// from a public archive; unlike the Wikimedia set they replaced, their
+/// licences are *not* individually verifiable. The repository owner asked for
+/// famous reciters, was told that trade-off in writing, and accepted it for
+/// **personal use on his own device**. Nothing here is distributed, and this
+/// app is not published. If Nouri is ever put in front of anyone else, these
+/// five are the first thing that has to be revisited — see
+/// `docs/superpowers/handoffs/` for the full note.
 ///
 /// Each prayer carries its own version number so a recitation can be replaced
 /// one at a time — swapping fajr must not reset the channel the user has
@@ -38,11 +46,11 @@ const _adhanSounds = <String, String>{
 
 /// Bumped whenever that prayer's sound changes. Never edited downward.
 const _adhanChannelVersions = <String, int>{
-  'fajr': 2,
-  'dhuhr': 2,
-  'asr': 2,
-  'maghrib': 2,
-  'isha': 2,
+  'fajr': 3,
+  'dhuhr': 3,
+  'asr': 3,
+  'maghrib': 3,
+  'isha': 3,
 };
 
 /// The raw resource name for one prayer's adhan.
@@ -107,19 +115,20 @@ bool isAdhanChannel(String channelId) =>
 bool get adhanIsPlaceholder =>
     adhanPrayers.every((p) => adhanSoundFor(p) == 'chime');
 
-/// Who recorded each adhan, and under what licence.
+/// Who recites each adhan.
 ///
-/// **CC BY and CC BY-SA both require attribution**, so this is not a courtesy
-/// — it is the condition of use, and the About screen prints it. All five came
-/// from Wikimedia Commons, chosen because their licences can actually be
-/// stated: a famous recitation off an aggregator site cannot.
+/// Printed in عن نوري and beside each «شغّل» in الأصوات. It was a licence
+/// condition when the five came from Wikimedia under CC BY and CC BY-SA; with
+/// the current set it is something better than a condition — it is the only
+/// way the user can tell which voice he is about to hear, and the only record
+/// of where these came from.
 ///
 /// Keep this in step with [_adhanSounds]. A recording swapped in without its
-/// credit swapped too would leave the app claiming the wrong author.
+/// credit swapped too would leave the app naming the wrong reciter.
 const adhanCredits = <String, String>{
-  'fajr': 'Adam-synagda — CC0',
-  'dhuhr': 'Andrewler — CC BY-SA 4.0',
-  'asr': 'Jarih — CC BY-SA 3.0',
-  'maghrib': 'Atcovi — CC BY-SA 4.0',
-  'isha': 'ejaz215 — CC BY 3.0',
+  'fajr': 'مشاري العفاسي — أذان الفجر',
+  'dhuhr': 'عبد الباسط عبد الصمد',
+  'asr': 'ناصر القطامي',
+  'maghrib': 'المدينة المنورة، ١٩٥٢',
+  'isha': 'مشاري العفاسي',
 };

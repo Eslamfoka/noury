@@ -167,6 +167,16 @@ AndroidNotificationDetails androidDetailsFor(
     // be the kind of app that gets uninstalled, and looping a sound the user
     // pressed «شغّل» to audition would trap him on the settings screen.
     additionalFlags: isAdhan && !preview ? Int32List.fromList([4]) : null,
+    // Persistent, not infinite. FLAG_INSISTENT loops until the notification is
+    // dismissed, and the recitations are two to four minutes long — so a phone
+    // left in another room would call the adhan over and over until its owner
+    // came back to it, which is not devotion, it is a fault.
+    //
+    // Ten minutes is a little over two passes of the longest of them (fajr, at
+    // 4m23s). Long enough to wake someone who is asleep, which is the whole
+    // reason the flag is there; short enough that the prayer's own window is
+    // never the thing being disturbed.
+    timeoutAfter: isAdhan && !preview ? const Duration(minutes: 10).inMilliseconds : null,
     actions: actions,
   );
 }

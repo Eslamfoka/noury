@@ -377,7 +377,33 @@ List<Widget> settingsSectionChildren(
           ),
           const SizedBox(height: 4),
           const Divider(color: NouriColors.border, height: 22),
-          Text('الأذان', style: cairo(size: 13, weight: FontWeight.w600)),
+          Row(
+            children: [
+              Text('الأذان', style: cairo(size: 13, weight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              Container(
+                key: const ValueKey('adhan-temporary-badge'),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: NouriColors.background,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: NouriColors.border),
+                ),
+                child: Text('مؤقت',
+                    style: cairo(size: 10, color: NouriColors.muted)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'التسجيلات دي مؤقتة لحد ما تبعت الخمسة اللي انت عايزها. '
+            'اسمعهم وقول لو واحد فيهم مش مظبوط — وخصوصًا أذان الفجر، '
+            'لازم يكون فيه «الصلاة خير من النوم».',
+            key: const ValueKey('adhan-temporary-note'),
+            style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
+          ),
+          const SizedBox(height: 6),
           for (final prayer in adhanPrayers)
             _SoundRow(
               key: ValueKey('preview-adhan-$prayer'),

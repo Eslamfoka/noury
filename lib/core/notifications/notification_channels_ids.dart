@@ -113,4 +113,13 @@ const retiredChannelIds = <String>[
   'alert_review_v1',
   'alert_followup_v1',
   'alert_iqama_v2',
+  // The Wikimedia-sourced recitations, replaced on 9 September 2026 by the
+  // famous reciters the user asked for. Both variants of each: by then the
+  // adhan channels already came in a plain and a DND-bypassing form, and a
+  // device could be carrying either.
+  'adhan_fajr_v2', 'adhan_fajr_v2d',
+  'adhan_dhuhr_v2', 'adhan_dhuhr_v2d',
+  'adhan_asr_v2', 'adhan_asr_v2d',
+  'adhan_maghrib_v2', 'adhan_maghrib_v2d',
+  'adhan_isha_v2', 'adhan_isha_v2d',
 ];

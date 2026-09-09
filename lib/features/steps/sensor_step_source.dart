@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 import 'step_source.dart';
 
@@ -28,8 +29,17 @@ class SensorStepSource implements StepSource {
     // Measured on the HONOR VNE-N41: the phone reports an HONOR pedometer on
     // android.sensor.step_counter(19), and Nouri held the permission as
     // granted=false, having never asked.
-    final granted = await Permission.activityRecognition.isGranted;
-    return granted ? StepSensorState.ready : StepSensorState.needsPermission;
+    final status = await Permission.activityRecognition.status;
+    if (status.isGranted) return StepSensorState.ready;
+
+    // `isPermanentlyDenied` is the difference between a button that works and
+    // a button that silently does nothing. After a refusal with "don't ask
+    // again", `request()` returns denied without putting anything on screen —
+    // so the screen has to stop offering to ask and start offering the only
+    // route left.
+    if (status.isPermanentlyDenied) return StepSensorState.permissionBlocked;
+
+    return StepSensorState.needsPermission;
   }
 
   @override
@@ -40,6 +50,17 @@ class SensorStepSource implements StepSource {
 
     final status = await Permission.activityRecognition.request();
     return status.isGranted;
+  }
+
+  @override
+  Future<bool> openAppSettings() async {
+    try {
+      return await ph.openAppSettings();
+    } catch (_) {
+      // A device that refuses the intent. The caller says so rather than
+      // leaving the user waiting for a screen that is not coming.
+      return false;
+    }
   }
 
   Future<bool> _hasSensor() async {

@@ -25,6 +25,7 @@ class ScriptedStepSource implements StepSource {
   final bool available;
   StepSensorState sensorState;
   int permissionRequests = 0;
+  int appSettingsOpened = 0;
 
   final _controller = StreamController<int>.broadcast();
 
@@ -32,6 +33,12 @@ class ScriptedStepSource implements StepSource {
 
   @override
   Future<StepSensorState> state() async => sensorState;
+
+  @override
+  Future<bool> openAppSettings() async {
+    appSettingsOpened++;
+    return true;
+  }
 
   @override
   Future<bool> requestPermission() async {
@@ -111,6 +118,37 @@ void main() {
 
         expect(source.permissionRequests, 1);
         expect(find.byKey(const ValueKey('walk-start')), findsOneWidget);
+      });
+    });
+
+    testWidgets('a refusal for good stops offering to ask again', (t) async {
+      // The dead-button trap. Once Android has recorded "don't ask again" it
+      // shows nothing when asked, so «اسمح لنوري» would sit there doing
+      // precisely nothing every time it was pressed.
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pump(t, sensorState: StepSensorState.permissionBlocked);
+
+        expect(find.byKey(const ValueKey('walk-allow-steps')), findsNothing,
+            reason: 'asking again is the one thing that cannot work now');
+        expect(find.byKey(const ValueKey('steps-permission-blocked')),
+            findsOneWidget);
+        expect(find.byKey(const ValueKey('no-step-sensor')), findsNothing,
+            reason: 'the sensor is there; only the permission is not');
+      });
+    });
+
+    testWidgets('and sends the user where the switch actually is', (t) async {
+      await withLargeSurface(t, () async {
+        db = inMemoryDatabase(t);
+        await pump(t, sensorState: StepSensorState.permissionBlocked);
+
+        await t.tap(find.byKey(const ValueKey('walk-open-app-settings')));
+        await t.pumpAndSettle();
+
+        expect(source.appSettingsOpened, 1);
+        expect(source.permissionRequests, 0,
+            reason: 'requesting again would show nothing at all');
       });
     });
 

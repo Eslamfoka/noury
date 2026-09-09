@@ -9,7 +9,7 @@ import 'dart:async';
 /// [SimulatedStepSource].
 /// What is standing between the user and a step count.
 ///
-/// Three states, not two, because the middle one is real and was being
+/// Four states, not two, because each of the middle ones is real and was being
 /// reported as the wrong end. Measured on the HONOR VNE-N41: the phone has an
 /// HONOR `pedometer` reporting `android.sensor.step_counter(19)`, and Nouri
 /// held `ACTIVITY_RECOGNITION: granted=false`. Collapsing that into "no
@@ -24,6 +24,17 @@ enum StepSensorState {
   /// ACTIVITY_RECOGNITION is a runtime permission on Android 10 and later.
   /// The manifest declaring it is not enough.
   needsPermission,
+
+  /// A sensor exists, and Android will no longer ask on Nouri's behalf.
+  ///
+  /// Distinct from [needsPermission] because the *remedy* is different, which
+  /// is the only reason a state is ever worth splitting. Once the user has
+  /// refused twice — or once, with "don't ask again" — `request()` returns
+  /// denied immediately and **shows nothing at all**. A screen that answers
+  /// that by offering the same «اسمح لنوري» button hands the user a control
+  /// that does nothing, forever, and never mentions the one route that still
+  /// works: Nouri's own page in system settings.
+  permissionBlocked,
 
   /// This device cannot count steps. Most emulator images.
   noSensor,
@@ -44,6 +55,13 @@ abstract interface class StepSource {
   /// False when refused, and false when there is no sensor to permit — asking
   /// cannot make hardware appear.
   Future<bool> requestPermission();
+
+  /// Opens Nouri's own page in the system settings.
+  ///
+  /// The only remaining route once the permission is [permissionBlocked]:
+  /// Android will not show the prompt again, so the grant has to be made by
+  /// hand. Returns whether the screen could be opened.
+  Future<bool> openAppSettings();
 
   /// Steps **since the device booted**, not since the stream was listened to.
   ///
@@ -86,6 +104,10 @@ class SimulatedStepSource implements StepSource {
 
   @override
   Future<bool> requestPermission() async => true;
+
+  /// Nothing to open: this source never needs a permission.
+  @override
+  Future<bool> openAppSettings() async => false;
 
   @override
   Stream<int> cumulativeSteps() {
