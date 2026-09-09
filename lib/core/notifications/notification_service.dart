@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'local_notification_gateway.dart';
 import 'adhan_sounds.dart';
+import 'dnd_bypass.dart';
 import 'notification_channels.dart';
 import 'notification_slot.dart';
 import 'notification_status.dart';
@@ -32,6 +33,20 @@ class NotificationService {
     final w = _warmUp;
     if (w != null) await w;
   }
+
+  /// Which variant of the adhan channels is the live one.
+  ///
+  /// Settled at [init] from whether the user has granted notification-policy
+  /// access, and read by anything that posts an adhan *now* — the test
+  /// notification and الأصوات. Posting to the other variant would be posting
+  /// to a channel that was just deleted, which Android answers by silently
+  /// recreating it at default importance with no sound: the preview would play
+  /// nothing and look like the recording was broken.
+  bool _adhanBypassing = false;
+
+  /// The adhan channel for [prayer] as it exists on this device right now.
+  String liveAdhanChannel(String prayer) =>
+      adhanChannelFor(prayer, bypassing: _adhanBypassing);
 
   AndroidFlutterLocalNotificationsPlugin? get _android =>
       _plugin.resolvePlatformSpecificImplementation<
@@ -73,9 +88,50 @@ class NotificationService {
       await _android?.deleteNotificationChannel(channelId: id);
     }
 
+    // Everything except the adhan. The five adhan channels are created
+    // natively instead — see below — and creating them from both places is the
+    // exact drift this project has already paid for twice.
     for (final channel in nouriChannels) {
+      if (isAdhanChannel(channel.id)) continue;
       await _android?.createNotificationChannel(channel);
     }
+
+    await _createAdhanChannels();
+  }
+
+  /// Creates the five adhan channels through the native plugin.
+  ///
+  /// **Why not `flutter_local_notifications` like everything else.** Only the
+  /// adhan needs to bypass Do Not Disturb, and the plugin has no way to ask
+  /// for it. The user sleeps by day after a night shift with DND on, so the
+  /// adhan being the one thing DND silences is not an edge case for him — it
+  /// is most of the week.
+  ///
+  /// Bypassing means a second channel id, because Android fixes the bypass at
+  /// creation. Both variants are created through the same call and the one
+  /// that is not current is deleted, so the user never sees ten «الأذان» rows.
+  Future<void> _createAdhanChannels() async {
+    const dnd = DndBypass();
+    final bypassing = await dnd.hasPolicyAccess();
+    _adhanBypassing = bypassing;
+
+    await dnd.ensureAdhanChannels([
+      for (final prayer in adhanPrayers)
+        AdhanChannelSpec(
+          id: adhanChannelFor(prayer, bypassing: bypassing),
+          name: 'الأذان — ${adhanArabicNames[prayer]}',
+          description: 'إشعار دخول وقت ${adhanArabicNames[prayer]}',
+          sound: adhanSoundFor(prayer),
+          bypass: bypassing,
+        ),
+    ]);
+
+    // The variant that is no longer current. Left behind it would sit in the
+    // user's notification settings looking live, and nothing would ever fire
+    // on it.
+    await dnd.deleteChannels(
+      bypassing ? adhanChannelIds : adhanBypassChannelIds,
+    );
   }
 
   /// Cancels one pending notification by id.
@@ -130,7 +186,7 @@ class NotificationService {
     await gateway.showNow(
       title: 'نوري — تجربة الأذان',
       body: 'كده هيبقى شكل تنبيه الأذان وصوته.',
-      channelId: adhanChannelFor('dhuhr'),
+      channelId: liveAdhanChannel('dhuhr'),
     );
   }
 
@@ -156,9 +212,27 @@ class NotificationService {
     await gateway.showNow(
       title: title,
       body: body,
-      channelId: channelId,
+      // Normalised here rather than at each call site. An adhan has two
+      // possible channels and only one of them exists at a time; posting to
+      // the other makes Android quietly recreate it at default importance with
+      // no sound, so the preview would play nothing and the user would
+      // conclude the recording was broken rather than that Nouri asked for the
+      // wrong channel.
+      channelId: _liveVariantOf(channelId),
       preview: true,
     );
+  }
+
+  /// Maps an adhan channel id onto whichever variant currently exists.
+  /// Anything else is returned untouched.
+  String _liveVariantOf(String channelId) {
+    if (!isAdhanChannel(channelId)) return channelId;
+    final base = adhanBaseChannel(channelId);
+    final prayer = adhanPrayers.firstWhere(
+      (p) => adhanChannelFor(p) == base,
+      orElse: () => '',
+    );
+    return prayer.isEmpty ? channelId : liveAdhanChannel(prayer);
   }
 
   /// Schedules a real adhan-style alarm a couple of minutes out.
@@ -185,7 +259,7 @@ class NotificationService {
       when: when,
       title: 'نوري — تجربة الأذان',
       body: 'لو سمعت ده والتطبيق مقفول، يبقى الأذان هيوصلك في وقته.',
-      channelId: adhanChannelFor('dhuhr'),
+      channelId: liveAdhanChannel('dhuhr'),
     ));
 
     return when;

@@ -17,6 +17,19 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <!--
+      Lets the adhan through Do Not Disturb.
+
+      Declaring this does NOT grant it. It is one of the handful of permissions
+      the user must hand over on a system screen — there is no dialog an app
+      can raise — and until they do, `setBypassDnd(true)` is accepted and
+      silently ignored. Measured on the user's HONOR: every adhan channel read
+      `mBypassDnd=false`, so DND silenced all five prayer calls. He works
+      nights and sleeps by day with DND on, which is precisely when he needs
+      to hear them. See DndPlugin.kt and الإعدادات → الإشعارات.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
+
+    <!--
       Lets the adhan light a locked screen instead of waiting silently in the
       shade. Granted at install through Android 13. From Android 14 it is
       granted automatically only to calling and alarm-clock apps; everything

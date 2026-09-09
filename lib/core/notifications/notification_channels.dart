@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'adhan_sounds.dart';
@@ -97,8 +99,14 @@ final nouriChannels = <AndroidNotificationChannel>[
     ),
 ];
 
+/// What a channel *is*, looked up by id.
+///
+/// An adhan channel has two ids — the ordinary one and the twin that bypasses
+/// Do Not Disturb — and exactly one description, held against the base. Both
+/// resolve to it, so there is no second place for a name, a sound or an
+/// importance to be written down and then drift.
 AndroidNotificationChannel _channelFor(String id) =>
-    nouriChannels.firstWhere((c) => c.id == id);
+    nouriChannels.firstWhere((c) => c.id == adhanBaseChannel(id));
 
 /// The per-notification details for [channelId], **derived from the channel**.
 ///
@@ -124,7 +132,9 @@ AndroidNotificationDetails androidDetailsFor(
   final isAdhan = isAdhanChannel(channelId);
 
   return AndroidNotificationDetails(
-    channel.id,
+    // The id asked for, not the base it was described by: a bypassing adhan
+    // must post to the channel that actually bypasses.
+    channelId,
     channel.name,
     channelDescription: channel.description,
     importance: channel.importance,
@@ -144,6 +154,19 @@ AndroidNotificationDetails androidDetailsFor(
     // the screen unusable for the one thing it is for. The sound, the volume
     // and the channel are all still the real ones — only the takeover goes.
     fullScreenIntent: isAdhan && !preview,
+    // FLAG_INSISTENT (0x4): loop the sound until the notification is dealt
+    // with, instead of playing it once into an empty room.
+    //
+    // The user asked for this in as many words — «make the adhan loud and
+    // persistent, it should ring multiple times» — and his reason is the whole
+    // point of the app: he sleeps through the day after a night shift, and a
+    // single pass of the adhan at 04:00 is a sound that happens whether or not
+    // anyone wakes for it.
+    //
+    // Only the adhan, and never in a preview. Looping the wird reminder would
+    // be the kind of app that gets uninstalled, and looping a sound the user
+    // pressed «شغّل» to audition would trap him on the settings screen.
+    additionalFlags: isAdhan && !preview ? Int32List.fromList([4]) : null,
     actions: actions,
   );
 }

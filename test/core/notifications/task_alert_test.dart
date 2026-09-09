@@ -38,20 +38,29 @@ void main() {
       expect(ids.toSet().length, ids.length);
     });
 
-    test('every sound is small enough to ship eighteen of', () {
+    test('every sound is small enough to ship nineteen of', () {
       for (final kind in TaskAlertKind.values) {
         final f = File('android/app/src/main/res/raw/${kind.sound}.wav');
         expect(f.lengthSync(), lessThan(120 * 1024), reason: kind.sound);
       }
     });
 
-    test('the eighteen together stay well under a megabyte', () {
+    test('the nineteen together cost less than one stock recitation', () {
       final total = TaskAlertKind.values.fold<int>(
         0,
         (a, k) =>
             a + File('android/app/src/main/res/raw/${k.sound}.wav').lengthSync(),
       );
-      expect(total, lessThan(1024 * 1024),
+      // The bound this guard has always really been about: synthesising the
+      // tones must stay cheaper than recording them. It still is, by a wide
+      // margin — 1.11 MB for all nineteen against 6.98 MB for the five
+      // recitations, i.e. less than a single average adhan file.
+      //
+      // Raised from 1 MB on 9 September 2026, when the tones stopped being
+      // sums of sine waves and became filtered noise and struck bells.
+      // Running water and a bell left to ring cannot be had in a fifth of a
+      // second; the extra 380 KB is that, and nothing else.
+      expect(total, lessThan(1536 * 1024),
           reason: 'one stock recording would have cost more than all of these');
     });
 
@@ -174,7 +183,12 @@ void main() {
       expect(TaskAlertKind.meal.followUpQuestion, contains('كلت'));
     });
 
-    test('water sounds like water and walking sounds like walking', () {
+    test('every kind names its own resource', () {
+      // Naming only. Whether the file actually *sounds* like the task is a
+      // claim about waveforms, and asserting it here — as this test once did,
+      // under the name «water sounds like water» — proved nothing: it would
+      // have passed with all nineteen files holding the same recording.
+      // `alert_sound_character_test` measures the audio instead.
       expect(TaskAlertKind.water.sound, 'alert_water');
       expect(TaskAlertKind.walk.sound, 'alert_walk');
     });

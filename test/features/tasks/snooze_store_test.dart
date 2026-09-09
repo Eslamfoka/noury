@@ -48,7 +48,7 @@ void main() {
     await store.record('walk', DateTime(2026, 9, 8, 13, 5));
     await store.record('first-meal', DateTime(2026, 9, 8, 14, 0));
 
-    await store.clear('walk', now: DateTime(2026, 9, 8, 13, 0));
+    await store.clear('walk');
 
     final read = await store.read(now: DateTime(2026, 9, 8, 13, 0));
     expect(read.keys, ['first-meal']);
@@ -66,6 +66,30 @@ void main() {
 
     final read = await store.read(now: DateTime(2026, 9, 8, 13, 0));
     expect(read, isEmpty);
+  });
+
+  test('hiding a stale entry does not delete it out from under a later write',
+      () async {
+    // The bug of 9 September 2026, stated directly rather than as the symptom
+    // that exposed it. `record` and `clear` used to merge into whatever
+    // `read()` returned, so anything the 20-hour display filter was hiding at
+    // that instant was silently dropped from the file. The visible cost was
+    // that snoozing a second task erased the first — but only when the clock
+    // happened to make the first one stale, which is why it survived a suite
+    // that otherwise passed.
+    //
+    // The property that must hold: a write touches the key it was given and
+    // nothing else, whatever the clock says about the rest.
+    await store.record('walk', DateTime(2026, 9, 7, 13, 5)); // long stale
+    await store.record('first-meal', DateTime(2026, 9, 8, 14, 0));
+
+    // Hidden from a reader standing well after it...
+    expect(await store.read(now: DateTime(2026, 9, 8, 13, 0)),
+        {'first-meal': DateTime(2026, 9, 8, 14, 0)});
+
+    // ...but never removed from the file by the write that followed it.
+    expect(await store.read(now: DateTime(2026, 9, 7, 13, 6)),
+        containsPair('walk', DateTime(2026, 9, 7, 13, 5)));
   });
 
   test('a corrupt file reads as empty rather than throwing', () async {

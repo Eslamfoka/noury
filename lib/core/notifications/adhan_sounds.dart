@@ -48,21 +48,57 @@ const _adhanChannelVersions = <String, int>{
 /// The raw resource name for one prayer's adhan.
 String adhanSoundFor(String prayer) => _adhanSounds[prayer] ?? 'chime';
 
-/// The channel id for one prayer's adhan.
-String adhanChannelFor(String prayer) =>
-    'adhan_${prayer}_v${_adhanChannelVersions[prayer] ?? 1}';
+/// Marks the variant of an adhan channel that bypasses Do Not Disturb.
+///
+/// **Why a second id rather than a flag on the first.** Android fixes a
+/// channel's DND bypass when the channel is created, exactly as it fixes its
+/// sound, and `setBypassDnd(true)` is ignored outright until the user has
+/// granted notification-policy access on a system screen. A channel that
+/// bypasses therefore cannot be the same channel that did not — it has to be
+/// created afresh, under an id that has never been seen before.
+///
+/// The two variants never coexist on a device: whichever is not current is
+/// deleted at startup, so the user sees five «الأذان» rows and not ten.
+const adhanBypassSuffix = 'd';
 
-/// Every adhan channel id.
+/// The channel id for one prayer's adhan.
+///
+/// Pass [bypassing] when the user has granted policy access — see
+/// [adhanBypassSuffix] for why that is a different channel and not a setting.
+String adhanChannelFor(String prayer, {bool bypassing = false}) =>
+    'adhan_${prayer}_v${_adhanChannelVersions[prayer] ?? 1}'
+    '${bypassing ? adhanBypassSuffix : ''}';
+
+/// Every adhan channel id, in the ordinary non-bypassing form.
 List<String> get adhanChannelIds =>
     [for (final p in adhanPrayers) adhanChannelFor(p)];
 
-/// Whether [channelId] is one of the adhan channels.
+/// Every adhan channel id in the form that bypasses Do Not Disturb.
+List<String> get adhanBypassChannelIds =>
+    [for (final p in adhanPrayers) adhanChannelFor(p, bypassing: true)];
+
+/// The non-bypassing form of an adhan channel id.
+///
+/// Everything that describes what an adhan channel *is* — its name, its sound,
+/// its importance, the full-screen intent — is written once against the base
+/// id. Callers holding either variant normalise through here rather than the
+/// two descriptions being written out twice and drifting, which is how this
+/// project lost قيام and the budget note once already.
+String adhanBaseChannel(String channelId) =>
+    adhanBypassChannelIds.contains(channelId)
+        ? channelId.substring(0, channelId.length - adhanBypassSuffix.length)
+        : channelId;
+
+/// Whether [channelId] is one of the adhan channels, in either variant.
 ///
 /// The adhan is the only thing in Nouri that gets a full-screen intent, alarm
 /// category and max importance, so several places need to ask this. Asking by
 /// membership rather than by equality is what let one channel become five
-/// without any of them losing those properties.
-bool isAdhanChannel(String channelId) => adhanChannelIds.contains(channelId);
+/// without any of them losing those properties — and now what lets each of the
+/// five have a DND-bypassing twin on the same terms.
+bool isAdhanChannel(String channelId) =>
+    adhanChannelIds.contains(channelId) ||
+    adhanBypassChannelIds.contains(channelId);
 
 /// True while no real recitation has been installed for any prayer.
 ///

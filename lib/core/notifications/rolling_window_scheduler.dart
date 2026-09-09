@@ -78,6 +78,7 @@ class SchedulingConfig {
     this.notifyWater = true,
     this.notifyQiyam = false,
     this.notifyTasks = true,
+    this.adhanBypassesDnd = false,
     this.completedTaskIds = const {},
     this.shift = ShiftType.morning,
     this.budgetNote,
@@ -109,6 +110,18 @@ class SchedulingConfig {
   /// On by default: it is the point of the feature — *"i don't need to open
   /// the app to know what i have to do"*.
   final bool notifyTasks;
+
+  /// Whether the adhan should be armed on the channel that bypasses Do Not
+  /// Disturb.
+  ///
+  /// **Not a preference — a capability.** It is true only when the user has
+  /// granted notification-policy access on a system screen, because Android
+  /// ignores the request otherwise. It reaches the scheduler because bypassing
+  /// means a *different channel id*, fixed at creation, so an alarm armed
+  /// before access was granted keeps pointing at the channel that cannot
+  /// bypass. Granting it therefore has to re-arm the window, which is the
+  /// standing rule here: any setting that can change an alarm must re-arm.
+  final bool adhanBypassesDnd;
 
   /// The task ids the user has already done **today**, derived from the logs
   /// they were already keeping.
@@ -304,7 +317,10 @@ class RollingWindowScheduler {
             body: 'حان الآن موعد صلاة $name',
             // Each prayer's own channel, so five different recitations are
             // possible and so silencing one does not silence the rest.
-            channel: adhanChannelFor(slot.name),
+            channel: adhanChannelFor(
+              slot.name,
+              bypassing: cfg.adhanBypassesDnd,
+            ),
             payload: 'prayer:${slot.name}',
           );
 

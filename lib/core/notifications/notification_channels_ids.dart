@@ -59,11 +59,16 @@ final allChannelIds = <String>[
 ///
 /// Without this the old row lingers in the system notification settings, so
 /// the user sees two «الأذان» entries and cannot tell which one is live.
-/// Superseded channels, deleted at startup.
 ///
 /// `adhan_v2` joins the list because the single adhan channel became five,
 /// one per prayer. Leaving it would show the user a sixth «الأذان» row in
 /// system settings that nothing ever fires on.
+///
+/// **Deleting is the only way to change a sound.** Android freezes a channel's
+/// sound at creation and ignores every later edit, so a retuned tone means a
+/// new channel id and the old id named here. Nothing else about this list is
+/// optional: skip it and the user keeps hearing the sound they asked to have
+/// changed, with no error anywhere to explain why.
 const retiredChannelIds = <String>[
   'adhan_v1',
   'adhan_v2',
@@ -81,4 +86,31 @@ const retiredChannelIds = <String>[
   // that has to be told apart from the adhan sounded like every other app on
   // the phone.
   'iqama_v1',
+  // All nineteen task tones were retuned on 9 September 2026, from abstract
+  // arrangements of sine beeps to sounds that resemble the task they announce
+  // — water runs, footsteps land, a telephone rings. Every one of them
+  // therefore needed a new channel, and every previous id belongs here.
+  'alert_water_v1',
+  'alert_walk_v1',
+  'alert_workout_v1',
+  'alert_meal_v1',
+  'alert_tasbeeh_v1',
+  // The wird was already on v2 by then; v1 is listed because a build carrying
+  // it may have reached a device, and deleting a channel that was never
+  // created is a no-op — the cheaper side of the bet.
+  'alert_wird_v1',
+  'alert_wird_v2',
+  'alert_athkar_morning_v1',
+  'alert_athkar_evening_v1',
+  'alert_athkar_sleep_v1',
+  'alert_qiyam_v1',
+  'alert_knowledge_v1',
+  'alert_phone_v1',
+  'alert_calls_v1',
+  'alert_budget_v1',
+  'alert_reminder_v1',
+  'alert_fasting_v1',
+  'alert_review_v1',
+  'alert_followup_v1',
+  'alert_iqama_v2',
 ];

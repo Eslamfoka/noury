@@ -5,6 +5,7 @@ import '../../features/finance/financial_month.dart';
 import '../../features/planner/shift.dart';
 import '../time/geo_config.dart';
 import 'completed_tasks.dart';
+import 'dnd_bypass.dart';
 import 'rolling_window_scheduler.dart';
 
 /// The single place a [SchedulingConfig] is built from stored settings.
@@ -26,9 +27,16 @@ import 'rolling_window_scheduler.dart';
 Future<SchedulingConfig> schedulingConfigFromDb(
   NouriDatabase db, {
   DateTime? now,
+  bool? adhanBypassesDnd,
 }) async {
   final s = await db.settingsDao.get();
   final today = now ?? DateTime.now();
+
+  // Asked of the platform rather than stored, because it is not Nouri's to
+  // remember: the user can revoke notification-policy access in system
+  // settings at any moment, and a cached "yes" would arm fourteen days of
+  // adhans on a channel that no longer bypasses anything. Tests pass it in.
+  final bypasses = adhanBypassesDnd ?? await const DndBypass().hasPolicyAccess();
 
   // The days the user has said they are fasting, over the window the water
   // reminders actually cover. Read here rather than in the scheduler so the
@@ -57,6 +65,7 @@ Future<SchedulingConfig> schedulingConfigFromDb(
     notifyWater: s.notifyWater,
     notifyQiyam: s.notifyQiyam,
     notifyTasks: s.notifyTasks,
+    adhanBypassesDnd: bypasses,
     // Only قيام reads this: on a night shift the whole last third is duty
     // time, so there is nothing to offer.
     shift: switch (s.shiftType) {

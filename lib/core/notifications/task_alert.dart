@@ -27,7 +27,7 @@ library;
 enum TaskAlertKind {
   water(
     sound: 'alert_water',
-    channelId: 'alert_water_v1',
+    channelId: 'alert_water_v2',
     title: 'مياه',
     body: 'اشرب شوية مياه',
     payload: 'water',
@@ -35,7 +35,7 @@ enum TaskAlertKind {
 
   walk(
     sound: 'alert_walk',
-    channelId: 'alert_walk_v1',
+    channelId: 'alert_walk_v2',
     title: 'مشي',
     body: 'وقت المشي. يلا نتحرك شوية',
     payload: 'task:walk',
@@ -45,7 +45,7 @@ enum TaskAlertKind {
 
   workout(
     sound: 'alert_workout',
-    channelId: 'alert_workout_v1',
+    channelId: 'alert_workout_v2',
     title: 'تمارين البيت',
     body: 'وقت التمرين',
     payload: 'task:workout',
@@ -55,7 +55,7 @@ enum TaskAlertKind {
 
   meal(
     sound: 'alert_meal',
-    channelId: 'alert_meal_v1',
+    channelId: 'alert_meal_v2',
     title: 'وجبة',
     body: 'وقت الأكل. سجّل وجبتك بعدها',
     payload: 'task:first-meal',
@@ -66,7 +66,7 @@ enum TaskAlertKind {
 
   tasbeeh(
     sound: 'alert_tasbeeh',
-    channelId: 'alert_tasbeeh_v1',
+    channelId: 'alert_tasbeeh_v2',
     title: 'تسبيح',
     body: 'وقت التسبيح',
     payload: 'task:tasbeeh',
@@ -76,7 +76,7 @@ enum TaskAlertKind {
 
   wird(
     sound: 'alert_wird',
-    channelId: 'alert_wird_v2',
+    channelId: 'alert_wird_v3',
     title: 'ورد القرآن',
     body: 'ورد النهاردة — ربع من مصحفك',
     payload: 'quran',
@@ -84,7 +84,7 @@ enum TaskAlertKind {
 
   athkarMorning(
     sound: 'alert_athkar_morning',
-    channelId: 'alert_athkar_morning_v1',
+    channelId: 'alert_athkar_morning_v2',
     title: 'أذكار الصباح',
     body: 'وقت أذكار الصباح — خمس دقايق بس',
     payload: 'athkar:morning',
@@ -92,7 +92,7 @@ enum TaskAlertKind {
 
   athkarEvening(
     sound: 'alert_athkar_evening',
-    channelId: 'alert_athkar_evening_v1',
+    channelId: 'alert_athkar_evening_v2',
     title: 'أذكار المساء',
     body: 'قرب المغرب — وقت أذكار المسا',
     payload: 'athkar:evening',
@@ -100,7 +100,7 @@ enum TaskAlertKind {
 
   athkarSleep(
     sound: 'alert_athkar_sleep',
-    channelId: 'alert_athkar_sleep_v1',
+    channelId: 'alert_athkar_sleep_v2',
     title: 'أذكار النوم',
     body: 'قبل ما تنام، خد أذكار النوم',
     payload: 'athkar:sleep',
@@ -108,7 +108,7 @@ enum TaskAlertKind {
 
   qiyam(
     sound: 'alert_qiyam',
-    channelId: 'alert_qiyam_v1',
+    channelId: 'alert_qiyam_v2',
     title: 'قيام الليل',
     body: 'الثلث الأخير — لو قدرت',
     payload: 'qiyam',
@@ -116,7 +116,7 @@ enum TaskAlertKind {
 
   knowledge(
     sound: 'alert_knowledge',
-    channelId: 'alert_knowledge_v1',
+    channelId: 'alert_knowledge_v2',
     title: 'وقت المعرفة',
     body: 'وقت القراءة أو التعلّم',
     payload: 'task:knowledge',
@@ -126,7 +126,7 @@ enum TaskAlertKind {
 
   phone(
     sound: 'alert_phone',
-    channelId: 'alert_phone_v1',
+    channelId: 'alert_phone_v2',
     title: 'وقت الموبايل',
     body: 'ده وقت الموبايل المحجوز',
     payload: 'task:phone-time',
@@ -135,7 +135,7 @@ enum TaskAlertKind {
 
   calls(
     sound: 'alert_calls',
-    channelId: 'alert_calls_v1',
+    channelId: 'alert_calls_v2',
     title: 'مكالمات',
     body: 'وقت المكالمات — كلّم اللي في بالك',
     payload: 'task:calls',
@@ -143,7 +143,7 @@ enum TaskAlertKind {
 
   budget(
     sound: 'alert_budget',
-    channelId: 'alert_budget_v1',
+    channelId: 'alert_budget_v2',
     title: 'الميزانية',
     body: 'نظرة سريعة على مصاريف الشهر',
     payload: 'finance',
@@ -152,7 +152,7 @@ enum TaskAlertKind {
 
   reminder(
     sound: 'alert_reminder',
-    channelId: 'alert_reminder_v1',
+    channelId: 'alert_reminder_v2',
     title: 'تذكير',
     body: 'عندك تذكير النهاردة',
     payload: 'reminder:0',
@@ -160,7 +160,7 @@ enum TaskAlertKind {
 
   fasting(
     sound: 'alert_fasting',
-    channelId: 'alert_fasting_v1',
+    channelId: 'alert_fasting_v2',
     title: 'صيام بكرة؟',
     body: 'بكرة من أيام الصيام المستحبة',
     payload: 'fasting',
@@ -169,7 +169,7 @@ enum TaskAlertKind {
 
   review(
     sound: 'alert_review',
-    channelId: 'alert_review_v1',
+    channelId: 'alert_review_v2',
     title: 'نوري',
     body: 'تحب نراجع يومك سوا؟',
     payload: 'review:daily',
@@ -180,7 +180,7 @@ enum TaskAlertKind {
   /// is only asking, and it must not nag.
   followUp(
     sound: 'alert_followup',
-    channelId: 'alert_followup_v1',
+    channelId: 'alert_followup_v2',
     title: 'نوري',
     body: 'سؤال سريع',
     payload: 'review:daily',
@@ -189,7 +189,7 @@ enum TaskAlertKind {
 
   iqama(
     sound: 'alert_iqama',
-    channelId: 'alert_iqama_v2',
+    channelId: 'alert_iqama_v3',
     title: 'الإقامة',
     body: 'قربت الإقامة',
     payload: 'prayer:dhuhr',
