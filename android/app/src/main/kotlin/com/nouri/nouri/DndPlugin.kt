@@ -72,7 +72,9 @@ class DndPlugin(private val context: Context) {
                     }
                 }
 
-                "channelReport" -> result.success(channelReport())
+                "channelReport" -> result.success(
+                    channelReport(call.argument<List<String>>("ids")),
+                )
 
                 "deleteChannels" -> {
                     val ids = call.argument<List<String>>("ids").orEmpty()
@@ -194,17 +196,24 @@ class DndPlugin(private val context: Context) {
      * despite the 5 they are created with, and locks the field; a screen that
      * printed the request would be wrong on his most important device.
      */
-    private fun channelReport(): List<Map<String, Any?>> {
+    private fun channelReport(ids: List<String>?): List<Map<String, Any?>> {
         val manager = notifications ?: return emptyList()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return emptyList()
-        return manager.notificationChannels.map { channel ->
-            mapOf(
-                "id" to channel.id,
-                "name" to channel.name?.toString(),
-                "importance" to channel.importance,
-                "bypassDnd" to channel.canBypassDnd(),
-                "sound" to channel.sound?.toString(),
-            )
-        }
+        // Filtered here rather than in Dart. Nouri owns about thirty channels
+        // and each one crosses the platform boundary as a map of six values;
+        // serialising all of them to answer a question about five was measured
+        // at 5.5s inside `readStatus`, which sits on the startup path.
+        val wanted = ids?.toSet()
+        return manager.notificationChannels
+            .filter { wanted == null || it.id in wanted }
+            .map { channel ->
+                mapOf(
+                    "id" to channel.id,
+                    "name" to channel.name?.toString(),
+                    "importance" to channel.importance,
+                    "bypassDnd" to channel.canBypassDnd(),
+                    "sound" to channel.sound?.toString(),
+                )
+            }
     }
 }

@@ -153,8 +153,9 @@ class NotificationService {
     // Read off the live channel, not from the request. `setBypassDnd(true)` is
     // accepted and silently ignored without policy access, so the only honest
     // answer comes from asking the system what the channel actually is.
-    final report = await const DndBypass().channelReport();
     final adhanIds = {...adhanChannelIds, ...adhanBypassChannelIds};
+    final report =
+        await const DndBypass().channelReport(ids: adhanIds.toList());
     final adhanRows = report.where((c) => adhanIds.contains(c.id));
     final bypassing =
         adhanRows.isNotEmpty && adhanRows.every((c) => c.bypassDnd);

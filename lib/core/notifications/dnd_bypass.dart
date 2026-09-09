@@ -112,17 +112,30 @@ class DndBypass {
     }
   }
 
-  /// Every Nouri channel as the *system* holds it, not as the app asked for it.
+  /// Channels as the *system* holds them, not as the app asked for them.
   ///
   /// The distinction is not academic. MagicOS creates the adhan channels at
   /// importance 4 when the app asks for 5, and locks the field. A settings
   /// screen that printed the request would be wrong on the one device that
   /// matters most here.
-  Future<List<ChannelReport>> channelReport() async {
+  ///
+  /// **Pass [ids] when only some are wanted.** Nouri owns about thirty
+  /// channels and each crosses the platform boundary as a map of six values;
+  /// asking for all of them to answer a question about five is waste, and the
+  /// filter runs natively so the other twenty-five never cross at all.
+  ///
+  /// It is not, however, a fix for anything measured. `readStatus` takes about
+  /// 5.5s on a cold-booted emulator, and narrowing this call from thirty
+  /// channels to five moved that by 40ms — inside the noise. Whatever costs
+  /// those seconds is elsewhere on that path, most likely `permission_handler`
+  /// on a cold start, and it was there before this method existed. Worth
+  /// chasing; not chased here.
+  Future<List<ChannelReport>> channelReport({List<String>? ids}) async {
     if (!_androidOnly) return const [];
     try {
       final raw = await _channel.invokeListMethod<Map<Object?, Object?>>(
         'channelReport',
+        {'ids': ids},
       );
       return [for (final row in raw ?? const []) ChannelReport.fromMap(row)];
     } catch (_) {
