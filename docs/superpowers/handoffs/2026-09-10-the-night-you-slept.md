@@ -5,7 +5,7 @@ decisions and two screenshots, said *«keep working while I sleep»*, and went t
 bed. This is what happened.
 
 **1170 tests passing**, `flutter analyze` clean, schema **v12**. Branch
-`slice1-religious-core`, still **not merged to `master`**. Four commits.
+`slice1-religious-core`, still **not merged to `master`**. Six commits.
 
 **Your phone was not touched.** Everything below was done on the emulator
 (`nourdm-api35`), as you asked.
@@ -270,12 +270,32 @@ In the order that matters:
 
 ## Start here next time
 
-Branch `slice1-religious-core`, head **`c21847d`**, tree clean, **not merged**.
+Branch `slice1-religious-core`, head **`83d068b`**, tree clean, **not merged**.
 1170 tests, analyze clean, schema v12.
 
-The emulator has the DND build (the one *before* the profile screen) — it was
-installed to measure the bypass and has not been rebuilt since. Your phone is
-still on the 8 September build and was not touched.
+**The emulator has the complete build**, installed and checked at the end:
+
+```
+282 alarms armed
+adhan_fajr_v3d    mImportance=5  mBypassDnd=true   الأذان — الفجر
+adhan_dhuhr_v3d   mImportance=5  mBypassDnd=true   الأذان — الظهر
+adhan_asr_v3d     mImportance=5  mBypassDnd=true   الأذان — العصر
+adhan_maghrib_v3d mImportance=5  mBypassDnd=true   الأذان — المغرب
+adhan_isha_v3d    mImportance=5  mBypassDnd=true   الأذان — العشاء
+0 crashes
+```
+
+Your phone is still on the 8 September build and was not touched.
+
+### One thing noticed and deliberately not chased
+
+`readStatus` takes about **5.5 seconds** on a cold-booted emulator, on the
+startup path. I suspected the channel report I added and narrowed it from
+thirty channels to five — which moved the number by 40ms, i.e. not at all. So
+the cost is elsewhere on that path and predates this work, most likely
+`permission_handler` on a cold start. `armWindow` is 42s on the same cold boot
+against the ~11.7s documented on better hardware, which is probably the same
+story. Neither is a regression from tonight; both are worth an hour sometime.
 
 ### Rules this project keeps re-learning
 
