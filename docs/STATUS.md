@@ -1,19 +1,19 @@
 # Nouri — status
 
-Last updated **10 September 2026**, overnight — the DND bypass, the thematic
-tones, five famous reciters, and الملف الشخصي.
+Last updated **9 September 2026**, evening — after the phone install and the
+DND proof.
 
-**Next session starts at** `docs/superpowers/handoffs/2026-09-10-the-night-you-slept.md` → *Start here
+**Next session starts at** `docs/superpowers/handoffs/2026-09-10-the-phone-takes-the-night-work.md` → *Start here
 next time*.
 
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `c21847d`, tree clean |
-| Tests | **1170 passing**, `flutter analyze` clean |
-| On the phone | **8 Sep build** (HONOR VNE-N41) — **not touched overnight**, by instruction. It does *not* have the DND bypass, the retuned tones or the new recitations |
-| On the emulator | the DND build, used to measure the bypass. Behind the profile screen |
-| Schema | v12 |
+| Head | `f53c496`, pushed to origin, tree clean |
+| Tests | **1176 passing**, `flutter analyze` clean |
+| On the phone | **current build, installed 9 Sep 19:49** (HONOR VNE-N41). Holds notification-policy access; 265 alarms armed; the adhan bypasses DND and has been heard |
+| On the emulator | an older build. Powered off |
+| Schema | v13 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
 
@@ -39,10 +39,17 @@ next time*.
   morning adhan), عبد الباسط عبد الصمد, ناصر القطامي, المدينة ١٩٥٢, العفاسي
   again for isha. 5.0 MB, down from 7.0. Marked **مؤقت** until the user sends
   his own five. Each on its own channel with a full-screen intent.
-- **The adhan gets through Do Not Disturb.** Measured on the emulator with DND
-  on: `adhan_*_v3d` read `intercepted=false` while the soft follow-ups read
-  `intercepted=true` in the same instant. It also **loops until dealt with**
-  (`FLAG_INSISTENT`), capped at ten minutes.
+- **The adhan gets through Do Not Disturb — on the real phone.** All five
+  `adhan_*_v3d` channels read `mBypassDnd=true` on the HONOR, and MagicOS's own
+  zen config flipped `areChannelsBypassingDnd: false → true` when they were
+  created. On the emulator with DND on, the same channels read
+  `intercepted=false` while the soft follow-ups read `intercepted=true` in the
+  same instant. It also **loops until dealt with** (`FLAG_INSISTENT`), capped
+  at ten minutes — watched doing exactly that at isha on 9 September.
+- **ساعات الوردية** — how long one shift runs, which decides how much of a day
+  is left once duty is taken out. Chips for 8/12/16/24 and a free field, since
+  the user's own shifts are seven and nine hours. The shift *type* stays in
+  الإعدادات → الدوام; one setting, one place.
 - Prayer logging from Home, from the review sheet, and from a notification tap
 - **Calendar reminders** — pick a day, write what to be reminded of, once or
   daily/weekly/monthly. One alarm per reminder, re-armed on every launch.
@@ -145,15 +152,15 @@ next time*.
   are the app's to declare, and a *silent* notification action needs the third
   one — `ActionBroadcastReceiver` — or the button does nothing at all, with no
   log and no error.
-- **The DND bypass is built and measured, but not yet granted on the phone.**
-  It needs notification-policy access, which only the user can give, on a
-  system screen: الإعدادات → حالة التنبيهات → «اسمح». Until he does, his adhan
-  is still silenced by DND. On the emulator, with access granted, every
-  `adhan_*_v3d` channel reads `mBypassDnd=true` and `intercepted=false`.
-  **One nuance worth chasing:** under *priority-only* DND, alarm audio usage
-  alone already passes — which the adhan always had. That his phone still
-  silenced it points at MagicOS or a stricter zen mode, and is worth one look
-  with the phone in hand.
+- **With DND on, the adhan is heard but does not take over the screen.** The
+  consolidated zen policy carries `SUPPRESSED_EFFECT_FULL_SCREEN_INTENT`, so
+  the sound passes and the full-screen intent is suppressed. Android's rule,
+  not a Nouri setting.
+- **Holding `ACCESS_NOTIFICATION_POLICY` is not the same as having policy
+  access.** The manifest permission reads `granted=true` at install while
+  `enabled_notification_policy_access_packages` stays null until the user
+  grants it on a system screen. Nouri reads the second, not the first, and
+  builds the non-bypassing channels until it is real.
 - **The step counter needs hardware *and a permission*.** The HONOR has the
   hardware — an HONOR `pedometer` on `android.sensor.step_counter(19)` — and
   Nouri held `ACTIVITY_RECOGNITION: granted=false`, having never asked. That
@@ -228,6 +235,7 @@ itself tested both ways, so none can pass vacuously.
 | `task_alert_test` | Two tasks sharing a sound, and the append-only order alarm ids depend on |
 | `alert_sound_character_test` | Two tones that *measure* alike — it reads the PCM, not the filename. It caught قيام opening like a struck bell at 01:30 |
 | `plan_request_test` | A logged meal, expense, weight or prayer state reaching the payload sent to Claude |
+| `schema_test` (v13) | The shift *length* being confused with the shift *type*, which lives in settings |
 
 ## Decisions already made (do not relitigate)
 
@@ -307,6 +315,14 @@ itself tested both ways, so none can pass vacuously.
 - **Drop, never invent.** A task id in a model's reply that Nouri cannot ring
   is discarded however plausible: a task with no alert never fires, and a
   silent row in المهام reads as a promise that was not kept.
+- **A value the user can set, the user can unset.** Text empties, a chosen
+  chip deselects, and a date now clears — a picker has no "none", so before the
+  × existed a date set by accident was permanent. That is not hypothetical: a
+  stray swipe wrote 2001/1/1 into the real profile on 9 September.
+- **Confirming focus is necessary and not sufficient.** The rule was followed —
+  `mCurrentFocus` was Nouri before every tap — and a swipe still landed on a
+  field and opened a picker. Read the screen *between* gestures, not only
+  before the first.
 - **Nothing about the profile is a score.** No percentage, no bar, no «٣ من ٨».
   A completion meter over a form about the user's own life is self-blame
   wearing a progress bar.
