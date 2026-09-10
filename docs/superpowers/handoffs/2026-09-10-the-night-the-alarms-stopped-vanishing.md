@@ -317,6 +317,48 @@ All five adhan channels still `mBypassDnd=true`, all four rows green in
 الإعدادات, no crash, and your data came through — آخر وزن ٨٧٫٠ كجم is where you
 left it.
 
+### And the gap it left in Nouri itself
+
+Fixing the cause is only half of it. The other half is that **your phone was
+broken for days and the app looked perfectly fine** — four green ticks in
+حالة التنبيهات, every permission granted, and no adhan armed for four days.
+Every row on that panel answered "is Nouri allowed to do this". None answered
+"did it actually happen".
+
+There is a fifth row now, and it reads the device back rather than trusting
+what the scheduler believes it armed:
+
+```
+التنبيهات المتظبّطة    ✓    ٢٤٠ — لحد ٢٣ سبتمبر
+```
+
+**Reach is deliberately not the measure.** Yours still ran to the 23rd — the
+hole was at the near end, because that is where an interrupted cancel pass
+leaves one. So the question asked is whether any day between here and there
+holds nothing, and the answer names the first:
+
+```
+فيه ٣ أيام قدّامك من غير أذان — أول واحد ٧ سبتمبر. ده بيحصل لو نوري
+اتقفل وهو لسه بيظبط التنبيهات. دوس «صلّح» ويرجع تاني.
+```
+
+Four judgements, each with a test behind it. **Today is never a gap** — its
+alarms are consumed as the day passes, so by evening it legitimately holds
+none, and calling that a fault would warn every user every night. **Gaps stop
+at what is armed** — a window reaching a week ahead has no gap on day eight, it
+simply does not reach. **Nothing armed is not a gap** — turning every
+notification off is allowed. And **the count shows even when healthy**, because
+it is the one fact on that panel you can check for yourself.
+
+Driven end to end on the emulator: the healthy reading matches `dumpsys` to the
+alarm, a manufactured gap produced the warning, and «صلّح» repaired it and
+turned the row green.
+
+**This is not on your phone yet** — you unplugged before I could install it.
+The build on your phone has the re-arm fix, which is the part that matters; it
+does not have this. `adb install -r build/app/outputs/flutter-apk/app-release.apk`
+next time it is connected.
+
 ### What I got wrong, again, and it was worse this time
 
 While tapping through the app to check your data, Nouri went to the background
@@ -354,9 +396,12 @@ Unchanged, and every one of them needs a person:
 
 ## Start here next time
 
-Branch `slice1-religious-core`, last code commit **`0a3d211`**, head `466fde2`
-(this document and the correction to it), tree clean. 1199 tests, analyze
-clean, schema v13.
+Branch `slice1-religious-core`, head **`c015dc5`**, pushed, tree clean. 1216
+tests, analyze clean, schema v13.
+
+**Your phone is on the 10 Sep 12:43 build** — it has the re-arm fix and the
+photo, and not the armed-window row. Install the current build when it is next
+plugged in.
 
 All seven tabs were tapped through on the final release build afterwards —
 no exception in logcat, 289 alarms armed, no crash.
