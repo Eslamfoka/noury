@@ -421,7 +421,14 @@ same claim read off the device.
 
 You said to merge it, so `slice1-religious-core` went into `master` as
 `b5dafa9` — a `--no-ff` merge carrying 154 commits, with the summary in the
-merge message rather than only here. Both refs now point at the same tree.
+merge message rather than only here. The branch was then deleted, local and
+remote, once the merge was verified: `git branch -d` rather than `-D`, so git
+itself would have refused had anything been unmerged.
+
+From here there is one branch. **`master` is no longer the untouchable
+thing** — the rule that kept it clean was for an unproven slice, and that slice
+is now proven and in. Whatever comes next should get its own branch off
+`master` rather than landing on it directly.
 
 Gated before, not after: tree clean, everything pushed, `flutter analyze`
 clean, **1217 tests passing** — run again on `master` after the merge, not
@@ -469,9 +476,11 @@ Unchanged, and every one of them needs a person:
 
 ## Start here next time
 
-**`master` at `b5dafa9`**, pushed, tree clean. 1217 tests, analyze clean,
-schema v13. `slice1-religious-core` still exists and points at the same tree,
-so either is a fine place to carry on from.
+**`master`**, and only `master` — pushed, tree clean. 1217 tests, analyze
+clean, schema v13. `slice1-religious-core` was deleted once the merge was
+verified, local and remote, so there is one branch and no question about which
+is current. Its 154 commits are all in `master`'s history; the merge commit
+`b5dafa9` is where they join.
 
 **Your phone is on the 10 Sep 12:43 build** — it has the re-arm fix and the
 photo, and not the armed-window row. Install the current build when it is next

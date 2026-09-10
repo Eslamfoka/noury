@@ -7,7 +7,7 @@ next time*.
 
 | | |
 |---|---|
-| Branch | **merged into `master`** on 10 September. `slice1-religious-core` is kept, and both point at the same tree |
+| Branch | **`master`**, and only `master`. Slice 1 was merged on 10 September and `slice1-religious-core` deleted, local and remote |
 | Head | `master` at `b5dafa9`, pushed to origin, tree clean |
 | Tests | **1217 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 10 Sep 12:43** (HONOR VNE-N41). 273 alarms, no gap; policy access held; the adhan bypasses DND and has been heard |
