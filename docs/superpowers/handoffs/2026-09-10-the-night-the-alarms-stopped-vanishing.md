@@ -2,14 +2,18 @@
 
 Follows `2026-09-10-the-phone-takes-the-night-work.md`. You said to keep going
 on whatever did not need you, to use the emulator, and to do as much as I
-could rather than one thing. This is what happened.
+could rather than one thing. Then you woke, plugged the phone in, and said to
+carry on. This covers all of it, in the order it happened, and ends with Slice
+1 merged.
 
-**1199 tests passing**, `flutter analyze` clean, schema **v13** (unchanged —
-nothing tonight needed a migration). Branch `slice1-religious-core`, two
-commits, still **not merged to `master`**.
+**Where it finished: `master` at `b5dafa9`, 1217 tests passing, `flutter
+analyze` clean, schema v13** — unchanged, nothing here needed a migration. The
+count moves through the day: 1176 at the start, 1219 at its peak, 1217 after
+two vacuous tests were deleted rather than kept alive around a subject that no
+longer existed.
 
-**Your phone was not touched.** Everything below is the emulator
-(`nourdm-api35`, Android 15).
+**The night's work did not touch your phone.** Everything up to «The morning»
+is the emulator (`nourdm-api35`, Android 15).
 
 Four things I deliberately did **not** do, because they are yours:
 `INTERNET`, listening to the adhans and the tones, granting
@@ -413,6 +417,41 @@ same claim read off the device.
 
 ---
 
+## Merged
+
+You said to merge it, so `slice1-religious-core` went into `master` as
+`b5dafa9` — a `--no-ff` merge carrying 154 commits, with the summary in the
+merge message rather than only here. Both refs now point at the same tree.
+
+Gated before, not after: tree clean, everything pushed, `flutter analyze`
+clean, **1217 tests passing** — run again on `master` after the merge, not
+only on the branch.
+
+### One thing had to be fixed to make it possible
+
+The merge failed twice with `cannot stat '.claude': Permission denied`.
+
+`.claude/scheduled_tasks.lock` was **tracked in git**. A lock file is machine
+state, never source, and it should never have been committed — but it only
+started mattering today, because that directory now carries ACLs this account
+cannot read at all. `Test-Path` on it returns Access Denied. So any checkout
+that had to write the file failed, and the merge is a checkout.
+
+It is untracked now, and `.claude/` is in `.gitignore`. **Nothing on disk was
+touched** — whatever holds that directory is still holding it, and taking an
+axe to the ACLs of a directory a running process owns is not a thing to do on
+someone's machine to get a merge through.
+
+The removal had to be made with plumbing — `read-tree` into a temporary index,
+`update-index --force-remove`, `commit-tree`, `update-ref` — because checking
+the branch out to fix it normally is the very thing the tracked file prevented.
+
+Worth knowing if it ever recurs: checking out `master` in that state emptied
+the working tree, which looks alarming and is not. Everything was committed and
+pushed; checking the branch back out restored all 337 files.
+
+---
+
 ## Still yours
 
 Unchanged, and every one of them needs a person:
@@ -430,8 +469,9 @@ Unchanged, and every one of them needs a person:
 
 ## Start here next time
 
-Branch `slice1-religious-core`, head **`0a3a7f1`**, pushed, tree clean. 1219
-tests, analyze clean, schema v13.
+**`master` at `b5dafa9`**, pushed, tree clean. 1217 tests, analyze clean,
+schema v13. `slice1-religious-core` still exists and points at the same tree,
+so either is a fine place to carry on from.
 
 **Your phone is on the 10 Sep 12:43 build** — it has the re-arm fix and the
 photo, and not the armed-window row. Install the current build when it is next

@@ -1,21 +1,25 @@
 # Nouri — status
 
-Last updated **10 September 2026** — after the night that found the re-arm
-hole.
+Last updated **10 September 2026** — after Slice 1 was merged to `master`.
 
 **Next session starts at** `docs/superpowers/handoffs/2026-09-10-the-night-the-alarms-stopped-vanishing.md` → *Start here
 next time*.
 
 | | |
 |---|---|
-| Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `0a3d211`, pushed to origin, tree clean |
-| Tests | **1199 passing**, `flutter analyze` clean |
+| Branch | **merged into `master`** on 10 September. `slice1-religious-core` is kept, and both point at the same tree |
+| Head | `master` at `b5dafa9`, pushed to origin, tree clean |
+| Tests | **1217 passing**, `flutter analyze` clean |
 | On the phone | **current build, installed 10 Sep 12:43** (HONOR VNE-N41). 273 alarms, no gap; policy access held; the adhan bypasses DND and has been heard |
 | On the emulator | tonight's build, verified across reboot and Doze. Powered off |
 | Schema | v13 |
 
-`master` stays clean until Slice 1 is tested and merging is approved.
+**Slice 1 is merged.** It was held back from `master` from 5 September on one
+condition — that it be tested and the merge approved — and both are now on the
+record: the user approved it on 10 September, and `docs/install.md` carries 81
+checks, of which everything reachable without a second person has been run on a
+device. What is *not* merged is nothing; what is not *finished* is the network
+call behind «ابني خطتي», and that waits on a decision rather than on work.
 
 ---
 
@@ -402,6 +406,13 @@ itself tested both ways, so none can pass vacuously.
 - **Nothing about the profile is a score.** No percentage, no bar, no «٣ من ٨».
   A completion meter over a form about the user's own life is self-blame
   wearing a progress bar.
+- **`.claude/` is not tracked and never should be.** A lock file inside it was
+  committed early on and went unnoticed until the directory acquired ACLs this
+  account cannot read — at which point every checkout that had to write it
+  failed, including the merge to `master`. It is in `.gitignore` now. Nothing
+  on disk was changed to fix it: the removal was made with git plumbing,
+  because checking the branch out to fix it normally was the very thing the
+  tracked file prevented.
 - Nothing is ever marked failed, and nothing is ever red.
 
 ## Where things live
@@ -409,9 +420,11 @@ itself tested both ways, so none can pass vacuously.
 ```
 docs/setup.md          toolchain, timezone handling, adhan sound swap
 docs/install.md        device checks; 40-47 are the adhan_v2 ones, 48-56 Slice
-                       1b, 57-64 the reboot/Doze/re-arm run of 10 September
+                       1b, 57-65 the reboot/Doze/re-arm run of 10 September,
+                       66-71 the HONOR install, 72-81 the day's on-device pass
 docs/STATUS.md         this file
-docs/superpowers/handoffs/    dated session handoffs
+docs/superpowers/handoffs/    dated session handoffs; the 10 September one
+                              ends with the merge and how it was unblocked
 docs/planner-decisions.md     the six Slice 2 answers, and why each is reversible
 docs/fasting-verification.md  the sunnah fasting days, awaiting a human read
 docs/superpowers/plans/       2026-09-08-slice5-the-day-speaks.md is the
