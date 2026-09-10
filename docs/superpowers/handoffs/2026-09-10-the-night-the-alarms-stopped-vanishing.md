@@ -78,10 +78,38 @@ wanted alarm is still written unconditionally on every call, so a force-stop
 still heals on the next launch — measured on the new build: `0 → 71 → 121 →
 176 → 224 → 281 → 290`.
 
-It was also the reason the pass was slow. Every schedule *and* every cancel
-rewrites the plugin's entire boot cache — load the whole JSON array, replace
-one entry, save it back — so the work was quadratic in the size of the window.
-That is the 42s cold-emulator / 11.7s HONOR figure STATUS has been carrying.
+### What it is *not*, which I got wrong first
+
+I wrote in the commit message that this also explains why the pass is slow, and
+pointed at the 42s cold-emulator / 11.7s HONOR figures. **That is wrong, and
+measuring it is what showed me.**
+
+Debug builds of both, `NOURI_STARTUP armWindow`, four quiet runs each on the
+same emulator:
+
+```
+baseline   24855   24381   24536   23759 ms
+fixed      26358   24411   23303   23134 ms
+```
+
+No difference worth the word. The ~265 cancels cost almost nothing in wall
+clock; the ~287 *schedules* are the whole of the time, and this change does not
+touch them. The plugin really does rewrite its entire boot cache per operation,
+so the pass really is quadratic — but at this window size the constant is small
+enough that halving the operation count buys nothing measurable.
+
+So: **this is a robustness fix, not a performance one.** The value is that the
+alarms are never absent, not that the pass got shorter. The `perf:` prefix on
+the commit is the wrong label; the commit body's timing claim is wrong. I am
+leaving the commit alone rather than rewriting a pushed branch, and correcting
+it here, which is where the next person looks.
+
+One thing measuring the dip taught me about measuring the dip: `dumpsys alarm`
+takes a lock the cancel loop is contending for, so sampling it hard makes the
+decline *look* longer than it is. Under heavy sampling the baseline's decline
+spanned ~14s of a 32s `armWindow`; quiet, the same pass is 24s. The depth of
+the hole is solid — 290 → 13 in release, 289 → 7 in debug, reproduced on both
+builds — but **do not trust any duration I could only see by observing it.**
 
 Two smaller things on the same path, in the same commit:
 
@@ -89,13 +117,16 @@ Two smaller things on the same path, in the same commit:
   round-trips. Three of them exist for the settings panel — whether
   notifications are on, whether the battery optimiser still holds Nouri, how
   the adhan channels stand against DND — and none changes what gets scheduled.
-  `readMode` is the one question that does. That is the 5.5s the last handoff
-  noticed and did not chase; it is now off the startup path rather than made
-  faster, which is the better answer.
+  `readMode` is the one question that does. Measured: `readStatus` 1532–2686ms
+  became `readMode` 1265–1426ms. Real, and much smaller than the 5.5s the last
+  handoff saw — that number was from a *cold-booted* emulator and I did not
+  reproduce it on a warm one.
 - `init` deleted all 33 retired channel IDs and created all ~30 current ones on
   every launch, **before the first frame**, and from the second launch onward
   every one of those was a no-op. One read of what the device already holds
-  replaces them.
+  replaces them. `pluginInit` 1164–1668ms became 1115–1150ms — again real and
+  again small. Both of these are worth having on their own terms; neither is
+  the reason the app takes a moment to settle.
 
 ---
 

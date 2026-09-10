@@ -101,7 +101,10 @@ next time*.
 - **Opening the app no longer empties the alarm list first.** A re-arm cancels
   only what the new window does not contain and writes the rest over the top —
   rewriting an id is already a cancel. Measured: the armed count used to fall
-  from 290 to 13 over ten seconds of every launch; it now stays flat at 290.
+  to **13 of 290** (release) and **7 of 289** (debug) during every launch; it
+  now stays flat. This is a **robustness** change, not a speed one — `armWindow`
+  is 24.4s before and 24.3s after, because the ~287 schedules are the cost and
+  this does not touch them.
 - **Every one of the nineteen is reachable, and nothing rings twice.** The
   iqama, قيام, the water nudge, the budget note, the fasting offer, the daily
   review and the user's own reminders each moved off the shared channel onto
@@ -207,11 +210,21 @@ next time*.
   been repeated on the HONOR**, where MagicOS's own power management is the
   variable an emulator cannot speak for.
 - **Still untested anywhere:** battery-kill across several real days.
-- **The re-arm used to leave a ten-second hole in every launch.** With the app
-  armed and then opened, the count AlarmManager actually held fell 290 → 13
-  before climbing back — 82% to 99% of the fortnight missing, on every launch,
-  with nothing saying so. Fixed 10 September; the count is now flat. Worth
-  knowing because **the build on the phone still has it**.
+- **The re-arm used to empty the alarm list on every launch.** With the app
+  armed and then opened, the count AlarmManager actually held fell to 13 of 290
+  before climbing back — reproduced on release and on debug (7 of 289) — with
+  nothing saying so. Fixed 10 September; the count is now flat. Worth knowing
+  because **the build on the phone still has it**.
+  **How long the hole lasts is not known.** `dumpsys alarm` contends for the
+  lock the cancel loop needs, so sampling it hard stretches the decline: it
+  spanned ~14s of a 32s `armWindow` under heavy sampling and the same pass runs
+  in 24s unobserved. Depth is measured; duration is not, and no number for it
+  should be quoted.
+- **`armWindow` is ~24s on a warm emulator in debug, and the re-arm fix did not
+  change that** (24.4s → 24.3s). The 42s figure from 8 September was a
+  *cold-booted* emulator and has not been reproduced warm. Whatever costs those
+  seconds is the ~287 `zonedSchedule` round-trips, which nothing has yet
+  addressed. It runs off the critical path, so it costs no blank screen.
 - **Prayer times come from the stored Kuwait coordinates, not the device.**
   `ACCESS_COARSE_LOCATION: granted=false` on the phone. By design — Nouri is
   never blocked on a permission — but they are not from GPS.

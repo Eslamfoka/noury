@@ -234,7 +234,7 @@ own power management is the variable an emulator cannot speak for.
 | 59 | **An alarm arrives in deep Doze**, with Nouri *not* on the deviceidle whitelist | ✅ `mState=IDLE`, screen off, battery unplugged → `12:00 id=156484 channel=alert_iqama_v3` |
 | 60 | **The day turning over** re-anchors the window and orphans nothing | ✅ `09-10 11:45 → 09-24 01:32` became `09-11 11:45 → 09-25 01:32`, 290 alarms, no 09-10 alarm left behind |
 | 61 | **Force-stop still heals on the next launch**, after the re-arm change | ✅ 0 → 71 → 121 → 176 → 224 → 281 → 290 |
-| 62 | **A launch no longer empties the alarm list first** | ✅ was 290 → 13 over ~10s; now flat at 290 across thirty samples, producing an identical window |
+| 62 | **A launch no longer empties the alarm list first** | ✅ was 290 → 13 (release) and 289 → 7 (debug); now flat on both, producing an identical window. Robustness only — `armWindow` is 24.4s before and 24.3s after |
 | 63 | **28 channels live, 35 retired ones deleted** after the `channelWorkFor` change | ✅ 5 adhan `_v3d` + 19 task tones + `athkar_v1`, `wird_v1`, `general_v1` |
 | 64 | **الملف الشخصي → the photo picks, stores, renders and clears** | ✅ `PhotoPickerGetContentActivity` opens saying "This app can only access the photos you select"; stored as `files/profile-<ms>.png` (27 KB); × removed it and left `snoozes.json` untouched |
 
@@ -246,6 +246,16 @@ To reproduce 57 and 58, note the two traps that make a false negative easy:
 - **`adb shell date -s` wants `MMDDhhmm[[CC]YY][.ss]`.** `date -s "2026-09-10
   11:44:30"` is rejected as "two dates at once", and `date -s 20260910.114430`
   silently lands in 2010.
+- **Sampling the alarm count changes what you are sampling.** `dumpsys alarm`
+  takes the lock the app's cancel loop wants, so a tight polling loop stretches
+  the very decline it is there to watch — `armWindow` measured 32s while being
+  sampled and 24s left alone. Depth is trustworthy; duration is not.
+- **`flutter build apk --debug` can hand back a kernel it built for different
+  source.** Reverting `lib/` with `git checkout <old> -- lib/` and rebuilding
+  produced an APK still containing the new code. Check before believing a
+  measurement: `unzip -p app-debug.apk assets/flutter_assets/kernel_blob.bin |
+  grep -c <a symbol only one side has>`. `rm -rf .dart_tool/flutter_build`
+  forces the rebuild.
 
 **Check 51 decides the shape of the feature.** If the HONOR reports no step
 sensor, the walk screen is honest about it and the feature needs the
