@@ -11,7 +11,7 @@ next time*.
 | Branch | `slice1-religious-core` — **not merged to `master`** |
 | Head | `0a3d211`, pushed to origin, tree clean |
 | Tests | **1199 passing**, `flutter analyze` clean |
-| On the phone | the **9 Sep build** (HONOR VNE-N41) — it does *not* have the re-arm fix. Holds notification-policy access; 265 alarms armed; the adhan bypasses DND and has been heard |
+| On the phone | **current build, installed 10 Sep 12:43** (HONOR VNE-N41). 273 alarms, no gap; policy access held; the adhan bypasses DND and has been heard |
 | On the emulator | tonight's build, verified across reboot and Doze. Powered off |
 | Schema | v13 |
 
@@ -98,13 +98,19 @@ next time*.
   a score, and it works empty. **A photo now picks**, through the system photo
   picker with no permission asked, stored beside the database; its own line
   says it changes nothing and goes nowhere, because that is true.
-- **Opening the app no longer empties the alarm list first.** A re-arm cancels
-  only what the new window does not contain and writes the rest over the top —
-  rewriting an id is already a cancel. Measured: the armed count used to fall
-  to **13 of 290** (release) and **7 of 289** (debug) during every launch; it
-  now stays flat. This is a **robustness** change, not a speed one — `armWindow`
-  is 24.4s before and 24.3s after, because the ~287 schedules are the cost and
-  this does not touch them.
+- **Opening Nouri and closing it no longer costs you the fortnight.** A re-arm
+  cancels only what the new window does not contain and writes the rest over
+  the top — rewriting an id is already a cancel. Measured by opening the app
+  and swiping it away, which is what people do:
+
+  | swiped away after | old | new |
+  |---|---|---|
+  | 3 seconds | 285 → **8 alarms** | 285 → **285** |
+  | 6 seconds | 285 → **212 alarms** | 285 → **285** |
+
+  This is a **robustness** change, not a speed one — `armWindow` is 24.4s
+  before and 24.3s after, because the ~287 schedules are the cost and this does
+  not touch them.
 - **Every one of the nineteen is reachable, and nothing rings twice.** The
   iqama, قيام, the water nudge, the budget note, the fasting offer, the daily
   review and the user's own reminders each moved off the shared channel onto
@@ -210,11 +216,14 @@ next time*.
   been repeated on the HONOR**, where MagicOS's own power management is the
   variable an emulator cannot speak for.
 - **Still untested anywhere:** battery-kill across several real days.
-- **The re-arm used to empty the alarm list on every launch.** With the app
-  armed and then opened, the count AlarmManager actually held fell to 13 of 290
-  before climbing back — reproduced on release and on debug (7 of 289) — with
-  nothing saying so. Fixed 10 September; the count is now flat. Worth knowing
-  because **the build on the phone still has it**.
+- **It had already happened, on the real phone.** On 10 September, before the
+  new build went on, the HONOR held **137 alarms with a four-day hole** — none
+  at all from that moment until 14 September, and a *partially* cancelled day
+  on the 14th, which only an interrupted per-alarm pass can produce. No crash
+  was recorded, the app was not force-stopped, it sits at standby bucket 5
+  (EXEMPTED) and is on the Doze whitelist. The process was simply killed
+  mid-re-arm. This is the one piece of evidence in the project that says an
+  alarm bug reached the user rather than the test suite.
   **How long the hole lasts is not known.** `dumpsys alarm` contends for the
   lock the cancel loop needs, so sampling it hard stretches the decline: it
   spanned ~14s of a 32s `armWindow` under heavy sampling and the same pass runs

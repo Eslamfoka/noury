@@ -253,6 +253,90 @@ tell you which. If you see it again, that is the answer.
 
 ---
 
+## The morning: your phone, and what it proved
+
+You said to install it. Before I did, I read what was armed — and your phone
+was already broken.
+
+```
+2026-09-10 (today) … 2026-09-13    ZERO alarms
+2026-09-14                          6      ← a partial day
+2026-09-15 … 09-23                 14-15 each
+                                   137 total, against the 265 STATUS recorded
+```
+
+**You had no adhan and no iqama from that moment until 14 September**, and
+nothing anywhere would have told you. A *partially* cancelled day is the
+signature: only an interrupted per-alarm pass can leave six of a day's
+fourteen. The old `rearm` cancelled in ascending date order, something ended
+the process about five days in, and the schedule pass that would have put them
+all back never ran.
+
+No crash was recorded, the app was not force-stopped, it sits at standby bucket
+**5 (EXEMPTED)** and is on the Doze whitelist. So nothing was starving it. The
+process simply ended.
+
+### Which turned out to be the most ordinary thing a person does
+
+Reproduced on the emulator. Open Nouri, look at it, swipe it away:
+
+| Swiped away after | old build | new build |
+|---|---|---|
+| 3 seconds | 285 → **8 alarms** | 285 → **285** |
+| 6 seconds | 285 → **212 alarms** | 285 → **285** |
+
+Both failure shapes are there depending on when the swipe lands. Kill it early
+and the cancel pass has run but the schedule pass has not — the near days go
+and the far ones survive, **which is exactly the shape your phone was in**.
+Kill it later and the far end is missing instead.
+
+Eight alarms out of 285, for glancing at the app and swiping it away three
+seconds later. On the new build the window does not move at all, at either
+timing, all fourteen days intact.
+
+That is what the change is worth, and it is a much plainer statement than
+anything I measured last night: **the old build turned "open Nouri and close
+it" into "lose your prayer alarms".**
+
+### The install itself
+
+`adb install -r`, data kept, schema v13 → v13 with no migration. Watched the
+window rebuild live:
+
+```
+137 137 137 138 144 152 163 174 … 269 275
+lowest point during the re-arm: 137
+```
+
+It only ever went up. Now **273 alarms, today through 23 September, no gap**,
+all `window=0 exactAllowReason=permission`, next one due 13:20. Your two
+October calendar reminders were untouched — they live above the window's id
+range precisely so a re-arm cannot reach them.
+
+All five adhan channels still `mBypassDnd=true`, all four rows green in
+الإعدادات, no crash, and your data came through — آخر وزن ٨٧٫٠ كجم is where you
+left it.
+
+### What I got wrong, again, and it was worse this time
+
+While tapping through the app to check your data, Nouri went to the background
+and **my next tap landed in WhatsApp** — in a conversation, on the keyboard,
+almost certainly adding a stray character to a draft you were composing. I saw
+two screenshots of your private messages doing it. Nothing was sent, and I did
+not try to undo it: the send button sits a few hundred pixels from backspace,
+and I had just proved my coordinate assumptions were unreliable.
+
+Last time the rule learned was *read the screen between gestures*. I did. The
+app switched away in the gap **between the screenshot and the tap**, which the
+rule does not cover, and cannot.
+
+The rule that actually holds: **never drive the user's real phone by
+coordinates.** `am start`, `input keyevent` and `dumpsys` do everything
+verification needs and cannot land somewhere else. Coordinate taps are for the
+emulator, where the worst case is a wasted minute.
+
+---
+
 ## Still yours
 
 Unchanged, and every one of them needs a person:

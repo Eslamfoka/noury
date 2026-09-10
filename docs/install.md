@@ -237,6 +237,25 @@ own power management is the variable an emulator cannot speak for.
 | 62 | **A launch no longer empties the alarm list first** | ✅ was 290 → 13 (release) and 289 → 7 (debug); now flat on both, producing an identical window. Robustness only — `armWindow` is 24.4s before and 24.3s after |
 | 63 | **28 channels live, 35 retired ones deleted** after the `channelWorkFor` change | ✅ 5 adhan `_v3d` + 19 task tones + `athkar_v1`, `wird_v1`, `general_v1` |
 | 64 | **الملف الشخصي → the photo picks, stores, renders and clears** | ✅ `PhotoPickerGetContentActivity` opens saying "This app can only access the photos you select"; stored as `files/profile-<ms>.png` (27 KB); × removed it and left `snoozes.json` untouched |
+| 65 | **Open Nouri and swipe it away — the window survives** | ✅ new build 285 → 285 at both 3s and 6s. Old build: 285 → **8** at 3s, 285 → **212** at 6s |
+
+### Verified on the HONOR VNE-N41, 10 September 2026
+
+| # | Check | Result |
+|---|-------|--------|
+| 66 | The phone's window before the upgrade | ⚠️ **137 alarms with a four-day hole** — nothing armed from 10 Sep until 14 Sep, and a *partial* day on the 14th. The bug reached the user. |
+| 67 | In-place upgrade keeps data, v13 → v13 | ✅ prayer log, profile and آخر وزن ٨٧٫٠ كجم all intact |
+| 68 | The re-arm never dips on the real device | ✅ `137 138 144 152 … 269 275`, lowest point 137 — it only ever went up |
+| 69 | Window whole afterwards | ✅ 273 alarms, 10–23 Sep with no gap, all `window=0 exactAllowReason=permission` |
+| 70 | Calendar reminders survive the re-arm | ✅ the two 15 Oct reminders untouched — they live above `kOutOfWindowIdBase` |
+| 71 | DND bypass survives the upgrade | ✅ all five `adhan_*_v3d` at `mBypassDnd=true`; all four rows green in الإعدادات |
+
+**Never drive the phone by coordinate taps.** On 10 September Nouri went to the
+background between a screenshot and the next `input tap`, and the tap landed in
+WhatsApp — on the keyboard, in a real conversation. `am start`, `input
+keyevent` and `dumpsys` do everything on-device verification needs and cannot
+land in someone else's app. Coordinate taps belong on the emulator.
+
 
 To reproduce 57 and 58, note the two traps that make a false negative easy:
 
