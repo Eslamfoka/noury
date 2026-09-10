@@ -379,6 +379,40 @@ emulator, where the worst case is a wasted minute.
 
 ---
 
+## Three more things, after the install
+
+**The new row was reporting a half-written window.** Opening الإعدادات ~6s
+after launch read «١٣٤ — لحد ١٩ سبتمبر» for a device that finished the same
+minute at 232 through the 23rd — and read a moment earlier still, the count is
+low enough that the gap check fires. Nouri raising a false alarm against
+itself, about the one thing that row exists to be trusted about, while it was
+busy doing the right thing. `readArmedWindow` now waits on the same warm-up
+every scheduling path already waits on. Mid-arm it says «بيتحقق…»; once armed
+it says the number. Caught by looking at it on a device, not by a test.
+
+**قيام الليل, watched firing** — the last "never watched" line in STATUS. At
+01:32:40, and the interesting part is the contrast with the isha adhan that
+fired in the same run:
+
+```
+قيام    alert_qiyam_v2   imp=4  AUTO_CANCEL                         category=reminder
+الأذان  adhan_isha_v3d   imp=5  INSISTENT|AUTO_CANCEL|HIGH_PRIORITY category=alarm
+```
+
+قيام arrives once, on its own tone, no full-screen intent, «الثلث الأخير — لو
+قدرت». The adhan loops until dealt with and lights the screen. An invitation
+and a summons, and Android treats them differently — which was always the
+design and is now measured.
+
+**Nineteen tones, nineteen files, read off Android.** 27 live channels: five
+adhan recitations, nineteen task tones each with its own `res/raw` file and
+none shared, and `athkar_v1`/`wird_v1`/`general_v1` on the system default —
+the documented generic-tone fallback for the safety-net path past day three.
+`alert_sound_character_test` reads the PCM on the build machine; this is the
+same claim read off the device.
+
+---
+
 ## Still yours
 
 Unchanged, and every one of them needs a person:
@@ -396,7 +430,7 @@ Unchanged, and every one of them needs a person:
 
 ## Start here next time
 
-Branch `slice1-religious-core`, head **`c015dc5`**, pushed, tree clean. 1216
+Branch `slice1-religious-core`, head **`0a3a7f1`**, pushed, tree clean. 1219
 tests, analyze clean, schema v13.
 
 **Your phone is on the 10 Sep 12:43 build** — it has the re-arm fix and the
