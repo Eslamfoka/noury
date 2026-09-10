@@ -101,6 +101,23 @@ int notificationIdFor(DateTime date, NotificationSlot slot) {
   return days * kSlotsPerDay + slot.index;
 }
 
+/// The date a window ID belongs to — [notificationIdFor] read backwards.
+///
+/// The ID carries its own date, which is what lets Nouri read back from the
+/// device what is actually armed rather than trusting what it meant to arm.
+/// See `armed_window.dart` for why that turned out to matter.
+DateTime dateOfNotificationId(int id) {
+  final days = id ~/ kSlotsPerDay;
+  // Constructed, never offset. `_idEpoch.add(Duration(days: days))` would be
+  // correct here — the epoch is UTC and UTC has no transitions to trip over —
+  // but the guard that forbids it is blanket on purpose, and a reader should
+  // not have to reconstruct that argument to trust this line.
+  final utc = DateTime.utc(2020, 1, 1 + days);
+  // Local midnight, so it compares equal to the dates every other part of the
+  // app constructs.
+  return DateTime(utc.year, utc.month, utc.day);
+}
+
 /// The ceiling of the rolling window's ID range, and the floor of everything
 /// scheduled outside it (reminders, today).
 ///

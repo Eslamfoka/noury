@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'local_notification_gateway.dart';
 import 'adhan_sounds.dart';
+import 'armed_window.dart';
 import 'dnd_bypass.dart';
 import 'notification_channels.dart';
 import 'notification_slot.dart';
@@ -164,6 +165,24 @@ class NotificationService {
   Future<NotificationMode> readMode() async {
     final exact = await _android?.canScheduleExactNotifications() ?? false;
     return exact ? NotificationMode.exact : NotificationMode.inexact;
+  }
+
+  /// What the device is *actually* holding, read back rather than assumed.
+  ///
+  /// Every other row in حالة التنبيهات answers "is Nouri allowed to do this".
+  /// This one answers "did it actually happen", which turned out to be a
+  /// different question: on 10 September 2026 every permission was granted and
+  /// four days of the user's prayer alarms were simply not there.
+  ///
+  /// Empty on any failure. A panel that cannot read the window should say it
+  /// holds nothing rather than invent a reassuring number.
+  Future<ArmedWindow> readArmedWindow() async {
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      return armedWindowFrom(pending.map((r) => r.id));
+    } catch (_) {
+      return const ArmedWindow(count: 0, days: {});
+    }
   }
 
   /// Reads the live device state. Nothing here is cached — the settings panel

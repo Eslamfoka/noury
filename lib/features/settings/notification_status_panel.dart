@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/format/arabic_numerals.dart';
+import '../../core/notifications/armed_window.dart';
 import '../../core/notifications/notification_status.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
@@ -14,6 +16,9 @@ class NotificationStatusPanel extends StatelessWidget {
   const NotificationStatusPanel({
     super.key,
     required this.status,
+    this.armed,
+    this.today,
+    required this.onRearm,
     required this.onRequestNotifications,
     required this.onRequestExactAlarms,
     required this.onRequestBattery,
@@ -23,6 +28,19 @@ class NotificationStatusPanel extends StatelessWidget {
   });
 
   final NotificationStatus? status;
+
+  /// What the device is actually holding, or null while it is being read.
+  final ArmedWindow? armed;
+
+  /// Passed in rather than read from the clock, so the row can be tested and
+  /// so it agrees with the rest of the app about which day it is — this app
+  /// turns over at midnight rather than at whenever it was last launched.
+  final DateTime? today;
+
+  /// Builds the window again. The remedy for a gap, and harmless otherwise:
+  /// re-arming is idempotent by design.
+  final VoidCallback onRearm;
+
   final VoidCallback onRequestNotifications;
   final VoidCallback onRequestExactAlarms;
   final VoidCallback onRequestBattery;
@@ -35,6 +53,13 @@ class NotificationStatusPanel extends StatelessWidget {
   /// Schedules a real alarm a couple of minutes out, so the user can close the
   /// app and confirm it still fires.
   final VoidCallback onScheduleTestAdhan;
+
+  List<DateTime> get _gaps {
+    final a = armed;
+    final t = today;
+    if (a == null || t == null) return const [];
+    return a.gapsAfter(t);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +100,29 @@ class NotificationStatusPanel extends StatelessWidget {
               ok: s.adhanBypassesDnd,
               onFix: onRequestDndBypass,
             ),
+            _ArmedRow(armed: armed, today: today, onFix: onRearm),
+            if (_gaps.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: NouriColors.background,
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: NouriColors.attention),
+                ),
+                child: Text(
+                  'فيه ${toArabicDigits('${_gaps.length}')} '
+                  '${_gaps.length == 1 ? 'يوم' : 'أيام'} قدّامك من غير أذان — '
+                  'أول واحد ${_arabicDay(_gaps.first)}. ده بيحصل لو نوري '
+                  'اتقفل وهو لسه بيظبط التنبيهات. دوس «صلّح» ويرجع تاني.',
+                  style: cairo(
+                    size: 11.5,
+                    color: NouriColors.muted,
+                    height: 1.8,
+                  ),
+                ),
+              ),
+            ],
             if (!s.adhanBypassesDnd) ...[
               const SizedBox(height: 10),
               Container(
@@ -169,16 +217,90 @@ class NotificationStatusPanel extends StatelessWidget {
   }
 }
 
+/// «التنبيهات متظبّطة لحد …» — the row that answers whether it actually
+/// happened, rather than whether it was allowed to.
+///
+/// It shows the number even when everything is fine, because a count is the
+/// one thing on this panel a person can sanity-check for themselves, and
+/// because "273 alarms, through the 23rd" is a far more reassuring sentence
+/// than a tick.
+class _ArmedRow extends StatelessWidget {
+  const _ArmedRow({
+    required this.armed,
+    required this.today,
+    required this.onFix,
+  });
+
+  final ArmedWindow? armed;
+  final DateTime? today;
+  final VoidCallback onFix;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = armed;
+    final t = today;
+    if (a == null || t == null) {
+      return _StatusRow(
+        label: 'التنبيهات المتظبّطة',
+        ok: true,
+        onFix: onFix,
+        trailing: 'بيتحقق…',
+      );
+    }
+
+    final gaps = a.gapsAfter(t);
+    final through = a.coversThrough;
+
+    // Nothing armed at all is not this row's story to tell — the permission
+    // rows above already explain why nothing would be, and turning off every
+    // notification is a thing the user is allowed to do.
+    if (a.count == 0) {
+      return _StatusRow(
+        label: 'التنبيهات المتظبّطة',
+        ok: true,
+        onFix: onFix,
+        trailing: 'مفيش',
+      );
+    }
+
+    return _StatusRow(
+      label: 'التنبيهات المتظبّطة',
+      ok: gaps.isEmpty,
+      onFix: onFix,
+      fixLabel: 'صلّح',
+      trailing: through == null
+          ? toArabicDigits('${a.count}')
+          : '${toArabicDigits('${a.count}')} — لحد ${_arabicDay(through)}',
+    );
+  }
+}
+
+String _arabicDay(DateTime d) =>
+    '${toArabicDigits('${d.day}')} ${_months[d.month - 1]}';
+
+const _months = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+];
+
 class _StatusRow extends StatelessWidget {
   const _StatusRow({
     required this.label,
     required this.ok,
     required this.onFix,
+    this.trailing,
+    this.fixLabel,
   });
 
   final String label;
   final bool ok;
   final VoidCallback onFix;
+
+  /// A number or a date shown beside the label, for the rows where the fact
+  /// itself is worth reading rather than only its tick.
+  final String? trailing;
+
+  final String? fixLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -193,15 +315,24 @@ class _StatusRow extends StatelessWidget {
           ),
           const SizedBox(width: 9),
           Expanded(child: Text(label, style: cairo(size: 13))),
+          if (trailing != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                trailing!,
+                style: cairo(size: 11.5, color: NouriColors.muted),
+              ),
+            ),
           if (!ok)
             TextButton(
+              key: fixLabel == null ? null : ValueKey('fix-$label'),
               onPressed: onFix,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: Text('اسمح',
+              child: Text(fixLabel ?? 'اسمح',
                   style: cairo(size: 12, color: NouriColors.gold)),
             ),
         ],

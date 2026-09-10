@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nouri/core/notifications/armed_window.dart';
+import 'package:nouri/core/notifications/notification_slot.dart';
 import 'package:nouri/core/notifications/notification_status.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 import 'package:nouri/features/settings/notification_status_panel.dart';
@@ -11,7 +13,13 @@ import '../../support/harness.dart';
 
 void main() {
   group('NotificationStatusPanel', () {
-    Future<void> pumpPanel(WidgetTester t, NotificationStatus? status) =>
+    Future<void> pumpPanel(
+      WidgetTester t,
+      NotificationStatus? status, {
+      ArmedWindow? armed,
+      DateTime? today,
+      VoidCallback? onRearm,
+    }) =>
         t.pumpWidget(MaterialApp(
           home: Directionality(
             textDirection: TextDirection.rtl,
@@ -19,6 +27,9 @@ void main() {
               body: SingleChildScrollView(
                 child: NotificationStatusPanel(
                   status: status,
+                  armed: armed,
+                  today: today,
+                  onRearm: onRearm ?? () {},
                   onRequestNotifications: () {},
                   onRequestExactAlarms: () {},
                   onRequestBattery: () {},
@@ -30,6 +41,114 @@ void main() {
             ),
           ),
         ));
+
+    /// A window holding five adhan alarms on each of [days] from 10 September.
+    ArmedWindow windowOf(Iterable<int> days) => armedWindowFrom([
+          for (final d in days)
+            for (final slot in [
+              NotificationSlot.adhanFajr,
+              NotificationSlot.adhanDhuhr,
+              NotificationSlot.adhanAsr,
+              NotificationSlot.adhanMaghrib,
+              NotificationSlot.adhanIsha,
+            ])
+              notificationIdFor(DateTime(2026, 9, d), slot),
+        ]);
+
+    const allGranted = NotificationStatus(
+      notificationsEnabled: true,
+      exactAlarmsAllowed: true,
+      batteryOptimised: false,
+      adhanBypassesDnd: true,
+    );
+
+
+    group('the row that says whether it actually happened', () {
+      testWidgets('a healthy window states the number and how far it reaches',
+          (t) async {
+        // The count is shown even when nothing is wrong. It is the one fact on
+        // this panel a person can check for themselves, and «٧٠ — لحد ٢٣
+        // سبتمبر» reassures in a way a tick cannot.
+        await pumpPanel(t, allGranted,
+            armed: windowOf(List.generate(14, (i) => 10 + i)),
+            today: DateTime(2026, 9, 10));
+
+        expect(find.textContaining('التنبيهات المتظبّطة'), findsOneWidget);
+        expect(find.textContaining('لحد ٢٣ سبتمبر'), findsOneWidget);
+        expect(find.text('صلّح'), findsNothing,
+            reason: 'nothing to fix, so nothing to press');
+      });
+
+      testWidgets('the phone on 10 September would have said so', (t) async {
+        // 137 alarms, nothing for the next four days, the far end intact.
+        // This is the exact state the user carried around, and the panel
+        // showed him four green ticks and no hint of it.
+        await pumpPanel(t, allGranted,
+            armed: windowOf(List.generate(10, (i) => 14 + i)),
+            today: DateTime(2026, 9, 10));
+
+        expect(find.textContaining('من غير أذان'), findsOneWidget);
+        expect(find.textContaining('٣ أيام'), findsOneWidget,
+            reason: 'the 11th, 12th and 13th — today is never counted');
+        expect(find.textContaining('١١ سبتمبر'), findsOneWidget,
+            reason: 'naming the first missing day makes it checkable');
+        expect(find.text('صلّح'), findsOneWidget);
+      });
+
+      testWidgets('«صلّح» re-arms', (t) async {
+        var asked = false;
+        await pumpPanel(t, allGranted,
+            armed: windowOf(List.generate(10, (i) => 14 + i)),
+            today: DateTime(2026, 9, 10),
+            onRearm: () => asked = true);
+
+        await t.tap(find.text('صلّح'));
+        await t.pump();
+        expect(asked, isTrue);
+      });
+
+      testWidgets('nothing armed is not reported as a gap', (t) async {
+        // Turning every notification off is allowed, and the permission rows
+        // above already explain a device that would deliver nothing. A list of
+        // fourteen "missing" days would be noise, not help.
+        await pumpPanel(t, allGranted,
+            armed: const ArmedWindow(count: 0, days: {}),
+            today: DateTime(2026, 9, 10));
+
+        expect(find.textContaining('من غير أذان'), findsNothing);
+        expect(find.text('مفيش'), findsOneWidget);
+      });
+
+      testWidgets('it says nothing at all until it has been read', (t) async {
+        // A panel that guessed while loading would flash a false alarm.
+        await pumpPanel(t, allGranted, today: DateTime(2026, 9, 10));
+        expect(find.textContaining('من غير أذان'), findsNothing);
+        expect(find.text('بيتحقق…'), findsOneWidget);
+      });
+
+      testWidgets('a short window is not the same as a broken one', (t) async {
+        // Reaching only a week ahead is mild and normal after a settings
+        // change; it must not be dressed up as days "without adhan".
+        await pumpPanel(t, allGranted,
+            armed: windowOf(List.generate(7, (i) => 10 + i)),
+            today: DateTime(2026, 9, 10));
+
+        expect(find.textContaining('من غير أذان'), findsNothing);
+        expect(find.textContaining('لحد ١٦ سبتمبر'), findsOneWidget);
+      });
+
+      testWidgets('nothing here is red', (t) async {
+        // The standing rule. A missing fortnight is something to fix, not a
+        // failure to be scolded for.
+        await pumpPanel(t, allGranted,
+            armed: windowOf(List.generate(10, (i) => 14 + i)),
+            today: DateTime(2026, 9, 10));
+
+        for (final icon in t.widgetList<Icon>(find.byType(Icon))) {
+          expect(icon.color, isNot(Colors.red), reason: 'no red anywhere');
+        }
+      });
+    });
 
     testWidgets('offers a scheduled adhan test, not just an instant one',
         (t) async {
@@ -65,20 +184,20 @@ void main() {
     });
 
     testWidgets('a fully granted state offers nothing to fix', (t) async {
-      // Four rows now, not three: letting the adhan through Do Not Disturb is
-      // the fourth thing the user has to grant, and it is the one that matters
-      // most to a man who sleeps by day with DND on.
+      // Five rows now. Four are permissions — the fourth, letting the adhan
+      // through Do Not Disturb, matters most to a man who sleeps by day with
+      // DND on. The fifth is not a permission at all: it is whether the alarms
+      // those permissions exist for are actually on the device, which turned
+      // out to be a separate question with a separate answer.
       await pumpPanel(
         t,
-        const NotificationStatus(
-          notificationsEnabled: true,
-          exactAlarmsAllowed: true,
-          batteryOptimised: false,
-          adhanBypassesDnd: true,
-        ),
+        allGranted,
+        armed: windowOf(List.generate(14, (i) => 10 + i)),
+        today: DateTime(2026, 9, 10),
       );
       expect(find.text('اسمح'), findsNothing);
-      expect(find.byIcon(Icons.check_circle), findsNWidgets(4));
+      expect(find.text('صلّح'), findsNothing);
+      expect(find.byIcon(Icons.check_circle), findsNWidgets(5));
     });
 
     testWidgets('an adhan DND can silence says so, and why it matters',

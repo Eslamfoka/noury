@@ -74,6 +74,11 @@ next time*.
   and in the evening on the others
 - **A gentle budget note** — one line, one evening, when a category is running
   ahead of the month. Never صدقة, and never a category with no budget set
+- **حالة التنبيهات says whether the alarms are actually there**, not only
+  whether Nouri is allowed to set them. A fifth row reads the device back —
+  «٢٧٣ — لحد ٢٣ سبتمبر» — and names any upcoming day with nothing armed, with
+  a «صلّح» that rebuilds the window. It exists because on 10 September the user
+  carried four silent days behind four green ticks.
 - **الإعدادات is a menu** — eight sections, each its own page
 - **الأصوات** — every adhan and every task tone with a «شغّل» beside it, so a
   sound can be heard before the moment it fires rather than only at it. Posted
@@ -216,6 +221,11 @@ next time*.
   been repeated on the HONOR**, where MagicOS's own power management is the
   variable an emulator cannot speak for.
 - **Still untested anywhere:** battery-kill across several real days.
+- **Nouri can now notice this itself.** The armed window is read back from the
+  device in حالة التنبيهات and any upcoming empty day is named. **Reach is the
+  wrong measure** — his window still ran to the 23rd; the hole was at the near
+  end, which is where an interrupted cancel pass leaves one. So the question
+  asked is "is there a day between here and there with nothing in it".
 - **It had already happened, on the real phone.** On 10 September, before the
   new build went on, the HONOR held **137 alarms with a four-day hole** — none
   at all from that moment until 14 September, and a *partially* cancelled day

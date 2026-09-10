@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app.dart';
 import '../../core/format/arabic_numerals.dart';
+import '../../core/notifications/armed_window.dart';
 import '../../core/notifications/notification_status.dart';
 import '../../core/time/location_service.dart';
 import '../../core/theme/nouri_colors.dart';
@@ -22,6 +23,17 @@ final notificationStatusProvider =
   final service = ref.watch(notificationServiceProvider);
   if (service == null) return null;
   return service.readStatus();
+});
+
+/// What the device is actually holding, read back on every settings open.
+///
+/// Deliberately not cached and deliberately not derived from what the
+/// scheduler believes it armed. The whole point is that those two can differ:
+/// on 10 September 2026 they did, by four days, and nothing said so.
+final armedWindowProvider = FutureProvider<ArmedWindow?>((ref) async {
+  final service = ref.watch(notificationServiceProvider);
+  if (service == null) return null;
+  return service.readArmedWindow();
 });
 
 final settingsControllerProvider = Provider<SettingsController>((ref) {
@@ -104,6 +116,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(notificationStatusProvider);
+    final armed = ref.watch(armedWindowProvider);
     final service = ref.read(notificationServiceProvider);
 
     return ListView(
@@ -120,6 +133,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         NotificationStatusPanel(
           status: status.value,
+          armed: armed.value,
+          today: ref.watch(currentDayProvider),
+          onRearm: () async {
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            ref.read(settingsControllerProvider).rearmAfterExternalChange();
+            messenger?.showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              backgroundColor: NouriColors.surface,
+              content: Text(
+                'بظبّط التنبيهات تاني — سيبه ثواني وارجع اقرا الرقم.',
+                style: cairo(size: 12.5),
+              ),
+            ));
+            // The re-arm runs off the UI thread and takes a few seconds, so
+            // re-reading immediately would show the old number and look like
+            // the button did nothing.
+            await Future<void>.delayed(const Duration(seconds: 12));
+            ref.invalidate(armedWindowProvider);
+          },
           onRequestNotifications: () async {
             await service?.requestNotificationPermission();
             ref.invalidate(notificationStatusProvider);
