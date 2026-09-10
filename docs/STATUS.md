@@ -254,10 +254,14 @@ next time*.
 - **The budget note is armed over two days, from the numbers at re-arm time.**
   Budget state is not knowable a fortnight ahead. If Nouri goes unopened the
   note reflects the last state it saw, which is honest but not current.
-- **قيام الليل has never been watched *firing*.** Fourteen alarms were
-  confirmed armed at 01:32 on the emulator, one a night, and confirmed to
-  disappear on a night shift and return off one — but nobody has seen one
-  arrive. It is off by default.
+- **قيام الليل has now been watched firing**, on the emulator at 01:32:40:
+  `id=156447 channel=alert_qiyam_v2 importance=4 flags=AUTO_CANCEL
+  category=reminder`, no full-screen intent, reading «قيام الليل — الثلث الأخير
+  — لو قدرت». The isha adhan that fired in the same run read
+  `importance=5 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY category=alarm`.
+  **An invitation and a summons, and the device treats them differently** —
+  which was the design and is no longer only an assertion. Still off by
+  default.
 - **`docs/athkar-verification.md` has not been checked by a human** against a
   printed حصن المسلم. The mushaf rendering did not change a letter of it —
   enforced by a test — so that review is still valid and still outstanding.
