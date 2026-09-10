@@ -262,6 +262,14 @@ own power management is the variable an emulator cannot speak for.
 | 78 | **Logging a meal cancels its alert and its «عملتها؟»** | ✅ 265 → 263: `19:36` and `20:06` — thirty minutes apart, which is the documented gap |
 | 79 | **Neither cancels anything it should not** | ✅ nothing else moved in either diff, and nothing new was armed |
 
+| 80 | **الأصوات previews the real file on the live channel** | ✅ «شغّل» on الفجر posted `id=999999999 channel=adhan_fajr_v3d`, whose sound is `raw/adhan_fajr`, at `importance=5 category=alarm` — the real recitation at alarm volume |
+| 81 | **A preview does not behave like the summons** | ✅ `flags=AUTO_CANCEL` with **no INSISTENT** and `fullscreenIntent=null` — it plays once and does not seize the screen, unlike a real adhan |
+
+Check 80 matters more than it looks: an adhan has two channel ids and only one
+exists at a time, so posting to the retired variant would make Android quietly
+recreate it at default importance with no sound — the preview would play
+nothing and read as a broken recording. It posted to `_v3d`, the live one.
+
 **A caution on testing 77.** The first attempt logged المغرب and cancelled
 nothing, which looks exactly like the bug. It was not: maghrib's follow-ups
 (18:30, and a second capped short of isha) had *already passed*, so there was
