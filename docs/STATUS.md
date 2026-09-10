@@ -157,11 +157,16 @@ call behind «ابني خطتي», and that waits on a decision rather than on w
   trade-off, and accepted it for personal use on his own phone. Nothing is
   distributed. If Nouri ever goes in front of anyone else, this is the first
   thing to revisit.
-- **«ابني خطتي» cannot call anything yet.** `INTERNET` is still absent from the
-  manifest by deliberate choice, and the AI layer needs it back. The plan is to
-  narrow `no_network_test` rather than delete it — one file may open a socket,
-  and only to `api.anthropic.com`. That reverses a decision made on purpose, so
-  it waits for the user's yes.
+- **`INTERNET` is approved — the user said yes on 10 September, evening.** The
+  call itself is **not built**: he was going on duty and asked for it tomorrow.
+  So today's state is unchanged — `INTERNET` is still absent from the manifest
+  and `no_network_test` still fails the build on it. **Nothing about the app
+  has changed; only the decision has.** The agreed shape is in
+  `docs/superpowers/specs/2026-09-09-profile-and-the-built-plan-design.md` §3:
+  narrow the guard rather than delete it — exactly one file may import an HTTP
+  client, and the only host it may name is `api.anthropic.com`. That is a
+  stronger promise than today's for everything except the one call he asked
+  for. He will also need to add his own API key.
 - **المهام is confirmed on the phone**, with real data: five states drawn,
   «أول وجبة» carrying the gold edge as the thing due now, nothing red. 259
   alarms armed — exactly twelve fewer than before the duplicate fix, which is

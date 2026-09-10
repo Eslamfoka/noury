@@ -459,6 +459,43 @@ pushed; checking the branch back out restored all 337 files.
 
 ---
 
+## Tomorrow starts here: INTERNET is a yes
+
+You said it on the evening of 10 September, going on duty, and asked for the
+work itself tomorrow. **So nothing was built.** The manifest still removes
+`INTERNET`, `no_network_test` still fails the build on it, and the app on your
+phone is unchanged. Only the decision moved.
+
+The shape is already agreed and written down —
+`docs/superpowers/specs/2026-09-09-profile-and-the-built-plan-design.md` §3:
+
+- `INTERNET` returns to the manifest.
+- `no_network_test` **narrows rather than disappears**: exactly one file may
+  import an HTTP client, and the only host it may name is `api.anthropic.com`.
+  Any other network import, or any other host literal anywhere in `lib/`, fails
+  the build. That is a stronger statement than today's for everything except
+  the one call you asked for.
+- `AnthropicPlanClient` is the only implementation that opens a socket, called
+  **only** when «ابني خطتي» is pressed — never on a tap, a screen open, a
+  settings change or a schedule.
+- Haiku for the plan build, per §7 of the brief. You confirm the model id.
+- It fails soft: no key, no network, bad JSON and partial plans all leave the
+  day exactly as `planDay` built it.
+
+**What you have to bring:** your own Anthropic API key. Nouri sends nothing on
+anyone else's account.
+
+The three parts that do not touch the network — the profile, the request
+assembler and the reply parser — are already built and tested, so tomorrow is
+the client, the guard change and the wiring, not the feature.
+
+Two open questions from the spec are still open and worth thirty seconds
+before starting: whether the AI plan **proposes** the day or **overwrites** it
+(built as propose, which is the reversible direction), and how many days per
+call (fourteen, matching the alarm window).
+
+---
+
 ## Still yours
 
 Unchanged, and every one of them needs a person:
@@ -466,8 +503,8 @@ Unchanged, and every one of them needs a person:
 1. **الإعدادات → الأصوات: listen to the five adhans**, and say whether the fajr
    one carries «الصلاة خير من النوم».
 2. **Listen to the nineteen tones** and say which do not read.
-3. **Say yes or no to `INTERNET` returning**, so «ابني خطتي» can call anything.
-   Still the only item blocking work.
+3. ~~Say yes or no to `INTERNET`~~ — **answered: yes**, 10 September. Bring
+   your API key; the work is tomorrow's, see above.
 4. **Grant `ACTIVITY_RECOGNITION`** — البدن → امشي → «اسمح لنوري». A real step
    has still never been counted.
 5. `docs/athkar-verification.md` and `docs/fasting-verification.md`.
