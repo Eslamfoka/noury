@@ -176,7 +176,20 @@ class NotificationService {
   ///
   /// Empty on any failure. A panel that cannot read the window should say it
   /// holds nothing rather than invent a reassuring number.
+  ///
+  /// **Waits for the launch arm to finish first**, which is not a detail.
+  /// Measured on the emulator: opening الإعدادات while the window was still
+  /// being written reported «١٣٤ — لحد ١٩ سبتمبر» for a device that ended the
+  /// same second at 232 through the 23rd. Read a moment earlier still and the
+  /// count is low enough to be reported as *missing days* — a false alarm
+  /// about the one thing this row exists to be trusted about, raised by the
+  /// app against itself while it was busy doing the right thing.
+  ///
+  /// Once the warm-up has completed this returns immediately, so the wait is
+  /// only ever paid by someone who opens the settings screen within a few
+  /// seconds of launching.
   Future<ArmedWindow> readArmedWindow() async {
+    await _ensureReady();
     try {
       final pending = await _plugin.pendingNotificationRequests();
       return armedWindowFrom(pending.map((r) => r.id));

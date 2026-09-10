@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nouri/core/notifications/notification_service.dart';
 import 'package:nouri/core/notifications/armed_window.dart';
 import 'package:nouri/core/notifications/notification_slot.dart';
 import 'package:nouri/core/notifications/task_alarm_ids.dart';
@@ -12,6 +16,8 @@ import 'package:nouri/core/notifications/task_alert.dart';
 /// granted and could not tell him that the thing those permissions exist for
 /// had quietly gone missing.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   final today = DateTime(2026, 9, 10);
   DateTime day(int d) => DateTime(2026, 9, d);
 
@@ -116,6 +122,53 @@ void main() {
       // A window entirely in the past reaches zero days ahead, not minus four.
       final stale = armedWindowFrom(healthyDay(DateTime(2026, 9, 6)));
       expect(stale.daysAhead(today), 0);
+    });
+  });
+
+  group('when it is safe to report', () {
+    test('says nothing until the launch arm has finished', () async {
+      // Measured on the emulator: opening الإعدادات while the window was still
+      // being written reported «١٣٤ — لحد ١٩ سبتمبر» for a device that ended
+      // the same second at 232 through the 23rd. Read a moment earlier still
+      // and the count is low enough to be reported as *missing days* — the app
+      // raising a false alarm against itself about the one thing this row
+      // exists to be trusted about, while it was busy doing the right thing.
+      final service = NotificationService(FlutterLocalNotificationsPlugin());
+      final arming = Completer<void>();
+      service.attachWarmUp(arming.future);
+
+      var reported = false;
+      unawaited(service.readArmedWindow().then((_) => reported = true));
+      await pumpEventQueue();
+
+      expect(reported, isFalse,
+          reason: 'a count read mid-arm is a count of a half-written window');
+
+      arming.complete();
+      await pumpEventQueue();
+      expect(reported, isTrue, reason: 'and once arming is done it answers');
+    });
+
+    test('answers straight away once the arm is long done', () async {
+      // The wait is only ever paid by someone who opens the settings screen
+      // within a few seconds of launching.
+      final service = NotificationService(FlutterLocalNotificationsPlugin());
+      service.attachWarmUp(Future<void>.value());
+
+      await service.readArmedWindow().timeout(const Duration(seconds: 1));
+    });
+
+    test('a device that cannot be asked reads as empty, not as broken',
+        () async {
+      // There is no platform channel here, so the plugin call fails. An
+      // unreadable window must not surface as a gap: «مفيش» is honest,
+      // «فيه ١٤ يوم من غير أذان» is a lie about the user's device.
+      final service = NotificationService(FlutterLocalNotificationsPlugin());
+      service.attachWarmUp(Future<void>.value());
+
+      final w = await service.readArmedWindow();
+      expect(w.count, 0);
+      expect(w.gapsAfter(today), isEmpty);
     });
   });
 }

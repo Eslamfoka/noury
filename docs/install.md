@@ -253,6 +253,9 @@ own power management is the variable an emulator cannot speak for.
 | 72 | **حالة التنبيهات reports the real armed window** | ✅ «٢٤٠ — لحد ٢٣ سبتمبر» against 284 in `dumpsys` — the difference is task alarms and reminders, which the row excludes on purpose |
 | 73 | **A gap is named, and «صلّح» repairs it** | ✅ with the window starting four days out: «فيه ٣ أيام قدّامك من غير أذان — أول واحد ٧ سبتمبر»; pressing «صلّح» re-anchored it and the row went green |
 
+| 74 | **The armed row does not report a half-written window** | ✅ opened ~6s after launch it reads «بيتحقق…», not a count; at ~26s it reads «٢٣١ — لحد ٢٣ سبتمبر». Before the fix the same moment read «١٣٤ — لحد ١٩ سبتمبر» |
+| 75 | **Nineteen task tones, nineteen distinct files, on the device** | ✅ 27 live Nouri channels — 5 adhan recitations, 19 task tones each with its own `res/raw` file, and `athkar_v1`/`wird_v1`/`general_v1` on the system default, which is the documented generic-tone fallback |
+
 **Never drive the phone by coordinate taps.** On 10 September Nouri went to the
 background between a screenshot and the next `input tap`, and the tap landed in
 WhatsApp — on the keyboard, in a real conversation. `am start`, `input
