@@ -42,16 +42,13 @@ void main() {
     });
   });
 
-  group('commute', () {
-    test('the morning commute is an hour of usable time', () {
-      // The brief calls the commute usable: light tasks belong here.
-      expect(ShiftPattern.morning.outboundCommute, const Duration(hours: 1));
-    });
-
-    test('a day off has no commute', () {
-      expect(ShiftPattern.dayOff.outboundCommute, isNull);
-    });
-  });
+  // The commute is not tested here any more, and deliberately not.
+  //
+  // What the brief actually asks for is that *light tasks can be scheduled in
+  // it*, and that is a property of the planner, not of this data class. It is
+  // held by `day_planner_test`: «a light task can take the commute» and «a
+  // heavy task lands after getting home, never on the commute». Asserting here
+  // that two clocks are an hour apart tested arithmetic, not the promise.
 
   group('Clock', () {
     test('converts to a real time on a given day', () {

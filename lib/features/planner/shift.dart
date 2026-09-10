@@ -66,14 +66,15 @@ class ShiftPattern {
 
   bool get isWorking => type != ShiftType.off;
 
-  /// Commute time is usable: the brief is explicit that light tasks belong
-  /// here — athkar, a lecture, the Qur'an wird by ear.
-  Duration? get outboundCommute {
-    if (leaveHome == null || workStart == null) return null;
-    return Duration(
-      minutes: workStart!.minutesFromMidnight - leaveHome!.minutesFromMidnight,
-    );
-  }
+  // There is deliberately no `outboundCommute` here.
+  //
+  // The brief is explicit that the commute is usable time and that light tasks
+  // belong in it — athkar, a lecture, the Qur'an wird by ear — and that is
+  // built: `_windowsFor` opens a light-only window from `leaveHome` to
+  // `workStart`, and two tests in `day_planner_test` hold it. A getter saying
+  // the same thing a second way was never called by anything, and a second
+  // place where "the commute is leaveHome→workStart" is written down is
+  // exactly the drift that cost this project قيام and the budget note.
 
   static const morning = ShiftPattern(
     type: ShiftType.morning,
