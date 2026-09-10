@@ -1,0 +1,311 @@
+# Nouri — build, install, and on-device verification
+
+## Building
+
+```powershell
+$env:PATH = 'D:\dev-tools\flutter\bin;' + $env:PATH
+cd E:\cloud\noury
+
+flutter build apk --debug      # build\app\outputs\flutter-apk\app-debug.apk
+flutter build apk --release    # build\app\outputs\flutter-apk\app-release.apk
+```
+
+The debug APK is large (~175 MB) because debug builds bundle every ABI and skip
+minification. It is fully functional — use it if the release build gives
+trouble.
+
+**The release build signs with debug keys**, the Flutter template default
+(`signingConfig = signingConfigs.getByName("debug")` in
+`android/app/build.gradle.kts`). Fine for sideloading onto your own phone. Worth
+knowing: an app installed with debug keys cannot later be upgraded in place by
+one signed with release keys — you would have to uninstall first, which erases
+the database.
+
+## Installing
+
+```powershell
+adb devices                    # the phone must be listed before anything else
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+```
+
+`-r` reinstalls while keeping app data. Drop it (or `adb uninstall com.nouri.nouri`
+first) only when you deliberately want a clean slate — it erases every logged
+prayer, athkar count and wird.
+
+## Permissions the app needs
+
+| Permission | Why | Android 12 (your HONOR) |
+|---|---|---|
+| Notifications | to show anything at all | granted at install; runtime prompt only on Android 13+ |
+| Alarms & reminders | to fire the adhan at the exact minute | granted at install via `USE_EXACT_ALARM` |
+| Battery: unrestricted | to survive Doze and OEM power management | **must be set by hand** |
+
+Settings → الإعدادات → حالة التنبيهات shows the live state of all three and
+offers a one-tap route to each. It also sends a test notification.
+
+## HONOR/MagicOS specifics
+
+HONOR is among the most aggressive Android skins at killing background apps, and
+standard battery-optimisation exemption alone is often **not** enough.
+
+1. **Settings → Battery → App launch** → find نوري → switch from *Manage
+   automatically* to **Manage manually** → enable all three:
+   Auto-launch, Secondary launch, Run in background.
+   *This is the step that most often decides whether the adhan is still working
+   two days later.*
+2. **Settings → Apps → نوري → Battery → No restrictions.**
+3. **Settings → Apps → نوري → Alarms & reminders** → allowed.
+   (If not visible: Apps → ⋮ → Special access → Alarms & reminders.)
+
+## Verification checklist
+
+Record the outcome next to each item as you go.
+
+### Verified on the emulator (API 31, matching the phone's Android version)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | App installs and launches | ✅ |
+| 2 | Permission flow appears on first launch, all steps skippable | ✅ |
+| 3 | Arabic renders in Cairo; athkar in Amiri with full tashkeel | ✅ |
+| 4 | RTL throughout — nav starts at the right | ✅ |
+| 5 | Navy/gold theme; no red anywhere | ✅ |
+| 6 | Hijri date in the header | ✅ |
+| 7 | Progress ring in Arabic-Indic digits | ✅ `٠/٩` → `١/٩` |
+| 8 | Five prayers listed with times | ✅ |
+| 9 | Tapping a prayer opens the logging sheet | ✅ |
+| 10 | Chips gold / green / muted / orange | ✅ |
+| 11 | Logging updates the ring immediately | ✅ |
+| 12 | **A logged prayer survives force-stop + relaunch** | ✅ |
+| 13 | Tasbeeh counts and fills the bead ring | ✅ |
+| 14 | Settings shows live permission state | ✅ correctly flagged battery optimisation |
+| 15 | «إرسال إشعار تجريبي» posts a notification | ✅ |
+| 16 | All five notification channels created | ✅ |
+| 17 | **Alarm window actually armed** | ✅ 130 exact alarms (7-day window at the time), `window=0`, `exactAllowReason=permission` |
+| 18 | Scheduled times match displayed prayer times | ✅ after the UTC fix — see `docs/setup.md` |
+| 19 | Reports shows «—» not a zero for an empty week | ✅ |
+| 20 | No crashes in logcat | ✅ |
+
+### Verified on the HONOR VNE-N41 (Android 12, Asia/Kuwait)
+
+| # | Check | Result |
+|---|---|---|
+| 21 | Installed and launches | ✅ |
+| 22 | Notifications + exact alarms granted at install | ✅ `SCHEDULE_EXACT_ALARM granted=true` |
+| 23 | HONOR App launch set to manual, all three toggles on | ✅ (set by hand; not adb-readable) |
+| 24 | Exempt from battery optimisation | ✅ in `deviceidle whitelist`, not background-restricted |
+| 25 | 14-day window armed on the real device | ✅ **262 alarms**, all `window=0`, `exactAllowReason=permission` |
+| 26 | Alarm times match Kuwait prayer times | ✅ 11:46 / 15:18 / 18:04 / 19:23 + correct iqama offsets |
+| 27 | Instant test notification | ✅ |
+| 28 | Adhan channel carries the chime at alarm volume | ✅ audibly louder and longer than a normal beep |
+| 29 | **Scheduled adhan fires with the app swiped away and screen locked** | ✅ **posted at 08:49:43 for 08:49:43** |
+| 30 | Swiping from Recents does **not** cancel alarms | ✅ 262 → 262, `stopped=false` |
+
+**Note:** `Settings → Force stop` *does* cancel every alarm (`262 → 0`) and puts the
+app in `stopped=true`, where it receives no broadcasts at all. That is standard
+Android behaviour, not specific to Nouri. Swiping from Recents is safe; force-stopping
+is not. After a force-stop, opening Nouri once re-arms everything.
+
+### Still to do on the HONOR VNE-N41
+
+**Nothing below has been tested** — each needs real elapsed time.
+
+| # | Check | Result |
+|---|---|---|
+| 31 | Prayer times match your printed Kuwait timetable (±1–2 min) | ☐ |
+| 32 | A **real** adhan fires at dhuhr/asr/maghrib/isha | ☐ |
+| 33 | The iqama notification follows at the configured offset | ☐ |
+| 34 | «صليت» on the follow-up opens the log sheet for that prayer | ☐ |
+| 35 | **After a reboot**, the next adhan still fires without opening the app | ☐ on the phone — ✅ on the emulator, see check 57 |
+| 36 | **After a full day untouched**, notifications still arrive | ☐ |
+| 37 | **After several days untouched** — catches OEM battery-kill | ☐ |
+| 38 | Airplane mode changes nothing (the app makes no network calls) | ☐ |
+| 39 | Location detection in Settings → المدينة → حدّد | ☐ |
+
+### After the adhan_v2 change (test these first)
+
+The adhan channel was recreated as `adhan_v2`. The old `adhan_v1` on this phone
+had its importance locked to DEFAULT by MagicOS, which no API can undo — see
+`docs/setup.md`. These confirm the new channel came up clean.
+
+| # | Check | ✅ |
+|---|-------|----|
+| 40 | Settings → Apps → Nouri → Notifications lists **الأذان** (not `adhan_v1`) | ☐ |
+| 41 | Only **one** الأذان row — the old channel was deleted, not left behind | ☐ |
+| 42 | Its importance is not reduced; it may show as «عاجل» / heads-up | ☐ |
+| 43 | «جرّب الأذان بعد دقيقتين» still plays the chime at alarm volume | ☐ |
+| 44 | With the screen **locked**, the test adhan lights the screen | ☐ |
+| 45 | Tapping a follow-up opens the log sheet for that prayer | ☐ |
+| 46 | The 22:00 summary opens the review sheet listing unlogged prayers | ☐ |
+| 47 | Home shows «… لسه متسجلتش» when a past prayer is unlogged | ☐ |
+
+Check 44 is the point of the change: on `adhan_v1` the locked importance meant
+the adhan could only wait silently in the shade.
+
+**Verified on the HONOR VNE-N41, 6 September 2026.** MagicOS re-locked the new
+channel within seconds of creation — `mImportance=4 mOriginalImp=5
+mUserLockedFields=4` — so a version bump resets the lock but does not defeat it,
+and `adhan_v2` sits at HIGH rather than MAX. HIGH is the threshold that matters:
+Android only fires a full-screen intent at HIGH or above, and the device honoured
+it (`sending fullScreenIntent, entry.importance=4`). The screen lit, the adhan
+sounded, the notification appeared **on the lock screen**, and the app itself
+opened only after unlocking.
+
+Expect a future channel bump to land at HIGH again. That is a device policy, not
+a bug, and HIGH is sufficient.
+
+To confirm the channel state from a computer:
+
+```powershell
+adb shell dumpsys notification | Select-String "adhan_v"
+```
+
+Expect `mId='adhan_v2'` with `mImportance=5` and `mUserLockedFields=0`, and
+`adhan_v1` either absent or `mDeleted=true`. If `adhan_v2` shows a lower
+importance with `mUserLockedFields` set, MagicOS has downgraded it again —
+that is worth knowing, and it is a device-policy problem rather than a bug.
+
+If 21 is off by more than a minute or two, change the calculation method in
+Settings → مواقيت الصلاة → طريقة الحساب.
+
+If 23 or 27 fail, the cause is almost always the HONOR App launch setting above,
+not the app.
+
+## Useful commands
+
+```powershell
+# what is actually armed
+adb shell dumpsys alarm | Select-String "com.nouri.nouri" -Context 0,2
+
+# notifications currently posted
+adb shell cmd notification list
+
+# live app logs
+adb logcat -s flutter:V AndroidRuntime:E
+```
+
+The `origWhen=` values in the first command should match the prayer times the
+app displays, rendered in the device's local timezone. A mismatch there is the
+bug described under "Timezone handling" in `docs/setup.md`.
+
+---
+
+### Slice 1b — the five features added on 7 September 2026
+
+None of these has ever run on this phone. Checks 51 and 52 are the ones that
+can only be answered here: the emulator has no step-counter hardware at all.
+
+| # | Check | ✅ |
+|---|-------|----|
+| 48 | The calendar icon in the Home header opens التقويم, Saturday-first | ☐ |
+| 49 | A reminder saved for two minutes out **fires with the screen locked** | ☐ |
+| 50 | After changing any setting, the reminder is **still** armed — see below | ☐ |
+| 51 | البدن → «امشي» offers a start button rather than «مافيهوش حسّاس خطوات» | ☐ |
+| 52 | A real walk counts steps, and the distance is believable against a map | ☐ |
+| 53 | البدن → «تمارين البيت» animates the figure, and rest names what is next | ☐ |
+| 54 | Finishing a workout early still records «٥ من ٢٠» | ☐ |
+| 55 | التقارير → التحديات joins a challenge and counts today once it qualifies | ☐ |
+| 56 | الأذكار → الصباح shows آية الكرسي and الإخلاص as mushaf pages | ☐ |
+
+**Check 50 is the important one.** Re-arming the window used to call
+`cancelAll()`, which would have deleted every reminder on the device. Add a
+reminder, then toggle any switch under الإشعارات, then confirm the reminder
+alarm is still there:
+
+```powershell
+adb shell dumpsys alarm | Select-String "com.nouri.nouri" -Context 0,2
+```
+
+A reminder's alarm is an `RTC_WAKEUP` whose `origWhen=` is the reminder's own
+date and time. It must survive the toggle. Verified on the emulator; not here.
+
+---
+
+### Verified on the emulator, 10 September 2026 (nourdm-api35, Android 15)
+
+The four things every previous version of this file had to leave open. All on
+the emulator; **none of it has been repeated on the HONOR**, where MagicOS's
+own power management is the variable an emulator cannot speak for.
+
+| # | Check | Result |
+|---|-------|--------|
+| 57 | **After a reboot, the alarms are still armed** — app never opened | ✅ 289 in, 289 out, `diff` of every `origWhen` empty, all still `window=0 exactAllowReason=policy_permission`. Restored within ~90s of `BOOT_COMPLETED`. Repeated on the 10 Sep build: 287 → 287, identical. |
+| 58 | **A restored alarm actually fires** — app still never opened | ✅ `11:45:00.006 id=156419 channel=adhan_dhuhr_v3d importance=5 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY category=alarm` |
+| 59 | **An alarm arrives in deep Doze**, with Nouri *not* on the deviceidle whitelist | ✅ `mState=IDLE`, screen off, battery unplugged → `12:00 id=156484 channel=alert_iqama_v3` |
+| 60 | **The day turning over** re-anchors the window and orphans nothing | ✅ `09-10 11:45 → 09-24 01:32` became `09-11 11:45 → 09-25 01:32`, 290 alarms, no 09-10 alarm left behind |
+| 61 | **Force-stop still heals on the next launch**, after the re-arm change | ✅ 0 → 71 → 121 → 176 → 224 → 281 → 290 |
+| 62 | **A launch no longer empties the alarm list first** | ✅ was 290 → 13 (release) and 289 → 7 (debug); now flat on both, producing an identical window. Robustness only — `armWindow` is 24.4s before and 24.3s after |
+| 63 | **28 channels live, 35 retired ones deleted** after the `channelWorkFor` change | ✅ 5 adhan `_v3d` + 19 task tones + `athkar_v1`, `wird_v1`, `general_v1` |
+| 64 | **الملف الشخصي → the photo picks, stores, renders and clears** | ✅ `PhotoPickerGetContentActivity` opens saying "This app can only access the photos you select"; stored as `files/profile-<ms>.png` (27 KB); × removed it and left `snoozes.json` untouched |
+| 65 | **Open Nouri and swipe it away — the window survives** | ✅ new build 285 → 285 at both 3s and 6s. Old build: 285 → **8** at 3s, 285 → **212** at 6s |
+
+### Verified on the HONOR VNE-N41, 10 September 2026
+
+| # | Check | Result |
+|---|-------|--------|
+| 66 | The phone's window before the upgrade | ⚠️ **137 alarms with a four-day hole** — nothing armed from 10 Sep until 14 Sep, and a *partial* day on the 14th. The bug reached the user. |
+| 67 | In-place upgrade keeps data, v13 → v13 | ✅ prayer log, profile and آخر وزن ٨٧٫٠ كجم all intact |
+| 68 | The re-arm never dips on the real device | ✅ `137 138 144 152 … 269 275`, lowest point 137 — it only ever went up |
+| 69 | Window whole afterwards | ✅ 273 alarms, 10–23 Sep with no gap, all `window=0 exactAllowReason=permission` |
+| 70 | Calendar reminders survive the re-arm | ✅ the two 15 Oct reminders untouched — they live above `kOutOfWindowIdBase` |
+| 71 | DND bypass survives the upgrade | ✅ all five `adhan_*_v3d` at `mBypassDnd=true`; all four rows green in الإعدادات |
+
+| 72 | **حالة التنبيهات reports the real armed window** | ✅ «٢٤٠ — لحد ٢٣ سبتمبر» against 284 in `dumpsys` — the difference is task alarms and reminders, which the row excludes on purpose |
+| 73 | **A gap is named, and «صلّح» repairs it** | ✅ with the window starting four days out: «فيه ٣ أيام قدّامك من غير أذان — أول واحد ٧ سبتمبر»; pressing «صلّح» re-anchored it and the row went green |
+
+| 74 | **The armed row does not report a half-written window** | ✅ opened ~6s after launch it reads «بيتحقق…», not a count; at ~26s it reads «٢٣١ — لحد ٢٣ سبتمبر». Before the fix the same moment read «١٣٤ — لحد ١٩ سبتمبر» |
+| 75 | **Nineteen task tones, nineteen distinct files, on the device** | ✅ 27 live Nouri channels — 5 adhan recitations, 19 task tones each with its own `res/raw` file, and `athkar_v1`/`wird_v1`/`general_v1` on the system default, which is the documented generic-tone fallback |
+
+| 76 | **قيام الليل fires, and unlike the adhan** | ✅ 01:32:40 — `alert_qiyam_v2`, importance 4, `AUTO_CANCEL`, `category=reminder`, no full-screen intent, «الثلث الأخير — لو قدرت». The isha adhan in the same run: importance 5, `INSISTENT|AUTO_CANCEL|HIGH_PRIORITY`, `category=alarm` |
+
+| 77 | **Logging a prayer cancels its follow-ups, without a relaunch** | ✅ logged العشاء → exactly `19:53` and `20:53` disappeared from AlarmManager, 267 → 265. The adhan, the iqama, the water nudge, the task alarms and the 22:00 review all stayed |
+| 78 | **Logging a meal cancels its alert and its «عملتها؟»** | ✅ 265 → 263: `19:36` and `20:06` — thirty minutes apart, which is the documented gap |
+| 79 | **Neither cancels anything it should not** | ✅ nothing else moved in either diff, and nothing new was armed |
+
+| 80 | **الأصوات previews the real file on the live channel** | ✅ «شغّل» on الفجر posted `id=999999999 channel=adhan_fajr_v3d`, whose sound is `raw/adhan_fajr`, at `importance=5 category=alarm` — the real recitation at alarm volume |
+| 81 | **A preview does not behave like the summons** | ✅ `flags=AUTO_CANCEL` with **no INSISTENT** and `fullscreenIntent=null` — it plays once and does not seize the screen, unlike a real adhan |
+
+Check 80 matters more than it looks: an adhan has two channel ids and only one
+exists at a time, so posting to the retired variant would make Android quietly
+recreate it at default importance with no sound — the preview would play
+nothing and read as a broken recording. It posted to `_v3d`, the live one.
+
+**A caution on testing 77.** The first attempt logged المغرب and cancelled
+nothing, which looks exactly like the bug. It was not: maghrib's follow-ups
+(18:30, and a second capped short of isha) had *already passed*, so there was
+nothing left to cancel. Pick a prayer whose follow-ups are still in the
+future — dump the alarms first and check.
+
+**Never drive the phone by coordinate taps.** On 10 September Nouri went to the
+background between a screenshot and the next `input tap`, and the tap landed in
+WhatsApp — on the keyboard, in a real conversation. `am start`, `input
+keyevent` and `dumpsys` do everything on-device verification needs and cannot
+land in someone else's app. Coordinate taps belong on the emulator.
+
+
+To reproduce 57 and 58, note the two traps that make a false negative easy:
+
+- **Do not `force-stop` and then conclude anything from the first dump.** The
+  restore runs a little after `BOOT_COMPLETED`; at +5s the count was 0 and at
+  +90s it was 289.
+- **`adb shell date -s` wants `MMDDhhmm[[CC]YY][.ss]`.** `date -s "2026-09-10
+  11:44:30"` is rejected as "two dates at once", and `date -s 20260910.114430`
+  silently lands in 2010.
+- **Sampling the alarm count changes what you are sampling.** `dumpsys alarm`
+  takes the lock the app's cancel loop wants, so a tight polling loop stretches
+  the very decline it is there to watch — `armWindow` measured 32s while being
+  sampled and 24s left alone. Depth is trustworthy; duration is not.
+- **`flutter build apk --debug` can hand back a kernel it built for different
+  source.** Reverting `lib/` with `git checkout <old> -- lib/` and rebuilding
+  produced an APK still containing the new code. Check before believing a
+  measurement: `unzip -p app-debug.apk assets/flutter_assets/kernel_blob.bin |
+  grep -c <a symbol only one side has>`. `rm -rf .dart_tool/flutter_build`
+  forces the rebuild.
+
+**Check 51 decides the shape of the feature.** If the HONOR reports no step
+sensor, the walk screen is honest about it and the feature needs the
+foreground-service design instead — do not treat the message as a bug.
+
+Steps are read only while the walk screen is open. Android keeps counting in
+the OS, so backgrounding the app and coming back reconciles correctly, but
+killing the app loses the session. That is a known limit, not check 52 failing.

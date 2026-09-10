@@ -19,6 +19,7 @@ build/
 
 # Android
 android/.gradle/
+android/.kotlin/
 android/local.properties
 android/key.properties
 *.keystore
@@ -39,3 +40,7 @@ desktop.ini
 # Secrets — never commit an API key
 .env
 secrets.json
+flutter_*.log
+
+# Machine state, not source. Also unreadable on this machine — see 634ffbe.
+.claude/

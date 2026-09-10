@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Keeps notification sounds through R8's resource shrinker.
+
+  These files are referenced only from Dart, by name, at runtime:
+
+      RawResourceAndroidNotificationSound('chime')
+
+  The shrinker cannot see that, so in a release build it strips them and the
+  adhan channel ends up pointing at a resource that no longer exists — silent,
+  with no build error and no crash. Debug builds do not shrink resources, so
+  the failure appears only in the artefact you actually ship.
+
+  `tools:keep` takes a comma-separated list of globs. `@raw/*` covers every
+  current and future sound, so dropping a real adhan.mp3 into res/raw needs no
+  change here.
+-->
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/*" />

@@ -1,0 +1,151 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Android 13+ runtime permission for showing notifications at all. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Exact alarms. USE_EXACT_ALARM is granted automatically and cannot be
+         revoked by the user; SCHEDULE_EXACT_ALARM is the pre-Android-13
+         fallback. Nouri is sideloaded rather than shipped through Play, so
+         USE_EXACT_ALARM is available to it. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+
+    <!-- Re-arm the window after a reboot or an app update. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!--
+      Lets the adhan through Do Not Disturb.
+
+      Declaring this does NOT grant it. It is one of the handful of permissions
+      the user must hand over on a system screen — there is no dialog an app
+      can raise — and until they do, `setBypassDnd(true)` is accepted and
+      silently ignored. Measured on the user's HONOR: every adhan channel read
+      `mBypassDnd=false`, so DND silenced all five prayer calls. He works
+      nights and sleeps by day with DND on, which is precisely when he needs
+      to hear them. See DndPlugin.kt and الإعدادات → الإشعارات.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
+
+    <!--
+      Lets the adhan light a locked screen instead of waiting silently in the
+      shade. Granted at install through Android 13. From Android 14 it is
+      granted automatically only to calling and alarm-clock apps; everything
+      else must send the user to Settings, so treat it as a request that can
+      be refused rather than a capability that is simply present.
+    -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!-- Location only sharpens prayer times; Kuwait is the built-in fallback
+         and the app is fully usable without ever granting this. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- The hardware step counter. Required from API 29; on older releases the
+         sensor is readable without it. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+
+    <!-- Declared android:required="false" on purpose. Plenty of devices — and
+         nearly every emulator image — have no step-counter hardware, and Nouri
+         is a prayer companion first: it must still install and run on them.
+         The walk screen says so plainly rather than inventing steps. -->
+    <uses-feature
+        android:name="android.hardware.sensor.stepcounter"
+        android:required="false"/>
+
+    <!-- Slice 1 is entirely offline. A dependency pulls package:http in
+         transitively, which would otherwise merge INTERNET into the manifest;
+         removing it here means the OS itself makes network access impossible. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>
+
+    <application
+        android:label="نوري"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Delivers a scheduled notification when its alarm comes due.
+             WITHOUT THIS, NOTHING SCHEDULED EVER APPEARS: AlarmManager fires
+             on time, finds no such component, and drops it silently — no
+             error, no log. Every alarm is registered against this exact class
+             name (visible as *walarm*:…/ScheduledNotificationReceiver in
+             `dumpsys alarm`), so the two must match.
+             The plugin's own manifest declares no receivers at all; the app is
+             required to declare both. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false"/>
+
+        <!-- Delivers a notification ACTION to the background isolate.
+             WITHOUT THIS, A BUTTON THAT DOES NOT OPEN THE APP DOES NOTHING.
+             The tap reaches the app process — `dumpsys` shows it unfrozen —
+             and then stops: no engine starts, no handler runs, no log, no
+             error. Observed exactly that on the emulator with «فكّرني بعد ٥
+             دقايق», which was completely dead until this receiver existed.
+
+             This is the third turn of the same screw. The «صليت» action was
+             once silent for want of a registered Dart handler; the handler is
+             registered now, and the receiver is the other half. An action with
+             `showsUserInterface: false` needs BOTH.
+
+             `enabled` and `exported` are set explicitly: the plugin's own
+             manifest declares no receivers at all, so every one of them is
+             this app's responsibility. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false"/>
+
+        <!-- Restores scheduled notifications after a reboot or an app update. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

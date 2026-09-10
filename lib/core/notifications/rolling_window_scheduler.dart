@@ -1,0 +1,759 @@
+import '../../features/fasting/sunnah_fasting.dart';
+import '../../features/finance/budget_nudge.dart';
+import '../../features/planner/daily_tasks.dart';
+import '../../features/planner/day_planner.dart';
+import '../../features/planner/shift.dart';
+import '../../features/prayers/qiyam.dart';
+import '../../features/water/water_plan.dart';
+import '../time/geo_config.dart';
+import '../time/prayer_times_service.dart';
+import 'follow_up_plan.dart';
+import 'adhan_sounds.dart';
+import 'notification_channels_ids.dart';
+import 'notification_gateway.dart';
+import 'notification_slot.dart';
+import 'task_alarm_ids.dart';
+import 'task_alarm_plan.dart';
+import 'task_alert.dart';
+
+/// How many days of alarms are kept armed at any time.
+///
+/// Fourteen, measured rather than guessed. A day of *core* alarms costs 14
+/// (five adhan, five iqama, three athkar, one wird), so this arms 196.
+/// Follow-ups are armed over the shorter [kFollowUpWindowDays] and add 33, for
+/// 229 — comfortably inside Android's ~500 pending-alarm cap, with room for
+/// the user to keep every channel on.
+///
+/// The window exists so the adhan survives the app going unopened. Exact
+/// alarms live in AlarmManager and fire without the app running at all, so a
+/// longer window is the most reliable form of that guarantee — more reliable
+/// than a background top-up task, which aggressive OEM power managers (HONOR
+/// among the worst) routinely kill. See docs/setup.md for why the spec's
+/// workmanager top-up was not added.
+const kWindowDays = 14;
+
+/// How many days of follow-up questions are armed.
+///
+/// Much shorter than [kWindowDays], and deliberately so. The adhan has to
+/// survive a fortnight of the app going unopened — that is the whole point of
+/// the window. A follow-up does not: "did you pray asr?" is only worth asking
+/// of someone still using the app, and eleven days of unanswered questions
+/// waiting in the shade is exactly the nagging the brief rules out.
+///
+/// It is also what keeps the alarm count honest. Arming every slot for a
+/// fortnight would cost 350; splitting the windows costs 229
+/// (14 x 14 core alarms + 3 x 11 follow-ups), well inside Android's ~500 cap.
+const kFollowUpWindowDays = 3;
+
+/// How many days the budget note is armed over.
+///
+/// Two. Budget state is not knowable ahead the way a prayer time is, so this
+/// is armed from the numbers as they stand at re-arm time. One day would miss
+/// anyone who opens Nouri after 20:00 — the slot would already have passed —
+/// and three would start showing figures old enough to be wrong.
+const kBudgetNudgeDays = 2;
+
+/// How many days of **task** alarms are armed.
+///
+/// Three, at the user's own request: *"for personal tasks I prefer a short
+/// rolling window — today + next 2-3 days only. Every time I open the app it
+/// re-arms new task alarms for that short window and cancels old ones."*
+///
+/// It is also what the alarm budget allows. The adhan needs a fortnight
+/// because it must survive the app going unopened; a nudge to walk eleven days
+/// from now is worth nothing to anyone and would cost ~110 alarms out of
+/// Android's ~500, which the adhan has first call on. Ten tasks over three days
+/// costs about thirty.
+const kTaskAlarmWindowDays = 3;
+
+class SchedulingConfig {
+  const SchedulingConfig({
+    required this.geo,
+    required this.iqamaOffsets,
+    this.notifyAdhan = true,
+    this.notifyIqama = true,
+    this.notifyAthkar = true,
+    this.notifyWird = true,
+    this.notifyFasting = true,
+    this.notifyWater = true,
+    this.notifyQiyam = false,
+    this.notifyTasks = true,
+    this.adhanBypassesDnd = false,
+    this.completedTaskIds = const {},
+    this.shift = ShiftType.morning,
+    this.budgetNote,
+    this.budgetNudgeHour = kBudgetNudgeHour,
+    this.fastingDays = const {},
+    this.hijriOffsetDays = 0,
+    this.fastingEveHour = 20,
+    this.morningAthkarHour = 7,
+    this.sleepAthkarHour = 22,
+    this.quranWirdHour = 17,
+    this.dailySummaryHour = 22,
+  });
+
+  final GeoConfig geo;
+  final Map<String, int> iqamaOffsets;
+  final bool notifyAdhan;
+  final bool notifyIqama;
+  final bool notifyAthkar;
+  final bool notifyWird;
+
+  /// Whether to offer the sunnah fasts the evening before.
+  final bool notifyFasting;
+
+  /// Whether to nudge the user to drink after each prayer.
+  final bool notifyWater;
+
+  /// Whether the planned day announces itself, task by task.
+  ///
+  /// On by default: it is the point of the feature — *"i don't need to open
+  /// the app to know what i have to do"*.
+  final bool notifyTasks;
+
+  /// Whether the adhan should be armed on the channel that bypasses Do Not
+  /// Disturb.
+  ///
+  /// **Not a preference — a capability.** It is true only when the user has
+  /// granted notification-policy access on a system screen, because Android
+  /// ignores the request otherwise. It reaches the scheduler because bypassing
+  /// means a *different channel id*, fixed at creation, so an alarm armed
+  /// before access was granted keeps pointing at the channel that cannot
+  /// bypass. Granting it therefore has to re-arm the window, which is the
+  /// standing rule here: any setting that can change an alarm must re-arm.
+  final bool adhanBypassesDnd;
+
+  /// The task ids the user has already done **today**, derived from the logs
+  /// they were already keeping.
+  ///
+  /// Only today's: nothing is done on a day that has not happened, so this is
+  /// applied to the first day of the window and no other. Read outside the
+  /// scheduler for the same reason `fastingDays` and `budgetNote` are — the
+  /// scheduler knows nothing about the database.
+  final Set<String> completedTaskIds;
+
+  /// Whether to offer قيام الليل in the last third of the night.
+  ///
+  /// **Off unless the user turns it on.** Waking someone at two in the morning
+  /// for a voluntary prayer is not something an app should decide for them.
+  final bool notifyQiyam;
+
+  /// One quiet line about a budget running ahead of the month, or null when
+  /// there is nothing to say — which is most days.
+  ///
+  /// Passed in already worded rather than computed here, for the same reason
+  /// `fastingDays` is: the scheduler stays pure and knows nothing about the
+  /// database. `budgetNudgeFor` decides whether there is anything to say.
+  final String? budgetNote;
+
+  /// The hour the budget note arrives.
+  final int budgetNudgeHour;
+
+  /// The shift the user is currently on.
+  ///
+  /// Only قيام uses it: on a night shift the whole last third is duty time,
+  /// so there is nothing to offer.
+  final ShiftType shift;
+
+  /// The days the user has said they are fasting, as midnight-local dates.
+  ///
+  /// Passed in rather than looked up: the scheduler is pure, and it is the
+  /// user's own marking — Nouri never infers a fast, because guessing wrong
+  /// means telling a fasting person to drink at noon.
+  final Set<DateTime> fastingDays;
+
+  /// The same nudge the Home header uses, so the fasting days can never
+  /// disagree with the Hijri date shown on screen.
+  final int hijriOffsetDays;
+
+  /// When the evening-before offer goes out. 20:00 by default: late enough to
+  /// be after work, early enough to still be an evening.
+  final int fastingEveHour;
+
+  final int morningAthkarHour;
+  final int sleepAthkarHour;
+  final int quranWirdHour;
+
+  /// When the end-of-day review offers to catch up anything unlogged.
+  final int dailySummaryHour;
+
+  SchedulingConfig copyWith({
+    GeoConfig? geo,
+    Map<String, int>? iqamaOffsets,
+    bool? notifyAdhan,
+    bool? notifyIqama,
+    bool? notifyAthkar,
+    bool? notifyWird,
+    bool? notifyFasting,
+    bool? notifyWater,
+    bool? notifyQiyam,
+    bool? notifyTasks,
+    Set<String>? completedTaskIds,
+    ShiftType? shift,
+    String? budgetNote,
+    int? budgetNudgeHour,
+    Set<DateTime>? fastingDays,
+    int? hijriOffsetDays,
+    int? fastingEveHour,
+    int? morningAthkarHour,
+    int? sleepAthkarHour,
+    int? quranWirdHour,
+    int? dailySummaryHour,
+  }) =>
+      SchedulingConfig(
+        geo: geo ?? this.geo,
+        iqamaOffsets: iqamaOffsets ?? this.iqamaOffsets,
+        notifyAdhan: notifyAdhan ?? this.notifyAdhan,
+        notifyIqama: notifyIqama ?? this.notifyIqama,
+        notifyAthkar: notifyAthkar ?? this.notifyAthkar,
+        notifyWird: notifyWird ?? this.notifyWird,
+        notifyFasting: notifyFasting ?? this.notifyFasting,
+        notifyWater: notifyWater ?? this.notifyWater,
+        notifyQiyam: notifyQiyam ?? this.notifyQiyam,
+        notifyTasks: notifyTasks ?? this.notifyTasks,
+        completedTaskIds: completedTaskIds ?? this.completedTaskIds,
+        shift: shift ?? this.shift,
+        budgetNote: budgetNote ?? this.budgetNote,
+        budgetNudgeHour: budgetNudgeHour ?? this.budgetNudgeHour,
+        fastingDays: fastingDays ?? this.fastingDays,
+        hijriOffsetDays: hijriOffsetDays ?? this.hijriOffsetDays,
+        fastingEveHour: fastingEveHour ?? this.fastingEveHour,
+        morningAthkarHour: morningAthkarHour ?? this.morningAthkarHour,
+        sleepAthkarHour: sleepAthkarHour ?? this.sleepAthkarHour,
+        quranWirdHour: quranWirdHour ?? this.quranWirdHour,
+        dailySummaryHour: dailySummaryHour ?? this.dailySummaryHour,
+      );
+}
+
+/// Rebuilds the entire alarm window from scratch on every call.
+///
+/// Cheap — about 260 alarms — and it makes re-arming trivially correct: there
+/// is no incremental state to get wrong after a reboot, a settings change, or
+/// a fortnight with the app unopened. Combined with deterministic IDs, running
+/// this twice is indistinguishable from running it once.
+class RollingWindowScheduler {
+  RollingWindowScheduler({
+    required this.gateway,
+    required this.prayerTimes,
+    required this.clock,
+  });
+
+  final NotificationGateway gateway;
+  final PrayerTimesService prayerTimes;
+  final DateTime Function() clock;
+
+  static const _adhanSlots = {
+    'fajr': NotificationSlot.adhanFajr,
+    'dhuhr': NotificationSlot.adhanDhuhr,
+    'asr': NotificationSlot.adhanAsr,
+    'maghrib': NotificationSlot.adhanMaghrib,
+    'isha': NotificationSlot.adhanIsha,
+  };
+
+  static const _iqamaSlots = {
+    'fajr': NotificationSlot.iqamaFajr,
+    'dhuhr': NotificationSlot.iqamaDhuhr,
+    'asr': NotificationSlot.iqamaAsr,
+    'maghrib': NotificationSlot.iqamaMaghrib,
+    'isha': NotificationSlot.iqamaIsha,
+  };
+
+  static const _followUpSlots = {
+    'fajr': NotificationSlot.followUpFajr,
+    'dhuhr': NotificationSlot.followUpDhuhr,
+    'asr': NotificationSlot.followUpAsr,
+    'maghrib': NotificationSlot.followUpMaghrib,
+    'isha': NotificationSlot.followUpIsha,
+  };
+
+  static const _followUp2Slots = {
+    'fajr': NotificationSlot.followUp2Fajr,
+    'dhuhr': NotificationSlot.followUp2Dhuhr,
+    'asr': NotificationSlot.followUp2Asr,
+    'maghrib': NotificationSlot.followUp2Maghrib,
+    'isha': NotificationSlot.followUp2Isha,
+  };
+
+  static const _arabicNames = {
+    'fajr': 'الفجر',
+    'dhuhr': 'الظهر',
+    'asr': 'العصر',
+    'maghrib': 'المغرب',
+    'isha': 'العشاء',
+  };
+
+  /// Evening athkar are tied to maghrib, not to a clock hour, because sunset
+  /// moves by nearly two hours across the year.
+  static const _eveningAthkarBeforeMaghrib = Duration(minutes: 45);
+
+  /// Brings the device's alarms in line with [cfg].
+  ///
+  /// Two passes over one list: cancel what the window no longer wants, then
+  /// write what it does. Both are needed and neither may be skipped -- see
+  /// [_apply] for why the cancel pass is much shorter than it used to be.
+  Future<void> rearm(SchedulingConfig cfg) async => _apply(_windowFor(cfg));
+
+  /// Every notification the window should be holding, computed in memory.
+  ///
+  /// Pure: it touches no platform channel and no clock beyond [clock]. That
+  /// is what makes it possible to compare the whole intended window against
+  /// what is pending *before* writing any of it.
+  List<ScheduledNotification> _windowFor(SchedulingConfig cfg) {
+    final out = <ScheduledNotification>[];
+    final now = clock();
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (var i = 0; i < kWindowDays; i++) {
+      // Constructed, never offset. On the autumn night the clocks go back,
+      // `today.add(Duration(days: 1))` from midnight lands at 23:00 the *same*
+      // day — so the loop would arm that day twice and never reach the far end
+      // of the fortnight, quietly losing a day of adhan once a year.
+      final date = DateTime(today.year, today.month, today.day + i);
+      final times = prayerTimes.forDate(date, cfg.geo);
+
+      for (final slot in times.ordered) {
+        final name = _arabicNames[slot.name]!;
+
+        if (cfg.notifyAdhan) {
+          _put(out,
+            date,
+            _adhanSlots[slot.name]!,
+            slot.time,
+            now,
+            title: name,
+            body: 'حان الآن موعد صلاة $name',
+            // Each prayer's own channel, so five different recitations are
+            // possible and so silencing one does not silence the rest.
+            channel: adhanChannelFor(
+              slot.name,
+              bypassing: cfg.adhanBypassesDnd,
+            ),
+            payload: 'prayer:${slot.name}',
+          );
+
+          // Asked after the prayer window has actually closed, never at the
+          // adhan. Timing comes from followUpsFor, which starts from iqama
+          // rather than adhan and leaves room for the prayer itself.
+          if (i < kFollowUpWindowDays) {
+            final asks = followUpsFor(
+              slot: slot,
+              iqama: iqamaFor(slot, cfg.iqamaOffsets),
+              nextAdhan: times.next(slot.time)?.time,
+            );
+
+            // A question, never an accusation - and it carries the action
+            // that logs the prayer straight from the shade.
+            _put(out,
+              date,
+              _followUpSlots[slot.name]!,
+              asks.first,
+              now,
+              title: 'نوري',
+              body: 'صليت $name؟',
+              channel: channelGeneral,
+              payload: 'log:${slot.name}',
+            );
+
+            final second = asks.second;
+            if (second != null) {
+              // Worded differently from the first. Repeating a question
+              // verbatim an hour later reads as a machine, not a companion.
+              _put(out,
+                date,
+                _followUp2Slots[slot.name]!,
+                second,
+                now,
+                title: 'نوري',
+                body: 'لسه $name مش متسجلة — صليتها؟',
+                channel: channelGeneral,
+                payload: 'log:${slot.name}',
+              );
+            }
+          }
+        }
+
+        if (cfg.notifyIqama) {
+          _put(out,
+            date,
+            _iqamaSlots[slot.name]!,
+            iqamaFor(slot, cfg.iqamaOffsets),
+            now,
+            title: 'الإقامة',
+            body: 'إقامة صلاة $name',
+            // Its own sound, not the system default. The iqama stays
+            // outside the task system — it is a prayer, and the user
+            // asked for prayer/adhan/iqama to stay separate — but
+            // "separate" was never a reason for it to be
+            // unrecognisable by ear.
+            channel: TaskAlertKind.iqama.channelId,
+            payload: 'prayer:${slot.name}',
+          );
+        }
+      }
+
+      // **Only when the day plan is not already announcing them.**
+      //
+      // These four are planner tasks: Slice 5 gave each one its own alarm off
+      // `planDay`, on its own channel, at the time المهام shows. Leaving these
+      // armed as well meant two rings a day for one task — at *different*
+      // times, since these come from a fixed settings hour and the plan's come
+      // from a prayer anchor — and the one the user heard first disagreed with
+      // the screen. `task_alarm_plan.dart` refuses to do this to prayers and
+      // says why; the same argument applies here.
+      //
+      // The path is kept rather than deleted, and for two reasons.
+      //
+      // It is what someone who wants the athkar announced *without* the whole
+      // day announcing itself still gets — `notifyTasks` off.
+      //
+      // And it is the **safety net past day three**. The task alarms cover a
+      // three-day rolling window, by the user's own instruction; these cover
+      // fourteen. Gating on `notifyTasks` alone would have quietly cut the
+      // athkar and the wird from a fortnight to three days for anyone who did
+      // not open Nouri over a long weekend. Past the task window there is no
+      // duplicate to avoid, so the old reminder stands in — with the generic
+      // tone, which is the honest trade and is replaced by the task alarm the
+      // moment the app is next opened.
+      if (cfg.notifyAthkar && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)) {
+        _put(out,
+          date,
+          NotificationSlot.morningAthkar,
+          _at(date, cfg.morningAthkarHour),
+          now,
+          title: 'أذكار الصباح',
+          body: 'وقت أذكار الصباح — خمس دقايق بس',
+          channel: channelAthkar,
+          payload: 'athkar:morning',
+        );
+
+        _put(out,
+          date,
+          NotificationSlot.eveningAthkar,
+          times.maghrib.subtract(_eveningAthkarBeforeMaghrib),
+          now,
+          title: 'أذكار المساء',
+          body: 'قرب المغرب — وقت أذكار المسا',
+          channel: channelAthkar,
+          payload: 'athkar:evening',
+        );
+
+        _put(out,
+          date,
+          NotificationSlot.sleepAthkar,
+          _at(date, cfg.sleepAthkarHour),
+          now,
+          title: 'أذكار النوم',
+          body: 'قبل ما تنام، خد أذكار النوم',
+          channel: channelAthkar,
+          payload: 'athkar:sleep',
+        );
+      }
+
+      if (cfg.notifyWird && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)) {
+        _put(out,
+          date,
+          NotificationSlot.quranWird,
+          _at(date, cfg.quranWirdHour),
+          now,
+          title: 'ورد القرآن',
+          body: 'ورد النهاردة — ربع من مصحفك',
+          channel: channelWird,
+          payload: 'quran',
+        );
+      }
+
+      // قيام الليل, in the last third of the night that *starts* on this
+      // date — so it needs tomorrow's fajr as well as tonight's isha. Armed
+      // across the full window like the adhan rather than the short one: it
+      // is a standing invitation, not a question about something recent.
+      if (cfg.notifyQiyam) {
+        final tomorrow = DateTime(date.year, date.month, date.day + 1);
+        final at = qiyamTimeFor(
+          isha: times.isha,
+          fajrTomorrow: prayerTimes.forDate(tomorrow, cfg.geo).fajr,
+          shift: cfg.shift,
+        );
+        if (at != null) {
+          _put(out,
+            date,
+            NotificationSlot.qiyam,
+            at,
+            now,
+            title: qiyamTitle,
+            body: qiyamBody,
+            channel: TaskAlertKind.qiyam.channelId,
+            payload: 'qiyam',
+          );
+        }
+      }
+
+      // The evening before a sunnah fast, so the offer arrives while there is
+      // still a night to decide in. Asked about *tomorrow*, which is why it
+      // looks a day ahead rather than at the day it is scheduled on.
+      if (cfg.notifyFasting) {
+        final tomorrow = DateTime(date.year, date.month, date.day + 1);
+        final fast = sunnahFastFor(tomorrow,
+            hijriOffsetDays: cfg.hijriOffsetDays);
+        if (fast != null) {
+          _put(out,
+            date,
+            NotificationSlot.fastingEve,
+            _at(date, cfg.fastingEveHour),
+            now,
+            title: 'صيام بكرة؟',
+            body: fastingEveBody(fast),
+            channel: TaskAlertKind.fasting.channelId,
+            payload: 'fasting',
+          );
+        }
+      }
+
+      // Water, riding the prayers. Five times a day the user already stops
+      // what they are doing, so this costs no new interruption — and on a day
+      // they have said they are fasting, the daytime ones are simply absent.
+      // Only over the short window, for the same reason the follow-ups are.
+      // A nudge to drink twelve days from now is worth nothing to anyone, and
+      // arming it for a fortnight would cost 70 alarms out of a budget of
+      // ~500 that the adhan has first call on.
+      if (cfg.notifyWater && i < kFollowUpWindowDays) {
+        final fastingToday = cfg.fastingDays.contains(date);
+        final slots = <NotificationSlot>[
+          NotificationSlot.waterFajr,
+          NotificationSlot.waterDhuhr,
+          NotificationSlot.waterAsr,
+          NotificationSlot.waterMaghrib,
+          NotificationSlot.waterIsha,
+        ];
+
+        for (var p = 0; p < times.ordered.length; p++) {
+          final at = times.ordered[p].time.add(const Duration(minutes: 25));
+          if (!waterReminderAllowed(
+            at: at,
+            fastingToday: fastingToday,
+            fajr: times.fajr,
+            maghrib: times.maghrib,
+          )) {
+            continue;
+          }
+
+          _put(out,
+            date,
+            slots[p],
+            at,
+            now,
+            title: 'مياه',
+            body: waterReminderBody(
+              afterFast: fastingToday && !at.isBefore(times.maghrib),
+            ),
+            channel: TaskAlertKind.water.channelId,
+            payload: 'water',
+          );
+        }
+      }
+
+      // A quiet line about a budget running ahead of the month.
+      //
+      // Unlike the adhan, budget state is not knowable a fortnight ahead — it
+      // depends on what gets spent — so this is armed over two days only, from
+      // the numbers as they stand at re-arm time. Today alone would miss
+      // anyone who opens Nouri in the evening, since the 20:00 slot would
+      // already have passed; three days would start putting stale figures in
+      // front of the user. Every launch re-arms and overwrites both.
+      if (cfg.budgetNote != null && i < kBudgetNudgeDays) {
+        _put(out,
+          date,
+          NotificationSlot.budgetNudge,
+          _at(date, cfg.budgetNudgeHour),
+          now,
+          title: 'الميزانية',
+          body: cfg.budgetNote!,
+          channel: TaskAlertKind.budget.channelId,
+          payload: 'finance',
+        );
+      }
+
+      // The planned day, announcing itself. Each task at the time `planDay`
+      // gave it, on its own channel so it is recognisable by ear, and with
+      // the «عملتها؟» that follows the ones worth asking about.
+      //
+      // Short window, by the user's own instruction and by the alarm budget:
+      // see kTaskAlarmWindowDays. Ids come from their own range rather than
+      // from a day/slot pair, exactly as reminders do, so the slot below is
+      // only a label.
+      if (cfg.notifyTasks && i < kTaskAlarmWindowDays) {
+        final plan = planDay(
+          date: date,
+          shift: ShiftPattern.forType(cfg.shift),
+          prayers: times,
+          tasks: dailyTasksFor(
+            date: date,
+            shift: ShiftPattern.forType(cfg.shift),
+          ),
+        );
+
+        for (final alert in taskAlertsFor(plan)) {
+          // Already done. Nouri does not ring to demand something it can see
+          // in the user's own log, and it does not ask «عملتها؟» about a
+          // question the log has already answered — that is nagging rather
+          // than helping. Today only: nothing is done on a day that has not
+          // happened yet.
+          if (i == 0 && cfg.completedTaskIds.contains(alert.taskId)) continue;
+
+          final id = taskAlarmId(date, alert.taskId);
+          if (id == null) continue;
+
+          _putRaw(out,
+            id: id,
+            slot: NotificationSlot.taskAlert,
+            when: alert.when,
+            now: now,
+            title: alert.kind.title,
+            body: alert.kind.body,
+            channel: alert.kind.channelId,
+            payload: 'task:${alert.taskId}',
+          );
+
+          final ask = alert.askAt;
+          final askId = taskAlarmId(date, alert.taskId, ask: true);
+          if (ask != null && askId != null) {
+            _putRaw(out,
+              id: askId,
+              slot: NotificationSlot.taskFollowUp,
+              when: ask,
+              now: now,
+              title: alert.kind.title,
+              body: alert.kind.followUpQuestion!,
+              // The soft channel, whatever the task's own sound is: a question
+              // should not arrive at the same volume as the summons.
+              channel: TaskAlertKind.followUp.channelId,
+              payload: 'taskask:${alert.taskId}',
+            );
+          }
+        }
+      }
+
+      // The end-of-day review. Worded so it reads correctly whether or not
+      // anything is outstanding: the alarm is set days ahead and cannot know,
+      // and a fixed «you missed prayers» would be wrong on a complete day.
+      // The sheet it opens says «كل صلوات النهاردة متسجلة» when there is
+      // nothing to do.
+      if (cfg.notifyAdhan && i < kFollowUpWindowDays) {
+        _put(out,
+          date,
+          NotificationSlot.dailySummary,
+          _at(date, cfg.dailySummaryHour),
+          now,
+          title: 'نوري',
+          body: 'تحب نراجع صلوات النهاردة سوا؟',
+          channel: TaskAlertKind.review.channelId,
+          payload: 'review:daily',
+        );
+      }
+    }
+
+    return out;
+  }
+
+  /// Writes [wanted] to the device, cancelling only what it does not contain.
+  ///
+  /// **Why not clear the window first.** That is what this used to do -- one
+  /// `cancelAllBelow`, ~265 cancels, immediately followed by ~265 schedules of
+  /// mostly the same ids. Every one of those crosses a platform channel, and
+  /// every one also rewrites the plugin's entire boot cache: it loads the whole
+  /// JSON array, drops or replaces a single entry, and saves the array back. So
+  /// the pass was quadratic in the size of the window, and half of it bought
+  /// nothing. Measured at 42s on a cold emulator and 11.7s on the user's HONOR,
+  /// on every launch.
+  ///
+  /// Rewriting an id is already a cancel. `AlarmManager.setExactAndAllowWhileIdle`
+  /// cancels whatever alarm is held under an equal PendingIntent before setting
+  /// the new one, and the plugin builds that PendingIntent from the notification
+  /// id as its request code with `FLAG_UPDATE_CURRENT` -- so the ids being
+  /// rewritten do not need cancelling, and the ones that are *not* being
+  /// rewritten are exactly the ones that do.
+  ///
+  /// **Nothing about recovery changes.** Every wanted alarm is still written
+  /// unconditionally on every call, so a device that lost its alarms to a
+  /// force-stop gets all of them back on the next launch exactly as before.
+  /// Only the cancel pass got shorter, and it got shorter by dropping work
+  /// whose result was overwritten a moment later.
+  ///
+  /// The cancel pass still enumerates what is *pending* rather than recomputing
+  /// ids, which is what makes widening `kSlotsPerDay` safe: an alarm numbered
+  /// under an old stride is not in [wanted], so it is cancelled even though no
+  /// current slot could name it. See the note on that constant.
+  Future<void> _apply(List<ScheduledNotification> wanted) async {
+    final keep = {for (final n in wanted) n.id};
+
+    // Below the base only: reminders live at kOutOfWindowIdBase and upward and
+    // are not this window's to cancel. Re-arming used to take them with it.
+    for (final id in await gateway.pendingIds()) {
+      if (id < kOutOfWindowIdBase && !keep.contains(id)) {
+        await gateway.cancel(id);
+      }
+    }
+
+    for (final n in wanted) {
+      await gateway.schedule(n);
+    }
+  }
+
+  /// Adds a notification with an **explicit** id rather than one derived from
+  /// a slot.
+  ///
+  /// Task alarms and reminders both live outside the day/slot numbering, so
+  /// the slot they carry is only a label. Everything else about [_put] holds,
+  /// including never scheduling into the past.
+  void _putRaw(
+    List<ScheduledNotification> out, {
+    required int id,
+    required NotificationSlot slot,
+    required DateTime when,
+    required DateTime now,
+    required String title,
+    required String body,
+    required String channel,
+    String? payload,
+  }) {
+    if (!when.isAfter(now)) return;
+
+    out.add(ScheduledNotification(
+      id: id,
+      slot: slot,
+      when: when,
+      title: title,
+      body: body,
+      channelId: channel,
+      payload: payload,
+    ));
+  }
+
+  DateTime _at(DateTime date, int hour) =>
+      DateTime(date.year, date.month, date.day, hour);
+
+  void _put(
+    List<ScheduledNotification> out,
+    DateTime date,
+    NotificationSlot slot,
+    DateTime when,
+    DateTime now, {
+    required String title,
+    required String body,
+    required String channel,
+    String? payload,
+  }) {
+    // Today's already-passed times are simply skipped. Scheduling into the
+    // past would fire a burst of notifications the moment the app opens.
+    if (!when.isAfter(now)) return;
+
+    out.add(ScheduledNotification(
+      id: notificationIdFor(date, slot),
+      slot: slot,
+      when: when,
+      title: title,
+      body: body,
+      channelId: channel,
+      payload: payload,
+    ));
+  }
+}

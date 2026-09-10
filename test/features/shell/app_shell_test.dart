@@ -1,0 +1,194 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nouri/core/theme/nouri_colors.dart';
+import 'package:nouri/features/shell/app_shell.dart';
+
+import '../../support/harness.dart';
+
+void main() {
+  Future<void> pumpShell(WidgetTester tester) async {
+    final db = inMemoryDatabase(tester);
+    await tester.pumpWidget(testApp(db: db, child: const AppShell()));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('shows a tab per pillar, in the approved order', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      // Scoped to the nav bar: «النهاردة» legitimately appears twice on
+      // screen -- as the tab label and inside the progress ring -- exactly as
+      // in the approved design.
+      final inNav = find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byType(Text),
+      );
+      final labels =
+          tester.widgetList<Text>(inNav).map((w) => w.data).toList();
+      // البدن was inserted before المالية when the physical pillar was built,
+      // and المهام after النهاردة when the day started announcing itself.
+      //
+      // **Seven destinations is two past Material's recommended five**, and
+      // that is now a real cost rather than a theoretical one — the labels are
+      // cramped. It is deliberate: each of the three pillars needs a home,
+      // none is optional, and المهام was asked for by name as the central
+      // daily view. الأذكار is the obvious candidate to fold into النهاردة
+      // when the shell is next revisited; see the handoff.
+      expect(labels, [
+        'النهاردة',
+        'المهام',
+        'الأذكار',
+        'التقارير',
+        'البدن',
+        'المالية',
+        'الإعدادات',
+      ]);
+    });
+  });
+
+  testWidgets('renders right-to-left by default', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      expect(
+        Directionality.of(tester.element(find.byType(NavigationBar))),
+        TextDirection.rtl,
+      );
+    });
+  });
+
+  testWidgets('starts on the Today tab', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 0);
+    });
+  });
+
+  testWidgets('tapping a tab switches to it', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.text('الأذكار'));
+      await tester.pumpAndSettle();
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 2, reason: 'المهام sits between them now');
+    });
+  });
+
+  testWidgets('the finance tab is a real pillar, not a placeholder',
+      (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.text('المالية'));
+      await tester.pumpAndSettle();
+
+      // The wealth pillar is present in the app today, not promised.
+      expect(find.text('قريباً إن شاء الله'), findsNothing);
+      expect(find.text('سجّل مصروف'), findsOneWidget);
+      expect(find.text('اتصرف الشهر ده'), findsOneWidget);
+      expect(find.byIcon(Icons.error), findsNothing);
+      expect(find.byIcon(Icons.warning), findsNothing);
+    });
+  });
+
+  testWidgets('an empty finance tab invites a first entry rather than '
+      'showing an error', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.text('المالية'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ابدأ بتسجيل أول مصروف'), findsOneWidget);
+    });
+  });
+
+  testWidgets('المهام is reachable and shows the day, not a placeholder',
+      (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('المهام'),
+      ));
+      await tester.pumpAndSettle();
+
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 1);
+      expect(find.text('قريباً إن شاء الله'), findsNothing);
+    });
+  });
+
+  testWidgets('tapping a task in المهام lands on the tab that can log it',
+      (tester) async {
+    // Eight of the eleven rows used to be a dead tap: most tasks are logged
+    // on a card that lives on another tab, and a screen inside the
+    // IndexedStack cannot reach the shell's own state.
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('المهام'),
+      ));
+      await tester.pumpAndSettle();
+
+      final tasbeeh = find.byKey(const ValueKey('task-card-tasbeeh'));
+      if (tasbeeh.evaluate().isEmpty) return; // not in today's plan
+      await tester.tap(tasbeeh);
+      await tester.pumpAndSettle();
+
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 2, reason: 'التسبيح is logged in الأذكار');
+    });
+  });
+
+  testWidgets('a requested tab is acted on once, then forgotten',
+      (tester) async {
+    // Cleared as soon as it is drained; otherwise every later rebuild would
+    // jump the app back to that tab.
+    await withLargeSurface(tester, () async {
+      final db = inMemoryDatabase(tester);
+      late WidgetRef captured;
+      await tester.pumpWidget(testApp(
+        db: db,
+        child: Consumer(builder: (context, ref, _) {
+          captured = ref;
+          return const AppShell();
+        }),
+      ));
+      await tester.pumpAndSettle();
+
+      captured.read(requestedTabProvider.notifier).request(4);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        4,
+      );
+      expect(captured.read(requestedTabProvider), isNull,
+          reason: 'a request left standing would re-fire on every rebuild');
+    });
+  });
+
+  testWidgets('the shell sits on the navy ground', (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      final ctx = tester.element(find.byType(NavigationBar));
+      expect(Theme.of(ctx).scaffoldBackgroundColor, NouriColors.background);
+    });
+  });
+
+  testWidgets('switching tabs and back preserves the Today tab state',
+      (tester) async {
+    await withLargeSurface(tester, () async {
+      await pumpShell(tester);
+      await tester.tap(find.text('الأذكار'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('النهاردة'),
+      ));
+      await tester.pumpAndSettle();
+
+      // IndexedStack keeps every tab alive, so Home is still built.
+      expect(find.text('صلوات اليوم'), findsOneWidget);
+    });
+  });
+}

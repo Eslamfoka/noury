@@ -59,7 +59,8 @@ expandable day-blocks). This was validated visually with the user before approva
 
 ## 3. Architecture
 
-**Stack:** Flutter (Dart 3), Android only for now. `minSdk 26`, `targetSdk 35`.
+**Stack:** Flutter (Dart 3), Android only for now. `minSdk 26`, `targetSdk 35`,
+`compileSdk 37` (forced by the notification and permission plugins).
 minSdk 26 buys native notification channels and avoids every legacy notification
 code path.
 

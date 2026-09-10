@@ -16,7 +16,10 @@
 
 Every task's requirements implicitly include this section.
 
-- **Platform:** Android only. `minSdk 26`, `targetSdk 35`, `compileSdk 35`. JDK 17.
+- **Platform:** Android only. `minSdk 26`, `targetSdk 35`, `compileSdk 37`. JDK 17.
+  (compileSdk is 37, not the 35 first planned: `flutter_local_notifications`
+  needs 36+ and `permission_handler_android` needs 37+. Only the compile
+  target moves; `targetSdk 35` still governs runtime behaviour.)
 - **No network. At all.** This slice makes zero HTTP requests. No `http`, `dio`, `anthropic` or any network package may appear in `pubspec.yaml`. Task 4 adds a test that enforces this.
 - **Default locale is Arabic; default direction is RTL.** English is a supported alternative, never the baseline. Never hardcode a user-visible string in a widget — every string goes through the ARB files.
 - **Voice rule.** Structural text (tab names, settings labels, report labels, pillar names) is MSA. Text where Nouri speaks to the user (reminders, progress lines, questions) is Egyptian colloquial. The Home tab keeps its approved colloquial name «النهاردة».
@@ -109,17 +112,23 @@ Flutter is **not installed** on this machine. The Android SDK (`D:\dev-tools\and
 - Consumes: nothing
 - Produces: a runnable Flutter app; `flutter test` and `flutter build apk` both work
 
-- [ ] **Step 1: Install the Flutter SDK**
+- [x] **Step 1: Install the Flutter SDK** — *already present, no install needed*
 
-```bash
-git clone https://github.com/flutter/flutter.git -b stable D:/dev-tools/flutter
-```
+Flutter **3.44.6 stable** (Dart 3.12.2) is already installed at
+`D:\dev-tools\flutter`, Dart SDK cached, git checkout clean. The initial
+environment sweep missed it because it probed `D:\flutter` and not
+`D:\dev-tools\flutter`.
 
-Then add `D:\dev-tools\flutter\bin` to the user PATH (PowerShell, then restart the shell):
+It is **not on the system PATH**. Add it once:
 
 ```powershell
 [Environment]::SetEnvironmentVariable('Path', $env:Path + ';D:\dev-tools\flutter\bin', 'User')
 ```
+
+or prefix each session with `$env:PATH = 'D:\dev-tools\flutter\bin;' + $env:PATH`.
+
+Staying on 3.44.6 rather than upgrading to 3.47.2: it supports every dependency
+this slice needs, and upgrading the SDK mid-project is risk with no payoff.
 
 - [ ] **Step 2: Verify the toolchain**
 
@@ -148,7 +157,7 @@ Expected: `lib/`, `test/`, `android/`, `pubspec.yaml` appear; `Nouri_Project_Bri
 In `android/app/build.gradle.kts`, inside `android { ... }`:
 
 ```kotlin
-compileSdk = 35
+compileSdk = 37   // plugins require it; see Global Constraints
 
 defaultConfig {
     applicationId = "com.nouri.nouri"
@@ -181,17 +190,26 @@ git commit -m "chore: scaffold Flutter project and document toolchain setup"
 
 **Files:**
 - Create: `lib/core/theme/nouri_colors.dart`, `lib/core/theme/nouri_theme.dart`
-- Create: `assets/fonts/` (Cairo Regular/SemiBold/Bold, Amiri Regular)
+- Create: `assets/fonts/` (Cairo variable, Amiri Regular + Bold, both OFL texts)
 - Modify: `pubspec.yaml` (fonts + assets)
 - Test: `test/core/theme/nouri_theme_test.dart`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `NouriColors` (static `Color` constants), `nouriTheme()` returning `ThemeData`, and the text style getters `NouriText.dhikr` / `NouriText.counter`
+- Produces: `NouriColors` (static `Color` constants), `nouriTheme()` returning `ThemeData`, `NouriText.dhikr` / `NouriText.counter`, and `cairo({double size, FontWeight weight, Color color, double? height})` — the helper that applies the variable weight axis
 
-- [ ] **Step 1: Download the fonts**
+- [x] **Step 1: Download the fonts** *(done ahead of Task 1, while the SDK downloaded)*
 
-Fetch Cairo (Regular 400, SemiBold 600, Bold 700) and Amiri (Regular 400) from Google Fonts and place the `.ttf` files in `assets/fonts/`. Both are SIL Open Font License — record that in `assets/fonts/LICENSE.md`.
+Google Fonts ships Cairo as a **variable font only** — `Cairo[slnt,wght].ttf`, axes `slnt` and `wght`. There are no static Regular/SemiBold/Bold files, and the upstream project publishes none either. Declaring one variable file under three `weight:` entries in `pubspec.yaml` does **not** work: Flutter would pick the file but render its default instance, so "bold" would come out regular.
+
+So the font is bundled once and the weight axis is driven explicitly with `fontVariations`. Files now in `assets/fonts/`:
+
+| File | Size | Purpose |
+|---|---|---|
+| `Cairo-Variable.ttf` | 586 KB | all interface text, weight via `wght` axis |
+| `Amiri-Regular.ttf` | 421 KB | athkar and Qur'an text |
+| `Amiri-Bold.ttf` | 404 KB | emphasis within religious text |
+| `OFL-Cairo.txt`, `OFL-Amiri.txt` | 4 KB each | SIL Open Font License, both families |
 
 - [ ] **Step 2: Write the failing test**
 
@@ -224,6 +242,26 @@ void main() {
   test('religious text style uses Amiri with generous line height', () {
     expect(NouriText.dhikr.fontFamily, 'Amiri');
     expect(NouriText.dhikr.height, greaterThanOrEqualTo(1.9));
+  });
+
+  test('cairo() carries the weight on the variable wght axis', () {
+    // Cairo is a variable font: without an explicit FontVariation the engine
+    // renders the default instance and "bold" silently comes out regular.
+    final bold = cairo(size: 14, weight: FontWeight.w700);
+    expect(bold.fontFamily, 'Cairo');
+    expect(bold.fontWeight, FontWeight.w700);
+    expect(bold.fontVariations, contains(const FontVariation('wght', 700)));
+
+    final regular = cairo(size: 14);
+    expect(regular.fontVariations, contains(const FontVariation('wght', 400)));
+  });
+
+  test('every theme text style carries its wght variation', () {
+    final t = nouriTheme().textTheme;
+    for (final style in [t.titleLarge!, t.bodyMedium!, t.bodySmall!]) {
+      expect(style.fontVariations, isNotEmpty,
+          reason: 'a Cairo style without fontVariations renders at default weight');
+    }
   });
 
   test('palette contains no red', () {
@@ -278,15 +316,31 @@ abstract final class NouriRadius {
   static const chip = 20.0;
 }
 
+/// Cairo is a variable font. `fontWeight` alone selects the file but renders
+/// its default instance, so every Cairo style must also set the `wght`
+/// variation. This helper is the only sanctioned way to build one.
+TextStyle cairo({
+  double size = 14,
+  FontWeight weight = FontWeight.w400,
+  Color color = NouriColors.text,
+  double? height,
+}) =>
+    TextStyle(
+      fontFamily: 'Cairo',
+      fontSize: size,
+      fontWeight: weight,
+      fontVariations: [FontVariation('wght', weight.value.toDouble())],
+      color: color,
+      height: height,
+    );
+
 abstract final class NouriText {
-  /// Athkar and Qur'an text only — never interface chrome.
+  /// Athkar and Qur'an text only — never interface chrome. Amiri ships static
+  /// Regular and Bold, so it needs no variation axis.
   static const dhikr = TextStyle(
     fontFamily: 'Amiri', fontSize: 21, height: 2.0, color: NouriColors.text,
   );
-  static const counter = TextStyle(
-    fontFamily: 'Cairo', fontSize: 46, fontWeight: FontWeight.w700,
-    color: NouriColors.text, height: 1.0,
-  );
+  static final counter = cairo(size: 46, weight: FontWeight.w700, height: 1.0);
 }
 
 ThemeData nouriTheme() {
@@ -307,40 +361,42 @@ ThemeData nouriTheme() {
       elevation: 0,
       margin: EdgeInsets.zero,
     ),
-    textTheme: const TextTheme(
-      titleLarge: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: NouriColors.text),
-      bodyMedium: TextStyle(fontSize: 14, color: NouriColors.text),
-      bodySmall:  TextStyle(fontSize: 12, color: NouriColors.muted),
-    ).apply(fontFamily: 'Cairo'),
+    textTheme: TextTheme(
+      titleLarge: cairo(size: 19, weight: FontWeight.w700),
+      bodyMedium: cairo(size: 14),
+      bodySmall: cairo(size: 12, color: NouriColors.muted),
+    ),
   );
 }
 ```
 
 - [ ] **Step 6: Register fonts and assets in `pubspec.yaml`**
 
+One entry per family. Cairo is declared once — listing the same variable file
+under several `weight:` keys would not produce different weights.
+
 ```yaml
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - assets/athkar/
     - assets/audio/
   fonts:
     - family: Cairo
       fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
+        - asset: assets/fonts/Cairo-Variable.ttf
     - family: Amiri
       fonts:
         - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
 ```
 
 - [ ] **Step 7: Run test to verify it passes**
 
 Run: `flutter test test/core/theme/nouri_theme_test.dart`
-Expected: PASS (4 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 8: Commit**
 
@@ -987,6 +1043,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/time/geo_config.dart';
 import 'package:nouri/core/time/prayer_times_service.dart';
 
+/// Kuwait is UTC+3 year-round with no DST. The test machine may be in any
+/// zone (this one is Egypt, which is +02:00 in winter and +03:00 in summer),
+/// and `adhan` returns times in the *runner's* local zone — so asserting on a
+/// raw `.hour` would make these tests pass or fail depending on where they run.
+/// Converting to Kuwait wall-clock first makes the assertions absolute.
+const _kuwaitOffset = Duration(hours: 3);
+DateTime kw(DateTime t) => t.toUtc().add(_kuwaitOffset);
+
 void main() {
   const kuwait = GeoConfig(
       latitude: 29.3759, longitude: 47.9774, method: 'kuwait', madhab: 'shafi');
@@ -1003,28 +1067,36 @@ void main() {
     }
   });
 
-  test('every prayer falls on the requested calendar day', () {
+  test('every prayer falls on the requested calendar day in Kuwait', () {
     final d = DateTime(2026, 9, 5);
     final t = service.forDate(d, kuwait);
     for (final slot in t.ordered) {
-      expect(slot.time.year, d.year);
-      expect(slot.time.month, d.month);
-      expect(slot.time.day, d.day);
+      final local = kw(slot.time);
+      expect(local.year, d.year, reason: slot.name);
+      expect(local.month, d.month, reason: slot.name);
+      expect(local.day, d.day, reason: slot.name);
     }
   });
 
   test('midsummer Kuwait times land in the expected windows', () {
     final t = service.forDate(DateTime(2026, 6, 21), kuwait);
-    expect(t.fajr.hour, inInclusiveRange(2, 4));
-    expect(t.dhuhr.hour, inInclusiveRange(11, 12));
-    expect(t.maghrib.hour, inInclusiveRange(18, 19));
-    expect(t.isha.hour, inInclusiveRange(19, 21));
+    expect(kw(t.fajr).hour, inInclusiveRange(2, 4));
+    expect(kw(t.dhuhr).hour, inInclusiveRange(11, 12));
+    expect(kw(t.maghrib).hour, inInclusiveRange(18, 19));
+    expect(kw(t.isha).hour, inInclusiveRange(19, 21));
   });
 
   test('midwinter Kuwait times shift later in the morning', () {
     final t = service.forDate(DateTime(2026, 12, 21), kuwait);
-    expect(t.fajr.hour, inInclusiveRange(4, 6));
-    expect(t.maghrib.hour, inInclusiveRange(16, 17));
+    expect(kw(t.fajr).hour, inInclusiveRange(4, 6));
+    expect(kw(t.maghrib).hour, inInclusiveRange(16, 17));
+  });
+
+  test('the same instant is returned regardless of the runner timezone', () {
+    // Guards the fix above: the absolute instant must not depend on local zone.
+    final t = service.forDate(DateTime(2026, 9, 5), kuwait);
+    expect(t.dhuhr.toUtc().hour, inInclusiveRange(8, 9),
+        reason: 'Kuwait dhuhr is around 11:50 local = 08:50 UTC');
   });
 
   test('next() returns the upcoming prayer, and null after isha', () {
@@ -1145,9 +1217,9 @@ DateTime iqamaFor(PrayerSlot slot, Map<String, int> offsetsMinutes) =>
 - [ ] **Step 5: Run the prayer-times test**
 
 Run: `flutter test test/core/time/prayer_times_service_test.dart`
-Expected: PASS (7 tests)
+Expected: PASS (8 tests)
 
-If the seasonal window assertions fail, suspect the machine timezone first: `adhan` returns times in the local zone. Confirm the test machine is on Asia/Kuwait, or convert explicitly before asserting.
+The `kw()` helper is what makes these assertions machine-independent. This development machine runs on Egypt time (UTC+2, +03:00 under DST), so asserting on a raw local `.hour` would pass in summer and fail in December. Never compare a prayer hour without converting to Kuwait wall-clock first.
 
 - [ ] **Step 6: Write the failing Hijri test**
 
