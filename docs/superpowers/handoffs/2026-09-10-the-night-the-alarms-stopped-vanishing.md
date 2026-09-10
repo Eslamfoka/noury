@@ -270,8 +270,12 @@ Unchanged, and every one of them needs a person:
 
 ## Start here next time
 
-Branch `slice1-religious-core`, head **`0a3d211`** plus this document, tree
-clean. 1199 tests, analyze clean, schema v13.
+Branch `slice1-religious-core`, last code commit **`0a3d211`**, head `466fde2`
+(this document and the correction to it), tree clean. 1199 tests, analyze
+clean, schema v13.
+
+All seven tabs were tapped through on the final release build afterwards —
+no exception in logcat, 289 alarms armed, no crash.
 
 **Your phone is on the 9 September build** and has none of tonight's work. The
 emulator has it and is powered off. Installing the new build on the HONOR is
@@ -297,3 +301,12 @@ build: 287 in, 287 out, identical.
   would have looked correct in tests and been wrong on the phone.
 - **Never build while the emulator runs.** 15.9 GB, and it was down to 4.3 GB
   free tonight with the emulator alone.
+- **Check the artefact before believing the measurement.** `flutter build apk
+  --debug` handed back a kernel built from different source after the source
+  was reverted, so the first before/after comparison was two copies of the same
+  build. It looked plausible. `rm -rf .dart_tool/flutter_build`, then grep the
+  kernel for a symbol only one side has.
+- **Say which of your numbers are measured and which are cited.** The 42s I
+  repeated from STATUS was neither wrong nor mine, and using it to explain a
+  change I had not timed produced a claim that had to be withdrawn a few hours
+  later.
