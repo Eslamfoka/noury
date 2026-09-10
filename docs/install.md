@@ -258,6 +258,16 @@ own power management is the variable an emulator cannot speak for.
 
 | 76 | **قيام الليل fires, and unlike the adhan** | ✅ 01:32:40 — `alert_qiyam_v2`, importance 4, `AUTO_CANCEL`, `category=reminder`, no full-screen intent, «الثلث الأخير — لو قدرت». The isha adhan in the same run: importance 5, `INSISTENT|AUTO_CANCEL|HIGH_PRIORITY`, `category=alarm` |
 
+| 77 | **Logging a prayer cancels its follow-ups, without a relaunch** | ✅ logged العشاء → exactly `19:53` and `20:53` disappeared from AlarmManager, 267 → 265. The adhan, the iqama, the water nudge, the task alarms and the 22:00 review all stayed |
+| 78 | **Logging a meal cancels its alert and its «عملتها؟»** | ✅ 265 → 263: `19:36` and `20:06` — thirty minutes apart, which is the documented gap |
+| 79 | **Neither cancels anything it should not** | ✅ nothing else moved in either diff, and nothing new was armed |
+
+**A caution on testing 77.** The first attempt logged المغرب and cancelled
+nothing, which looks exactly like the bug. It was not: maghrib's follow-ups
+(18:30, and a second capped short of isha) had *already passed*, so there was
+nothing left to cancel. Pick a prayer whose follow-ups are still in the
+future — dump the alarms first and check.
+
 **Never drive the phone by coordinate taps.** On 10 September Nouri went to the
 background between a screenshot and the next `input tap`, and the tap landed in
 WhatsApp — on the keyboard, in a real conversation. `am start`, `input

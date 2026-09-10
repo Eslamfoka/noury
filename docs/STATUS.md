@@ -88,7 +88,10 @@ next time*.
   launch. Tapping one opens the screen where that task is done.
 - **Nouri stops ringing about what it can already see you did** — completions
   derived from the logs you already keep, never stored twice, and the write
-  sites cancel their own question so it does not wait for a relaunch
+  sites cancel their own question so it does not wait for a relaunch.
+  **Measured on a device:** logging العشاء removed exactly its two follow-ups
+  (19:53, 20:53) and nothing else; logging a meal removed its alert and its
+  «عملتها؟» (19:36, 20:06 — the documented thirty minutes apart)
 - **A switch for the task alarms** in الإشعارات, on by default; it never
   touches the adhan
 - **A sound per task that sounds like the task** — nineteen channels, nineteen
