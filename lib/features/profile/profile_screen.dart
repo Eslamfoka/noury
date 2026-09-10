@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
 import 'build_plan_button.dart';
 import 'custom_fields_section.dart';
+import 'profile_photo.dart';
 import 'profile_providers.dart';
 
 /// الملف الشخصي — who Nouri is planning for.
@@ -218,45 +221,95 @@ class _Intro extends StatelessWidget {
       );
 }
 
-/// The photo the user asked for.
+/// The photo the user asked for — *«ممكن كمان ازود صورة شخصية»*.
 ///
-/// **Not yet pickable, and it says so rather than pretending.** Choosing an
-/// image needs a platform picker, which is a new dependency and a new set of
-/// permissions; that is not a thing to add and leave untested overnight. The
-/// column, the storage path and this slot are all in place, so wiring a picker
-/// to it is a small, separate change.
+/// **The one field whose honest answer is "nothing".** Every other row on this
+/// screen says what it changes, because the user is handing over his life in a
+/// form and is owed that. This one changes no plan, is not in the payload sent
+/// to Claude, and never leaves the phone. Saying so is better than letting a
+/// screen full of "this shapes your plan" imply that the picture does too.
 ///
-/// It was also the most tentative thing he asked for — *«ممكن كمان ازود صورة
-/// شخصية»* — and it feeds nothing in the plan, which is why it is the piece
-/// that waits rather than one of the fields.
-class _PhotoSlot extends StatelessWidget {
+/// A missing file draws the empty circle rather than a broken box. The path is
+/// in the database and the file is on disk, and the two can part company —
+/// cleared app storage, a restore onto another phone — so the widget treats
+/// the file as the truth and the row as a hint.
+class _PhotoSlot extends ConsumerWidget {
   const _PhotoSlot({this.path});
   final String? path;
 
   @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Container(
+  Widget build(BuildContext context, WidgetRef ref) {
+    // `existsSync` rather than leaning on `Image.file`'s `errorBuilder`.
+    //
+    // The builder does fire for a missing file, but only after the decode has
+    // been attempted and failed — so the user gets an empty circle first and
+    // the placeholder a moment later. One `stat` on one path, on a screen that
+    // does not scroll a list, is cheaper than that flicker. The `errorBuilder`
+    // stays as the second line: a file can exist and still be unreadable.
+    final stored = path == null ? null : File(path!);
+    final file = (stored != null && stored.existsSync()) ? stored : null;
+
+    return Row(
+      children: [
+        InkWell(
+          key: const ValueKey('profile-photo'),
+          customBorder: const CircleBorder(),
+          onTap: () async {
+            final stored = await ref.read(photoChooserProvider)();
+            if (stored == null) return;
+            await ProfileScreen._save(
+                ref, ProfileRowsCompanion(photoPath: Value(stored)));
+          },
+          child: Container(
             width: 64,
             height: 64,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: NouriColors.surface,
               shape: BoxShape.circle,
               border: Border.all(color: NouriColors.border),
             ),
-            child: const Icon(Icons.person_outline,
-                color: NouriColors.muted, size: 30),
+            child: file == null
+                ? const Icon(Icons.person_outline,
+                    color: NouriColors.muted, size: 30)
+                : Image.file(
+                    file,
+                    fit: BoxFit.cover,
+                    // The row said there was a photo and there is not. Draw
+                    // the empty circle: an app that shows a broken image is
+                    // telling the user something is wrong with *them*.
+                    errorBuilder: (_, _, _) => const Icon(
+                        Icons.person_outline,
+                        color: NouriColors.muted,
+                        size: 30),
+                  ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'الصورة الشخصية لسه مش متفعّلة — جاية في تحديث قريب.',
-              key: const ValueKey('profile-photo-pending'),
-              style: cairo(size: 11.5, color: NouriColors.muted, height: 1.7),
-            ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            file == null
+                ? 'دوس عشان تحط صورتك. مش بتروح لحد ومش بتغيّر الخطة — '
+                    'دي ليك انت.'
+                : 'الصورة محفوظة على تليفونك بس.',
+            key: const ValueKey('profile-photo-explain'),
+            style: cairo(size: 11.5, color: NouriColors.muted, height: 1.7),
           ),
-        ],
-      );
+        ),
+        if (file != null)
+          IconButton(
+            key: const ValueKey('profile-photo-clear'),
+            tooltip: 'شيل الصورة',
+            icon: const Icon(Icons.close, size: 18, color: NouriColors.muted),
+            onPressed: () async {
+              await ref.read(photoRemoverProvider)();
+              await ProfileScreen._save(
+                  ref, const ProfileRowsCompanion(photoPath: Value(null)));
+            },
+          ),
+      ],
+    );
+  }
 }
 
 class _Group extends StatelessWidget {

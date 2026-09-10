@@ -1,9 +1,14 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/data/db/nouri_database.dart';
 import 'package:nouri/features/planner/ai/plan_request.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nouri/features/home/home_providers.dart';
+import 'package:nouri/features/profile/profile_photo.dart';
 import 'package:nouri/features/profile/profile_screen.dart';
 
 import '../../support/harness.dart';
@@ -262,12 +267,146 @@ void main() {
   });
 
   group('the photo', () {
-    testWidgets('says it is not ready rather than looking broken', (t) async {
+    /// Pumps the screen with the two photo seams replaced.
+    ///
+    /// `testApp` takes no overrides — `Override` is not exported by
+    /// flutter_riverpod, so an overrides list can only be written inline where
+    /// `ProviderScope` can infer its type. Hence the scope built by hand here.
+    Future<void> pumpWithPhoto(
+      WidgetTester t, {
+      required Future<String?> Function() chooser,
+      Future<void> Function()? remover,
+    }) async {
+      await db.profileDao.get();
+      await t.pumpWidget(ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          photoChooserProvider.overrideWithValue(chooser),
+          if (remover != null) photoRemoverProvider.overrideWithValue(remover),
+        ],
+        child: testShell(const ProfileScreen()),
+      ));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets('an empty slot says what the photo does, which is nothing',
+        (t) async {
+      // The one field on this screen whose honest answer is "it changes
+      // nothing". Every other row promises the answer shapes the plan; this
+      // one must not be allowed to imply the same by standing among them.
       await withLargeSurface(t, size: tall, () async {
-        await pump(t);
-        expect(find.byKey(const ValueKey('profile-photo-pending')),
-            findsOneWidget);
+        await pumpWithPhoto(t, chooser: () async => null);
+
+        final line = t.widget<Text>(
+            find.byKey(const ValueKey('profile-photo-explain')));
+        expect(line.data, contains('مش بتروح لحد'));
+        expect(line.data, contains('مش بتغيّر الخطة'));
       });
+    });
+
+    testWidgets('choosing one writes the path into the profile', (t) async {
+      await withLargeSurface(t, size: tall, () async {
+        final file = File('${Directory.systemTemp.path}/nouri-test-photo.jpg')
+          ..writeAsStringSync('x');
+        addTearDown(() {
+          if (file.existsSync()) file.deleteSync();
+        });
+
+        await pumpWithPhoto(t, chooser: () async => file.path);
+        await t.tap(find.byKey(const ValueKey('profile-photo')));
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 50));
+
+        expect((await db.profileDao.get()).photoPath, file.path);
+      });
+    });
+
+    testWidgets('backing out of the picker changes nothing', (t) async {
+      await withLargeSurface(t, size: tall, () async {
+        await pumpWithPhoto(t, chooser: () async => null);
+        await t.tap(find.byKey(const ValueKey('profile-photo')));
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 50));
+
+        expect((await db.profileDao.get()).photoPath, isNull);
+        expect(find.byKey(const ValueKey('profile-photo-clear')), findsNothing);
+      });
+    });
+
+    testWidgets('a path whose file is gone draws the empty circle', (t) async {
+      // The row is in the database and the file is on disk, and the two can
+      // part company — cleared app storage, a restore onto another phone. An
+      // app that answers that with a broken image is telling the user
+      // something is wrong with them.
+      await withLargeSurface(t, size: tall, () async {
+        await db.profileDao.update(const ProfileRowsCompanion(
+            photoPath: Value('/nowhere/at/all/profile-1.jpg')));
+
+        await pumpWithPhoto(t, chooser: () async => null);
+        // `pump` advances the test's fake clock; reading a file happens on the
+        // real one. Without `runAsync` the load never gets a chance to fail,
+        // so the fallback never runs and this would assert about a frame the
+        // user never sees.
+        await t.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 200)));
+        await t.pump();
+
+        expect(t.takeException(), isNull);
+        expect(find.byIcon(Icons.person_outline), findsOneWidget);
+      });
+    });
+
+    testWidgets('a photo that is there can be taken back off', (t) async {
+      // A value the user can set is a value the user can unset — the rule a
+      // birth date had to learn after a stray gesture wrote 2001/1/1 into the
+      // real profile and there was no way back out of it.
+      await withLargeSurface(t, size: tall, () async {
+        final file = File('${Directory.systemTemp.path}/nouri-test-clear.jpg')
+          ..writeAsStringSync('x');
+        addTearDown(() {
+          if (file.existsSync()) file.deleteSync();
+        });
+        await db.profileDao
+            .update(ProfileRowsCompanion(photoPath: Value(file.path)));
+
+        var removed = false;
+        await pumpWithPhoto(
+          t,
+          chooser: () async => null,
+          remover: () async => removed = true,
+        );
+        await t.pump(const Duration(milliseconds: 50));
+
+        await t.tap(find.byKey(const ValueKey('profile-photo-clear')));
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 50));
+
+        expect(removed, isTrue, reason: 'the file has to go, not just the row');
+        expect((await db.profileDao.get()).photoPath, isNull);
+      });
+    });
+
+    testWidgets('the photo is not in what gets sent to Claude', (t) async {
+      // Stated here as well as in plan_request_test, because this is the
+      // screen that collects it and the screen that says it goes nowhere.
+      await db.profileDao.update(
+          const ProfileRowsCompanion(photoPath: Value('/data/profile-9.jpg')));
+
+      final request = PlanRequest(
+        profile: await db.profileDao.get(),
+        customFields: const [],
+        days: const [],
+        shiftType: 'morning',
+        prayerTimesByDay: const {},
+        targetSleepHours: 7,
+        eatingWindowStartHour: 12,
+        eatingWindowHours: 8,
+        waterTargetGlasses: 8,
+      );
+
+      expect(request.toPrompt(allowedTaskIds: const ['walk']),
+          isNot(contains('profile-9')));
     });
   });
 }
