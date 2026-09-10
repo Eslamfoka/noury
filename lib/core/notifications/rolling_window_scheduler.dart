@@ -286,13 +286,20 @@ class RollingWindowScheduler {
   /// moves by nearly two hours across the year.
   static const _eveningAthkarBeforeMaghrib = Duration(minutes: 45);
 
-  Future<void> rearm(SchedulingConfig cfg) async {
-    // Not cancelAll: reminders are scheduled outside this window, at ids from
-    // kOutOfWindowIdBase upward, and a settings change must not delete them.
-    // For a device carrying only window alarms this is identical to the
-    // cancelAll it replaces -- there is nothing at or above the base to spare.
-    await gateway.cancelAllBelow(kOutOfWindowIdBase);
+  /// Brings the device's alarms in line with [cfg].
+  ///
+  /// Two passes over one list: cancel what the window no longer wants, then
+  /// write what it does. Both are needed and neither may be skipped -- see
+  /// [_apply] for why the cancel pass is much shorter than it used to be.
+  Future<void> rearm(SchedulingConfig cfg) async => _apply(_windowFor(cfg));
 
+  /// Every notification the window should be holding, computed in memory.
+  ///
+  /// Pure: it touches no platform channel and no clock beyond [clock]. That
+  /// is what makes it possible to compare the whole intended window against
+  /// what is pending *before* writing any of it.
+  List<ScheduledNotification> _windowFor(SchedulingConfig cfg) {
+    final out = <ScheduledNotification>[];
     final now = clock();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -308,7 +315,7 @@ class RollingWindowScheduler {
         final name = _arabicNames[slot.name]!;
 
         if (cfg.notifyAdhan) {
-          await _put(
+          _put(out,
             date,
             _adhanSlots[slot.name]!,
             slot.time,
@@ -336,7 +343,7 @@ class RollingWindowScheduler {
 
             // A question, never an accusation - and it carries the action
             // that logs the prayer straight from the shade.
-            await _put(
+            _put(out,
               date,
               _followUpSlots[slot.name]!,
               asks.first,
@@ -351,7 +358,7 @@ class RollingWindowScheduler {
             if (second != null) {
               // Worded differently from the first. Repeating a question
               // verbatim an hour later reads as a machine, not a companion.
-              await _put(
+              _put(out,
                 date,
                 _followUp2Slots[slot.name]!,
                 second,
@@ -366,7 +373,7 @@ class RollingWindowScheduler {
         }
 
         if (cfg.notifyIqama) {
-          await _put(
+          _put(out,
             date,
             _iqamaSlots[slot.name]!,
             iqamaFor(slot, cfg.iqamaOffsets),
@@ -408,7 +415,7 @@ class RollingWindowScheduler {
       // tone, which is the honest trade and is replaced by the task alarm the
       // moment the app is next opened.
       if (cfg.notifyAthkar && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)) {
-        await _put(
+        _put(out,
           date,
           NotificationSlot.morningAthkar,
           _at(date, cfg.morningAthkarHour),
@@ -419,7 +426,7 @@ class RollingWindowScheduler {
           payload: 'athkar:morning',
         );
 
-        await _put(
+        _put(out,
           date,
           NotificationSlot.eveningAthkar,
           times.maghrib.subtract(_eveningAthkarBeforeMaghrib),
@@ -430,7 +437,7 @@ class RollingWindowScheduler {
           payload: 'athkar:evening',
         );
 
-        await _put(
+        _put(out,
           date,
           NotificationSlot.sleepAthkar,
           _at(date, cfg.sleepAthkarHour),
@@ -443,7 +450,7 @@ class RollingWindowScheduler {
       }
 
       if (cfg.notifyWird && (!cfg.notifyTasks || i >= kTaskAlarmWindowDays)) {
-        await _put(
+        _put(out,
           date,
           NotificationSlot.quranWird,
           _at(date, cfg.quranWirdHour),
@@ -467,7 +474,7 @@ class RollingWindowScheduler {
           shift: cfg.shift,
         );
         if (at != null) {
-          await _put(
+          _put(out,
             date,
             NotificationSlot.qiyam,
             at,
@@ -488,7 +495,7 @@ class RollingWindowScheduler {
         final fast = sunnahFastFor(tomorrow,
             hijriOffsetDays: cfg.hijriOffsetDays);
         if (fast != null) {
-          await _put(
+          _put(out,
             date,
             NotificationSlot.fastingEve,
             _at(date, cfg.fastingEveHour),
@@ -529,7 +536,7 @@ class RollingWindowScheduler {
             continue;
           }
 
-          await _put(
+          _put(out,
             date,
             slots[p],
             at,
@@ -553,7 +560,7 @@ class RollingWindowScheduler {
       // already have passed; three days would start putting stale figures in
       // front of the user. Every launch re-arms and overwrites both.
       if (cfg.budgetNote != null && i < kBudgetNudgeDays) {
-        await _put(
+        _put(out,
           date,
           NotificationSlot.budgetNudge,
           _at(date, cfg.budgetNudgeHour),
@@ -595,7 +602,7 @@ class RollingWindowScheduler {
           final id = taskAlarmId(date, alert.taskId);
           if (id == null) continue;
 
-          await _putRaw(
+          _putRaw(out,
             id: id,
             slot: NotificationSlot.taskAlert,
             when: alert.when,
@@ -609,7 +616,7 @@ class RollingWindowScheduler {
           final ask = alert.askAt;
           final askId = taskAlarmId(date, alert.taskId, ask: true);
           if (ask != null && askId != null) {
-            await _putRaw(
+            _putRaw(out,
               id: askId,
               slot: NotificationSlot.taskFollowUp,
               when: ask,
@@ -631,7 +638,7 @@ class RollingWindowScheduler {
       // The sheet it opens says «كل صلوات النهاردة متسجلة» when there is
       // nothing to do.
       if (cfg.notifyAdhan && i < kFollowUpWindowDays) {
-        await _put(
+        _put(out,
           date,
           NotificationSlot.dailySummary,
           _at(date, cfg.dailySummaryHour),
@@ -643,14 +650,62 @@ class RollingWindowScheduler {
         );
       }
     }
+
+    return out;
   }
 
-  /// Schedules with an **explicit** id rather than one derived from a slot.
+  /// Writes [wanted] to the device, cancelling only what it does not contain.
+  ///
+  /// **Why not clear the window first.** That is what this used to do -- one
+  /// `cancelAllBelow`, ~265 cancels, immediately followed by ~265 schedules of
+  /// mostly the same ids. Every one of those crosses a platform channel, and
+  /// every one also rewrites the plugin's entire boot cache: it loads the whole
+  /// JSON array, drops or replaces a single entry, and saves the array back. So
+  /// the pass was quadratic in the size of the window, and half of it bought
+  /// nothing. Measured at 42s on a cold emulator and 11.7s on the user's HONOR,
+  /// on every launch.
+  ///
+  /// Rewriting an id is already a cancel. `AlarmManager.setExactAndAllowWhileIdle`
+  /// cancels whatever alarm is held under an equal PendingIntent before setting
+  /// the new one, and the plugin builds that PendingIntent from the notification
+  /// id as its request code with `FLAG_UPDATE_CURRENT` -- so the ids being
+  /// rewritten do not need cancelling, and the ones that are *not* being
+  /// rewritten are exactly the ones that do.
+  ///
+  /// **Nothing about recovery changes.** Every wanted alarm is still written
+  /// unconditionally on every call, so a device that lost its alarms to a
+  /// force-stop gets all of them back on the next launch exactly as before.
+  /// Only the cancel pass got shorter, and it got shorter by dropping work
+  /// whose result was overwritten a moment later.
+  ///
+  /// The cancel pass still enumerates what is *pending* rather than recomputing
+  /// ids, which is what makes widening `kSlotsPerDay` safe: an alarm numbered
+  /// under an old stride is not in [wanted], so it is cancelled even though no
+  /// current slot could name it. See the note on that constant.
+  Future<void> _apply(List<ScheduledNotification> wanted) async {
+    final keep = {for (final n in wanted) n.id};
+
+    // Below the base only: reminders live at kOutOfWindowIdBase and upward and
+    // are not this window's to cancel. Re-arming used to take them with it.
+    for (final id in await gateway.pendingIds()) {
+      if (id < kOutOfWindowIdBase && !keep.contains(id)) {
+        await gateway.cancel(id);
+      }
+    }
+
+    for (final n in wanted) {
+      await gateway.schedule(n);
+    }
+  }
+
+  /// Adds a notification with an **explicit** id rather than one derived from
+  /// a slot.
   ///
   /// Task alarms and reminders both live outside the day/slot numbering, so
   /// the slot they carry is only a label. Everything else about [_put] holds,
   /// including never scheduling into the past.
-  Future<void> _putRaw({
+  void _putRaw(
+    List<ScheduledNotification> out, {
     required int id,
     required NotificationSlot slot,
     required DateTime when,
@@ -659,10 +714,10 @@ class RollingWindowScheduler {
     required String body,
     required String channel,
     String? payload,
-  }) async {
+  }) {
     if (!when.isAfter(now)) return;
 
-    await gateway.schedule(ScheduledNotification(
+    out.add(ScheduledNotification(
       id: id,
       slot: slot,
       when: when,
@@ -676,7 +731,8 @@ class RollingWindowScheduler {
   DateTime _at(DateTime date, int hour) =>
       DateTime(date.year, date.month, date.day, hour);
 
-  Future<void> _put(
+  void _put(
+    List<ScheduledNotification> out,
     DateTime date,
     NotificationSlot slot,
     DateTime when,
@@ -685,12 +741,12 @@ class RollingWindowScheduler {
     required String body,
     required String channel,
     String? payload,
-  }) async {
+  }) {
     // Today's already-passed times are simply skipped. Scheduling into the
     // past would fire a burst of notifications the moment the app opens.
     if (!when.isAfter(now)) return;
 
-    await gateway.schedule(ScheduledNotification(
+    out.add(ScheduledNotification(
       id: notificationIdFor(date, slot),
       slot: slot,
       when: when,

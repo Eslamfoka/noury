@@ -40,3 +40,4 @@ desktop.ini
 # Secrets — never commit an API key
 .env
 secrets.json
+flutter_*.log

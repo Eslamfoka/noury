@@ -262,7 +262,16 @@ void main() {
       ));
 
       expect(gateway.scheduled.where((n) => n.id == stale.id), isEmpty);
-      expect(gateway.cancelledBelow, [kReminderIdBase]);
+      expect(gateway.cancelled, contains(stale.id),
+          reason: 'the stale alarm has to be named and cancelled, not merely '
+              'left out of the rewrite');
+
+      // Stated as the property rather than as the call that used to deliver
+      // it. `rearm` no longer clears its whole range and writes it back — it
+      // cancels only what the new window does not contain — so what matters
+      // here is that the floor is still respected: nothing at or above the
+      // reminder base is ever cancelled by the adhan window.
+      expect(gateway.cancelled.where((id) => id >= kReminderIdBase), isEmpty);
     });
   });
 }

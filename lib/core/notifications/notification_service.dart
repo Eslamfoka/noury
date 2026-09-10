@@ -82,17 +82,26 @@ class NotificationService {
       onDidReceiveBackgroundNotificationResponse: onBackgroundResponse,
     );
 
-    // Delete superseded channels before creating the current ones, so the
-    // settings screen never shows two «الأذان» rows with only one of them live.
-    for (final id in retiredChannelIds) {
+    // One read, then only the writes that would actually change something.
+    //
+    // This runs **before the first frame** — `main` awaits it — so it is the
+    // one part of notification setup the user waits behind. It used to issue
+    // 33 deletes and ~30 creates unconditionally, every launch, and from the
+    // second launch onward every one of them was a no-op. `channelWorkFor`
+    // says which are not; see the note there for why name and description are
+    // the only fields worth comparing.
+    //
+    // Deletes go first, so the settings screen never shows two «الأذان» rows
+    // with only one of them live.
+    final work = channelWorkFor(
+      existing: await _android?.getNotificationChannels() ??
+          const <AndroidNotificationChannel>[],
+    );
+
+    for (final id in work.toDelete) {
       await _android?.deleteNotificationChannel(channelId: id);
     }
-
-    // Everything except the adhan. The five adhan channels are created
-    // natively instead — see below — and creating them from both places is the
-    // exact drift this project has already paid for twice.
-    for (final channel in nouriChannels) {
-      if (isAdhanChannel(channel.id)) continue;
+    for (final channel in work.toCreate) {
       await _android?.createNotificationChannel(channel);
     }
 
@@ -142,27 +151,46 @@ class NotificationService {
     await _plugin.cancel(id: id);
   }
 
+  /// The one thing a *scheduler* needs to know, and nothing else.
+  ///
+  /// [readStatus] answers four questions across four platform round-trips, and
+  /// three of them exist for the settings panel. Only this one changes what
+  /// gets scheduled, so only this one belongs on the startup path — where the
+  /// full read was measured at about 5.5s on a cold-booted emulator, delaying
+  /// the window arm behind it for no purpose. The expensive part is almost
+  /// certainly `permission_handler` initialising on a cold start, and the
+  /// settings panel is a fine place to pay for that: it opens with a spinner,
+  /// while startup does not.
+  Future<NotificationMode> readMode() async {
+    final exact = await _android?.canScheduleExactNotifications() ?? false;
+    return exact ? NotificationMode.exact : NotificationMode.inexact;
+  }
+
   /// Reads the live device state. Nothing here is cached — the settings panel
   /// must show what is true right now, not what was true at launch.
+  ///
+  /// The four reads are independent, so they are asked together rather than
+  /// one after another: the screen waits for the slowest, not for the sum.
   Future<NotificationStatus> readStatus() async {
-    final enabled = await _android?.areNotificationsEnabled() ?? false;
-    final exact = await _android?.canScheduleExactNotifications() ?? false;
-    final batteryExempt =
-        await Permission.ignoreBatteryOptimizations.isGranted;
-
     // Read off the live channel, not from the request. `setBypassDnd(true)` is
     // accepted and silently ignored without policy access, so the only honest
     // answer comes from asking the system what the channel actually is.
     final adhanIds = {...adhanChannelIds, ...adhanBypassChannelIds};
-    final report =
-        await const DndBypass().channelReport(ids: adhanIds.toList());
+
+    final (enabled, exact, batteryExempt, report) = await (
+      _android?.areNotificationsEnabled() ?? Future.value(false),
+      _android?.canScheduleExactNotifications() ?? Future.value(false),
+      Permission.ignoreBatteryOptimizations.isGranted,
+      const DndBypass().channelReport(ids: adhanIds.toList()),
+    ).wait;
+
     final adhanRows = report.where((c) => adhanIds.contains(c.id));
     final bypassing =
         adhanRows.isNotEmpty && adhanRows.every((c) => c.bypassDnd);
 
     return NotificationStatus(
-      notificationsEnabled: enabled,
-      exactAlarmsAllowed: exact,
+      notificationsEnabled: enabled ?? false,
+      exactAlarmsAllowed: exact ?? false,
       batteryOptimised: !batteryExempt,
       adhanBypassesDnd: bypassing,
     );
@@ -209,8 +237,7 @@ class NotificationService {
   /// failed.
   Future<void> sendTestNotification() async {
     await _ensureReady();
-    final status = await readStatus();
-    final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
+    final gateway = LocalNotificationGateway(_plugin, mode: await readMode());
     await gateway.showNow(
       title: 'نوري — تجربة الأذان',
       body: 'كده هيبقى شكل تنبيه الأذان وصوته.',
@@ -235,8 +262,7 @@ class NotificationService {
     required String body,
   }) async {
     await _ensureReady();
-    final status = await readStatus();
-    final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
+    final gateway = LocalNotificationGateway(_plugin, mode: await readMode());
     await gateway.showNow(
       title: title,
       body: body,
@@ -277,8 +303,7 @@ class NotificationService {
     Duration delay = const Duration(minutes: 2),
   }) async {
     await _ensureReady();
-    final status = await readStatus();
-    final gateway = LocalNotificationGateway(_plugin, mode: status.mode);
+    final gateway = LocalNotificationGateway(_plugin, mode: await readMode());
     final when = DateTime.now().add(delay);
 
     await gateway.schedule(ScheduledNotification(

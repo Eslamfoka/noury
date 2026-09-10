@@ -74,7 +74,84 @@ void main() {
 
     expect(second, equals(first));
     expect(second.toSet().length, second.length, reason: 'duplicate IDs');
-    expect(gateway.cancelAllCount, 2, reason: 'each rearm clears first');
+  });
+
+  test('a re-arm does not cancel the alarms it is about to rewrite', () async {
+    // The cost of a launch, in one assertion.
+    //
+    // `rearm` used to clear the whole window and then write all of it back:
+    // ~265 cancels followed by ~265 schedules, every launch. Each of those
+    // crosses a platform channel, and each one also rewrites the plugin's
+    // entire boot cache — it loads the whole JSON array, removes or replaces
+    // one entry, and saves the array again — so the pass is quadratic in the
+    // size of the window. Measured at 42s on a cold emulator and 11.7s on the
+    // user's HONOR.
+    //
+    // Half of it was never needed. Scheduling an id that is already pending
+    // replaces it: AlarmManager cancels the alarm held under an equal
+    // PendingIntent before setting the new one, and the plugin keys that
+    // PendingIntent on the notification id. So cancelling an id the very next
+    // loop is about to write is paying twice for one outcome.
+    await scheduler.rearm(config);
+    final armed = (await gateway.pendingIds()).toSet();
+    gateway.cancelled.clear();
+
+    await scheduler.rearm(config);
+
+    expect(gateway.cancelled.where(armed.contains), isEmpty,
+        reason: 'cancelled ids the same pass then rewrote');
+    expect(gateway.cancelAllCount, 0,
+        reason: 'a blanket clear is the thing being removed');
+  });
+
+  test('an alarm that drops out of the window is still cancelled', () async {
+    // The other half, which is the half that has to keep working. Turning the
+    // iqama off must leave nothing behind ringing.
+    await scheduler.rearm(config);
+    final iqamaIds = gateway
+        .ofSlot(NotificationSlot.iqamaAsr)
+        .map((n) => n.id)
+        .toSet();
+    expect(iqamaIds, isNotEmpty);
+    gateway.cancelled.clear();
+
+    await scheduler.rearm(config.copyWith(notifyIqama: false));
+
+    expect(gateway.ofSlot(NotificationSlot.iqamaAsr), isEmpty);
+    expect(gateway.cancelled.toSet().containsAll(iqamaIds), isTrue,
+        reason: 'every dropped iqama alarm must be named and cancelled');
+  });
+
+  test('a re-arm clears an alarm it could never have numbered itself',
+      () async {
+    // The orphan property, restated against `rearm` rather than against the
+    // gateway, because `rearm` is now the thing that decides what to cancel.
+    //
+    // Widening `kSlotsPerDay` renumbers every future alarm. Alarms already in
+    // AlarmManager under the old stride would be unreachable if the clear
+    // worked by recomputing ids — the app could never name them again, so it
+    // could never cancel them, and they would go on firing. It works by
+    // enumerating what is *pending* and cancelling anything under the ceiling
+    // the new window does not want, whatever its number.
+    const orphan = 78000 * 32 + 7;
+    const reminder = kOutOfWindowIdBase + 1;
+    for (final id in [orphan, reminder]) {
+      await gateway.schedule(ScheduledNotification(
+        id: id,
+        slot: NotificationSlot.adhanFajr,
+        when: DateTime(2026, 9, 9),
+        title: 't',
+        body: 'b',
+        channelId: 'adhan_v2',
+      ));
+    }
+
+    await scheduler.rearm(config);
+
+    expect(gateway.cancelled, contains(orphan));
+    expect(gateway.scheduled.map((n) => n.id), contains(reminder),
+        reason: 'a reminder lives above the ceiling and must survive');
+    expect(gateway.cancelled, isNot(contains(reminder)));
   });
 
   test('the window stays inside the Android pending-alarm budget', () async {

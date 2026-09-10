@@ -177,8 +177,14 @@ Future<void> _warmUpInBackground({
   try {
     await _phase('timezone', NotificationService.initTimezone);
 
-    final status = await _phase('readStatus', notifications.readStatus);
-    final gateway = LocalNotificationGateway(plugin, mode: status.mode);
+    // Deliberately `readMode`, not `readStatus`. The full read answers four
+    // questions and three of them exist for the settings panel — whether
+    // notifications are on at all, whether the battery optimiser is still
+    // holding Nouri, and how the adhan channels stand against DND. None of
+    // those changes what gets scheduled, and asking them here put about 5.5s
+    // of cold-start platform work in front of the window arm for nothing.
+    final mode = await _phase('readMode', notifications.readMode);
+    final gateway = LocalNotificationGateway(plugin, mode: mode);
     // So a snooze pressed while the app happens to be running reuses the
     // gateway that already exists, rather than silently doing nothing.
     _snoozeGateway = gateway;

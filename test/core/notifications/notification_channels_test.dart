@@ -273,6 +273,89 @@ void main() {
     });
   });
 
+  group('the channel work a launch actually has to do', () {
+    // This runs before the first frame, so what it does not do is the point.
+
+    test('a device that has never run Nouri gets every channel created', () {
+      final work = channelWorkFor(existing: const []);
+
+      expect(work.toDelete, isEmpty, reason: 'nothing to retire yet');
+      expect(
+        work.toCreate.map((c) => c.id).toSet(),
+        nouriChannels
+            .where((c) => !isAdhanChannel(c.id))
+            .map((c) => c.id)
+            .toSet(),
+      );
+    });
+
+    test('a device already holding them gets no writes at all', () {
+      // The steady state, which is every launch after the first. ~60 platform
+      // round-trips before the first frame, all of them no-ops, is what this
+      // removes.
+      final work = channelWorkFor(
+        existing: nouriChannels.where((c) => !isAdhanChannel(c.id)),
+      );
+
+      expect(work.toDelete, isEmpty);
+      expect(work.toCreate, isEmpty);
+    });
+
+    test('a retired id is deleted only while it is still there', () {
+      final present = channelWorkFor(existing: [
+        AndroidNotificationChannel(retiredChannelIds.first, 'قديم'),
+      ]);
+      expect(present.toDelete, [retiredChannelIds.first]);
+
+      final gone = channelWorkFor(existing: const []);
+      expect(gone.toDelete, isEmpty,
+          reason: 'deleting a channel that is not there is a wasted call');
+    });
+
+    test('a renamed channel is written again', () {
+      // Name and description are the only two fields a later create can still
+      // change — everything else is frozen when the channel is born — so they
+      // are the only two worth comparing.
+      final target = nouriChannels.firstWhere((c) => !isAdhanChannel(c.id));
+      final stale = [
+        for (final c in nouriChannels.where((c) => !isAdhanChannel(c.id)))
+          if (c.id == target.id)
+            AndroidNotificationChannel(c.id, 'اسم قديم',
+                description: c.description)
+          else
+            c,
+      ];
+
+      final work = channelWorkFor(existing: stale);
+      expect(work.toCreate.map((c) => c.id), [target.id]);
+    });
+
+    test('a changed description is written again too', () {
+      final target = nouriChannels.firstWhere(
+          (c) => !isAdhanChannel(c.id) && c.description != null);
+      final stale = [
+        for (final c in nouriChannels.where((c) => !isAdhanChannel(c.id)))
+          if (c.id == target.id)
+            AndroidNotificationChannel(c.id, c.name, description: 'وصف قديم')
+          else
+            c,
+      ];
+
+      expect(channelWorkFor(existing: stale).toCreate.map((c) => c.id),
+          [target.id]);
+    });
+
+    test('the adhan channels are never created from here', () {
+      // They are created natively, with setBypassDnd, which this plugin cannot
+      // express. Two places creating one channel is the drift that has already
+      // cost this project قيام and the budget note.
+      final work = channelWorkFor(existing: const []);
+      for (final c in work.toCreate) {
+        expect(isAdhanChannel(c.id), isFalse, reason: c.id);
+      }
+    });
+  });
+
   group('retired channels', () {
     test('adhan_v1 is retired so its locked importance is abandoned', () {
       // MagicOS downgraded adhan_v1 to IMPORTANCE_DEFAULT and set

@@ -99,6 +99,64 @@ final nouriChannels = <AndroidNotificationChannel>[
     ),
 ];
 
+/// The channel writes a launch actually has to make, given what the device
+/// already holds.
+///
+/// **Why this is worth computing rather than just doing.** Startup used to
+/// delete all 33 retired ids and create all ~30 current ones on every launch,
+/// unconditionally, before Flutter was allowed to draw its first frame. Every
+/// one of those is a platform round-trip, and on the second launch onward
+/// every single one of them is a no-op: the retired channels were deleted the
+/// first time and never come back, and creating a channel that already exists
+/// changes nothing, because Android freezes a channel's sound, importance and
+/// DND bypass at creation. One read of what the device holds costs one
+/// round-trip and usually reduces the rest to zero.
+///
+/// A create is still issued when the **name or description** differs, which
+/// are the only two fields Android will let a later create update. Everything
+/// else about a channel is settled when it is born — which is why a retuned
+/// tone means a new id rather than an edit, and why that rule is safe to lean
+/// on here.
+///
+/// [existing] is what the system reports, not what Nouri asked for. On a
+/// device that has never run Nouri it is empty and this returns the full
+/// creation list, exactly as before.
+({List<String> toDelete, List<AndroidNotificationChannel> toCreate})
+    channelWorkFor({
+  required Iterable<AndroidNotificationChannel> existing,
+  Iterable<String> retired = retiredChannelIds,
+  Iterable<AndroidNotificationChannel>? wanted,
+}) {
+  final live = {for (final c in existing) c.id: c};
+
+  return (
+    toDelete: [
+      for (final id in retired)
+        if (live.containsKey(id)) id,
+    ],
+    toCreate: [
+      // The adhan channels are excluded here and created natively instead —
+      // they are the only ones that need `setBypassDnd`, which this plugin
+      // cannot express. Creating them from both places is the exact drift this
+      // project has already paid for twice.
+      for (final channel in wanted ?? nouriChannels)
+        if (!isAdhanChannel(channel.id))
+          if (_needsWriting(live[channel.id], channel)) channel,
+    ],
+  );
+}
+
+bool _needsWriting(
+  AndroidNotificationChannel? live,
+  AndroidNotificationChannel wanted,
+) {
+  if (live == null) return true;
+  // Name and description are the whole of what a create can still change on a
+  // channel that exists. Comparing more than that would mean re-issuing writes
+  // Android is going to ignore.
+  return live.name != wanted.name || live.description != wanted.description;
+}
+
 /// What a channel *is*, looked up by id.
 ///
 /// An adhan channel has two ids — the ordinary one and the twin that bypasses
