@@ -116,7 +116,7 @@ is not. After a force-stop, opening Nouri once re-arms everything.
 | 32 | A **real** adhan fires at dhuhr/asr/maghrib/isha | ☐ |
 | 33 | The iqama notification follows at the configured offset | ☐ |
 | 34 | «صليت» on the follow-up opens the log sheet for that prayer | ☐ |
-| 35 | **After a reboot**, the next adhan still fires without opening the app | ☐ |
+| 35 | **After a reboot**, the next adhan still fires without opening the app | ☐ on the phone — ✅ on the emulator, see check 57 |
 | 36 | **After a full day untouched**, notifications still arrive | ☐ |
 | 37 | **After several days untouched** — catches OEM battery-kill | ☐ |
 | 38 | Airplane mode changes nothing (the app makes no network calls) | ☐ |
@@ -218,6 +218,34 @@ adb shell dumpsys alarm | Select-String "com.nouri.nouri" -Context 0,2
 
 A reminder's alarm is an `RTC_WAKEUP` whose `origWhen=` is the reminder's own
 date and time. It must survive the toggle. Verified on the emulator; not here.
+
+---
+
+### Verified on the emulator, 10 September 2026 (nourdm-api35, Android 15)
+
+The four things every previous version of this file had to leave open. All on
+the emulator; **none of it has been repeated on the HONOR**, where MagicOS's
+own power management is the variable an emulator cannot speak for.
+
+| # | Check | Result |
+|---|-------|--------|
+| 57 | **After a reboot, the alarms are still armed** — app never opened | ✅ 289 in, 289 out, `diff` of every `origWhen` empty, all still `window=0 exactAllowReason=policy_permission`. Restored within ~90s of `BOOT_COMPLETED`. Repeated on the 10 Sep build: 287 → 287, identical. |
+| 58 | **A restored alarm actually fires** — app still never opened | ✅ `11:45:00.006 id=156419 channel=adhan_dhuhr_v3d importance=5 flags=INSISTENT|AUTO_CANCEL|HIGH_PRIORITY category=alarm` |
+| 59 | **An alarm arrives in deep Doze**, with Nouri *not* on the deviceidle whitelist | ✅ `mState=IDLE`, screen off, battery unplugged → `12:00 id=156484 channel=alert_iqama_v3` |
+| 60 | **The day turning over** re-anchors the window and orphans nothing | ✅ `09-10 11:45 → 09-24 01:32` became `09-11 11:45 → 09-25 01:32`, 290 alarms, no 09-10 alarm left behind |
+| 61 | **Force-stop still heals on the next launch**, after the re-arm change | ✅ 0 → 71 → 121 → 176 → 224 → 281 → 290 |
+| 62 | **A launch no longer empties the alarm list first** | ✅ was 290 → 13 over ~10s; now flat at 290 across thirty samples, producing an identical window |
+| 63 | **28 channels live, 35 retired ones deleted** after the `channelWorkFor` change | ✅ 5 adhan `_v3d` + 19 task tones + `athkar_v1`, `wird_v1`, `general_v1` |
+| 64 | **الملف الشخصي → the photo picks, stores, renders and clears** | ✅ `PhotoPickerGetContentActivity` opens saying "This app can only access the photos you select"; stored as `files/profile-<ms>.png` (27 KB); × removed it and left `snoozes.json` untouched |
+
+To reproduce 57 and 58, note the two traps that make a false negative easy:
+
+- **Do not `force-stop` and then conclude anything from the first dump.** The
+  restore runs a little after `BOOT_COMPLETED`; at +5s the count was 0 and at
+  +90s it was 289.
+- **`adb shell date -s` wants `MMDDhhmm[[CC]YY][.ss]`.** `date -s "2026-09-10
+  11:44:30"` is rejected as "two dates at once", and `date -s 20260910.114430`
+  silently lands in 2010.
 
 **Check 51 decides the shape of the feature.** If the HONOR reports no step
 sensor, the walk screen is honest about it and the feature needs the

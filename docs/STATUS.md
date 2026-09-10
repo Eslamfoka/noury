@@ -1,18 +1,18 @@
 # Nouri — status
 
-Last updated **9 September 2026**, evening — after the phone install and the
-DND proof.
+Last updated **10 September 2026** — after the night that found the re-arm
+hole.
 
-**Next session starts at** `docs/superpowers/handoffs/2026-09-10-the-phone-takes-the-night-work.md` → *Start here
+**Next session starts at** `docs/superpowers/handoffs/2026-09-10-the-night-the-alarms-stopped-vanishing.md` → *Start here
 next time*.
 
 | | |
 |---|---|
 | Branch | `slice1-religious-core` — **not merged to `master`** |
-| Head | `f53c496`, pushed to origin, tree clean |
-| Tests | **1176 passing**, `flutter analyze` clean |
-| On the phone | **current build, installed 9 Sep 19:49** (HONOR VNE-N41). Holds notification-policy access; 265 alarms armed; the adhan bypasses DND and has been heard |
-| On the emulator | an older build. Powered off |
+| Head | `0a3d211`, pushed to origin, tree clean |
+| Tests | **1199 passing**, `flutter analyze` clean |
+| On the phone | the **9 Sep build** (HONOR VNE-N41) — it does *not* have the re-arm fix. Holds notification-policy access; 265 alarms armed; the adhan bypasses DND and has been heard |
+| On the emulator | tonight's build, verified across reboot and Doze. Powered off |
 | Schema | v13 |
 
 `master` stays clean until Slice 1 is tested and merging is approved.
@@ -95,7 +95,13 @@ next time*.
   `alert_sound_character_test`, which reads the PCM.
 - **الملف الشخصي** — who Nouri is planning for, with every field stating what
   it changes, fields the user adds himself, and «ابني خطتي». Nothing on it is
-  a score, and it works empty.
+  a score, and it works empty. **A photo now picks**, through the system photo
+  picker with no permission asked, stored beside the database; its own line
+  says it changes nothing and goes nowhere, because that is true.
+- **Opening the app no longer empties the alarm list first.** A re-arm cancels
+  only what the new window does not contain and writes the rest over the top —
+  rewriting an id is already a cancel. Measured: the armed count used to fall
+  from 290 to 13 over ten seconds of every launch; it now stays flat at 290.
 - **Every one of the nineteen is reachable, and nothing rings twice.** The
   iqama, قيام, the water nudge, the budget note, the fasting offer, the daily
   review and the user's own reminders each moved off the shared channel onto
@@ -191,8 +197,21 @@ next time*.
   exactly 14 days, exact alarms permitted, Nouri whitelisted from battery
   optimisation, and the MagicOS importance cap measured (`adhan_v2` at
   `mImportance=4`, `mOriginalImp=5`, importance field locked).
-- **Still untested on real hardware:** reboot survival, battery-kill, multi-day
-  reliability, and **no notification of any kind has been watched arriving**.
+- **Reboot survival, Doze and the day turning over are now measured — on the
+  emulator, not on the phone.** 289 alarms went into a reboot and 289 came
+  out, every `origWhen` identical and every one still exact, with the app never
+  opened; one of the restored alarms then fired (`adhan_dhuhr_v3d`, insistent,
+  alarm importance, app still never opened). The iqama arrived in **deep Doze**
+  with Nouri *not* on the deviceidle whitelist. A day rolled over cleanly — the
+  window re-anchored to the new date with nothing orphaned. **None of it has
+  been repeated on the HONOR**, where MagicOS's own power management is the
+  variable an emulator cannot speak for.
+- **Still untested anywhere:** battery-kill across several real days.
+- **The re-arm used to leave a ten-second hole in every launch.** With the app
+  armed and then opened, the count AlarmManager actually held fell 290 → 13
+  before climbing back — 82% to 99% of the fortnight missing, on every launch,
+  with nothing saying so. Fixed 10 September; the count is now flat. Worth
+  knowing because **the build on the phone still has it**.
 - **Prayer times come from the stored Kuwait coordinates, not the device.**
   `ACCESS_COARSE_LOCATION: granted=false` on the phone. By design — Nouri is
   never blocked on a permission — but they are not from GPS.
@@ -282,6 +301,24 @@ itself tested both ways, so none can pass vacuously.
 - **Alarm ids are keyed on the task, never on the alert kind.** Several tasks
   share a kind — both meals, all three knowledge faces — and keying on the kind
   gave them the same id, so the later silently overwrote the earlier.
+- **Rewriting an alarm id is already a cancel**, so a re-arm cancels only the
+  ids the new window does not contain. `AlarmManager.setExactAndAllowWhileIdle`
+  cancels whatever is held under an equal PendingIntent before setting the new
+  one, and the plugin keys that PendingIntent on the notification id with
+  `FLAG_UPDATE_CURRENT` — read in the plugin's source, not assumed. The cancel
+  pass still enumerates what is *pending* rather than recomputing ids, which is
+  what keeps widening `kSlotsPerDay` safe.
+- **The startup path asks `readMode`, not `readStatus`.** The full read answers
+  four questions across four platform round-trips and three of them exist for
+  the settings panel. Only the exact-alarm answer changes what gets scheduled.
+- **A test fake must not be kinder than the platform.** The fake gateway
+  appended on `schedule` where Android replaces by id; left that way, the
+  re-arm change would have looked correct in tests and been wrong on the phone.
+- **The profile photo asks for no permission.** The system photo picker returns
+  the one chosen image and nothing else. `READ_MEDIA_IMAGES` would buy nothing,
+  and it is not a trade worth offering the user for a thumbnail. The photo is
+  also the one field on that screen whose stated effect is *nothing* — it is
+  not in `PlanRequest` and a test asserts it never reaches the payload.
 - **One place builds the alarm window's config**, `schedulingConfigFromDb`.
   There were two and they drifted, which cost قيام and the budget note on
   every launch. A guard fails the build on a second one.
@@ -332,7 +369,8 @@ itself tested both ways, so none can pass vacuously.
 
 ```
 docs/setup.md          toolchain, timezone handling, adhan sound swap
-docs/install.md        device checks; 40-47 are the adhan_v2 ones, 48-56 Slice 1b
+docs/install.md        device checks; 40-47 are the adhan_v2 ones, 48-56 Slice
+                       1b, 57-64 the reboot/Doze/re-arm run of 10 September
 docs/STATUS.md         this file
 docs/superpowers/handoffs/    dated session handoffs
 docs/planner-decisions.md     the six Slice 2 answers, and why each is reversible
