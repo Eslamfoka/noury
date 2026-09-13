@@ -51,7 +51,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -145,6 +145,16 @@ class NouriDatabase extends _$NouriDatabase {
           // the day is left to place anything in.
           if (from < 13) {
             await m.addColumn(profileRows, profileRows.dutyHours);
+          }
+
+          // v14 adds the AI connection: which service, which model, where,
+          // and when it was last seen to work. Not the key — that is in the
+          // platform keystore, never in this file.
+          if (from < 14) {
+            await m.addColumn(settingsRows, settingsRows.aiProvider);
+            await m.addColumn(settingsRows, settingsRows.aiModel);
+            await m.addColumn(settingsRows, settingsRows.aiBaseUrl);
+            await m.addColumn(settingsRows, settingsRows.aiConnectedAt);
           }
         },
       );

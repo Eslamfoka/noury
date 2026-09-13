@@ -135,6 +135,28 @@ class SettingsRows extends Table {
   BoolColumn get allowSimulatedSteps =>
       boolean().withDefault(const Constant(false))();
 
+  /// Which AI the user connected — anthropic | openai | gemini | compatible.
+  ///
+  /// «مش لازم كلود ... عادي ai بس اي»: he brings a key from whichever
+  /// service he has, so the provider is a setting and not a constant. The
+  /// **key itself is never here** — it lives in the platform keystore through
+  /// `flutter_secure_storage`, and a database backup or a debug dump must not
+  /// carry it.
+  TextColumn get aiProvider =>
+      text().withDefault(const Constant('anthropic'))();
+
+  /// The model to call. Empty means the provider's default.
+  TextColumn get aiModel => text().withDefault(const Constant(''))();
+
+  /// For the OpenAI-compatible provider only: where to send the request.
+  /// Empty for the three named providers, whose hosts are fixed.
+  TextColumn get aiBaseUrl => text().withDefault(const Constant(''))();
+
+  /// When CONNECT last succeeded, or null if it never has. What the status
+  /// row reads — the key's presence says a key was saved, this says it was
+  /// seen to work.
+  DateTimeColumn get aiConnectedAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

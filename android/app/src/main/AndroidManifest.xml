@@ -56,10 +56,13 @@
         android:name="android.hardware.sensor.stepcounter"
         android:required="false"/>
 
-    <!-- Slice 1 is entirely offline. A dependency pulls package:http in
-         transitively, which would otherwise merge INTERNET into the manifest;
-         removing it here means the OS itself makes network access impossible. -->
-    <uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>
+    <!-- The one network call. Slice 1 removed this outright, so the OS itself
+         made a connection impossible; the user approved the call behind
+         «ابني خطتي» on 10 September 2026 and asked for the CONNECT part on
+         13 September. Exactly one Dart file opens a socket
+         (lib/features/ai/ai_http_client.dart) and no_network_test fails the
+         build if a second one appears or any other host is named. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:label="نوري"

@@ -8,12 +8,13 @@ import '../../core/notifications/task_alert.dart';
 import '../../core/theme/nouri_colors.dart';
 import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
+import '../ai/ai_connection_panel.dart';
 import '../home/home_providers.dart';
 import '../shared/nouri_avatar.dart';
 import 'settings_controller.dart';
 import 'settings_widgets.dart';
 
-/// The eight parts of الإعدادات, each its own page.
+/// The nine parts of الإعدادات, each its own page.
 ///
 /// Reported from the phone on 8 September 2026:
 ///
@@ -33,6 +34,7 @@ enum SettingsSection {
   prayerTimes('مواقيت الصلاة', Icons.schedule),
   iqamaOffsets('فرق وقت الإقامة', Icons.more_time),
   wird('الورد', Icons.menu_book_outlined),
+  ai('الذكاء الاصطناعي', Icons.auto_awesome),
   sounds('الأصوات', Icons.graphic_eq),
   about('عن نوري', Icons.info_outline);
 
@@ -50,6 +52,7 @@ enum SettingsSection {
         SettingsSection.prayerTimes => 'المدينة، طريقة الحساب، التاريخ الهجري',
         SettingsSection.iqamaOffsets => 'كام دقيقة بين الأذان والإقامة',
         SettingsSection.wird => 'هدف التسبيح وصفحات المصحف',
+        SettingsSection.ai => 'مفتاح API بتاعك، وزرار CONNECT',
         SettingsSection.sounds => 'اسمع كل أذان وكل تنبيه قبل ميعاده',
         SettingsSection.about => 'نوري، وخصوصية بياناتك',
       };
@@ -369,6 +372,11 @@ List<Widget> settingsSectionChildren(
             value: toArabicDigits('${s.khatmaTotalPages}'),
           ),
         ],
+      // The ninth section, added 13 September 2026. Its whole body is one
+      // widget of its own, because unlike every other section it holds
+      // state — a key being typed, a request in flight, a list that came
+      // back — and a stateless builder over a settings row cannot.
+      SettingsSection.ai => [AiConnectionPanel(settings: s)],
       SettingsSection.sounds => [
           Text(
             'دوس «شغّل» عشان تسمع الصوت اللي هييجي في وقته بالظبط — '

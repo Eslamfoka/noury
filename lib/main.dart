@@ -20,6 +20,8 @@ import 'core/notifications/scheduling_config_from_db.dart';
 import 'core/time/location_service.dart';
 import 'core/time/prayer_times_service.dart';
 import 'data/db/nouri_database.dart';
+import 'features/ai/ai_key_store.dart';
+import 'features/ai/ai_providers.dart';
 import 'features/home/home_providers.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_screen.dart';
@@ -124,6 +126,10 @@ Future<void> main() async {
           .overrideWithValue(DeferredSchedulerPort(schedulerReady.future)),
       reminderSchedulerPortProvider.overrideWithValue(
           DeferredReminderSchedulerPort(reminderSchedulerReady.future)),
+      // The real keystore. The provider's default is in-memory so tests can
+      // render the CONNECT panel; on a phone the key has to survive a
+      // restart, and it has to do so encrypted.
+      aiKeyStoreProvider.overrideWithValue(SecureAiKeyStore()),
     ],
   );
   containerReady = true;
