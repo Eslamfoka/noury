@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show DartPluginRegistrant;
 
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,8 @@ import 'core/notifications/snooze.dart';
 import 'core/notifications/scheduling_config_from_db.dart';
 import 'core/time/location_service.dart';
 import 'core/time/prayer_times_service.dart';
+import 'core/notifications/nag_tick.dart';
+import 'core/notifications/prayer_silence.dart';
 import 'data/db/nouri_database.dart';
 import 'features/ai/ai_key_store.dart';
 import 'features/ai/ai_providers.dart';
@@ -194,10 +197,22 @@ Future<void> _warmUpInBackground({
     // So a snooze pressed while the app happens to be running reuses the
     // gateway that already exists, rather than silently doing nothing.
     _snoozeGateway = gateway;
+    // The alarm manager behind «فكّرني تاني» has to know its dispatcher
+    // before the first tick is armed. Cheap, and safe to repeat.
+    try {
+      await AndroidAlarmManager.initialize();
+    } catch (e) {
+      debugPrint('Nouri: alarm manager not initialised: $e');
+    }
+
     final scheduler = RollingWindowScheduler(
       gateway: gateway,
       prayerTimes: const PrayerTimesService(),
       clock: DateTime.now,
+      // The two riders on the window — see rearm(). Both real here, both
+      // null in tests.
+      nagPlans: const FileNagPlanSink(),
+      silence: const MethodChannelPrayerSilence(),
     );
 
     // Unblock anything waiting to re-arm before starting the slow pass.

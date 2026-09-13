@@ -11,9 +11,10 @@ import 'package:nouri/data/db/nouri_database.dart';
 /// time and its cap; v11 the task-alarm switch; v12 الملف الشخصي, the profile
 /// «ابني خطتي» is assembled from; v13 the length of a shift; v14 the AI
 /// connection — provider, model, base URL, last verified — with the key
-/// itself kept out of the database. Every migration is additive, so the most
-/// important test here is the last one — that nothing from the religious
-/// core was disturbed on the way.
+/// itself kept out of the database; v15 the nag interval and the prayer
+/// silence. Every migration is additive, so the most important test here is
+/// the last one — that nothing from the religious core was disturbed on the
+/// way.
 void main() {
   NouriDatabase open(void Function(NouriDatabase) _) {
     final db = NouriDatabase.forTesting(NativeDatabase.memory());
@@ -23,9 +24,20 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v14', () {
+  test('schema is at v15', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 14);
+    expect(fresh().schemaVersion, 15);
+  });
+
+  test('the nag and the prayer silence arrive as he asked for them', () async {
+    // Both on: he asked for both on 13 September. Ten minutes rather than the
+    // five he named first, because Android will not wake a dozing app more
+    // than once in nine minutes and a five-minute promise would be broken in
+    // the pocket. The silence is inert until policy access is granted.
+    final s = await fresh().settingsDao.get();
+    expect(s.nagIntervalMinutes, 10);
+    expect(s.silenceDuringPrayer, isTrue);
+    expect(s.prayerSilenceMinutes, 10);
   });
 
   test('the AI connection arrives unconnected, on Claude, with no key column',

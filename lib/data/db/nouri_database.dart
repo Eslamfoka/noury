@@ -51,7 +51,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -155,6 +155,16 @@ class NouriDatabase extends _$NouriDatabase {
             await m.addColumn(settingsRows, settingsRows.aiModel);
             await m.addColumn(settingsRows, settingsRows.aiBaseUrl);
             await m.addColumn(settingsRows, settingsRows.aiConnectedAt);
+          }
+
+          // v15: the two requests of the afternoon of 13 September — asking
+          // again about an undone task every few minutes, and the phone going
+          // silent for the prayer.
+          if (from < 15) {
+            await m.addColumn(settingsRows, settingsRows.nagIntervalMinutes);
+            await m.addColumn(settingsRows, settingsRows.silenceDuringPrayer);
+            await m.addColumn(
+                settingsRows, settingsRows.prayerSilenceMinutes);
           }
         },
       );

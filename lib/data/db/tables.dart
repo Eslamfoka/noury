@@ -157,6 +157,30 @@ class SettingsRows extends Table {
   /// seen to work.
   DateTimeColumn get aiConnectedAt => dateTime().nullable()();
 
+  /// How often to ask again about a task that has not been done, in minutes.
+  /// Zero is off.
+  ///
+  /// The user's request of 13 September 2026: «لو مش عملته تفضل تذكرني كل
+  /// فترة مثلا كل ٥ دقايق او ١٠ دقايق زي ما انا اختار لحد معاد التاسك التاني
+  /// ما ييجي». Ten by default — five is what he named first, but Android
+  /// will not wake an app more than once in nine minutes while the phone is
+  /// dozing, so five would be a promise the platform breaks in the pocket.
+  IntColumn get nagIntervalMinutes =>
+      integer().withDefault(const Constant(10))();
+
+  /// Whether the phone goes silent from the adhan until after the prayer.
+  ///
+  /// «عايزك تظبط الصامت من بعد الأذان لحد ميعاد بعد الصلاة». On by default
+  /// because he asked for it — and inert until he grants notification-policy
+  /// access, which is what silencing a phone needs on Android.
+  BoolColumn get silenceDuringPrayer =>
+      boolean().withDefault(const Constant(true))();
+
+  /// How long the prayer itself is allowed after the iqama, in minutes. The
+  /// silence lifts at iqama + this. «مثلا ١٠ دقايق صلاه».
+  IntColumn get prayerSilenceMinutes =>
+      integer().withDefault(const Constant(10))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

@@ -65,6 +65,9 @@ Future<SchedulingConfig> schedulingConfigFromDb(
     notifyWater: s.notifyWater,
     notifyQiyam: s.notifyQiyam,
     notifyTasks: s.notifyTasks,
+    nagIntervalMinutes: s.nagIntervalMinutes,
+    silenceDuringPrayer: s.silenceDuringPrayer,
+    prayerSilenceMinutes: s.prayerSilenceMinutes,
     adhanBypassesDnd: bypasses,
     // Only قيام reads this: on a night shift the whole last third is duty
     // time, so there is nothing to offer.

@@ -52,6 +52,7 @@ dependencies:
   geolocator: ^14.0.3
   image_picker: ^1.2.3
   flutter_secure_storage: ^11.1.1
+  android_alarm_manager_plus: ^5.1.1
 
 dev_dependencies:
   flutter_test:

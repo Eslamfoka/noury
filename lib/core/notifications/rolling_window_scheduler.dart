@@ -1,6 +1,7 @@
 import '../../features/fasting/sunnah_fasting.dart';
 import '../../features/finance/budget_nudge.dart';
 import '../../features/planner/daily_tasks.dart';
+import '../../features/planner/day_plan.dart';
 import '../../features/planner/day_planner.dart';
 import '../../features/planner/shift.dart';
 import '../../features/prayers/qiyam.dart';
@@ -9,9 +10,12 @@ import '../time/geo_config.dart';
 import '../time/prayer_times_service.dart';
 import 'follow_up_plan.dart';
 import 'adhan_sounds.dart';
+import 'nag_plan.dart';
+import 'nag_store.dart';
 import 'notification_channels_ids.dart';
 import 'notification_gateway.dart';
 import 'notification_slot.dart';
+import 'prayer_silence.dart';
 import 'task_alarm_ids.dart';
 import 'task_alarm_plan.dart';
 import 'task_alert.dart';
@@ -90,6 +94,9 @@ class SchedulingConfig {
     this.sleepAthkarHour = 22,
     this.quranWirdHour = 17,
     this.dailySummaryHour = 22,
+    this.nagIntervalMinutes = 0,
+    this.silenceDuringPrayer = false,
+    this.prayerSilenceMinutes = 10,
   });
 
   final GeoConfig geo;
@@ -177,6 +184,19 @@ class SchedulingConfig {
   /// When the end-of-day review offers to catch up anything unlogged.
   final int dailySummaryHour;
 
+  /// How often to ask again about an undone task, in minutes; zero is off.
+  ///
+  /// Not an alarm the window arms — see `nag_plan.dart`. The window writes
+  /// the plan the nag reads and starts the chain; the number is here so both
+  /// come from the one config.
+  final int nagIntervalMinutes;
+
+  /// Whether the phone goes silent from each adhan until the prayer is over.
+  final bool silenceDuringPrayer;
+
+  /// How long after the iqama the silence lifts.
+  final int prayerSilenceMinutes;
+
   SchedulingConfig copyWith({
     GeoConfig? geo,
     Map<String, int>? iqamaOffsets,
@@ -199,6 +219,9 @@ class SchedulingConfig {
     int? sleepAthkarHour,
     int? quranWirdHour,
     int? dailySummaryHour,
+    int? nagIntervalMinutes,
+    bool? silenceDuringPrayer,
+    int? prayerSilenceMinutes,
   }) =>
       SchedulingConfig(
         geo: geo ?? this.geo,
@@ -222,6 +245,10 @@ class SchedulingConfig {
         sleepAthkarHour: sleepAthkarHour ?? this.sleepAthkarHour,
         quranWirdHour: quranWirdHour ?? this.quranWirdHour,
         dailySummaryHour: dailySummaryHour ?? this.dailySummaryHour,
+        nagIntervalMinutes: nagIntervalMinutes ?? this.nagIntervalMinutes,
+        silenceDuringPrayer: silenceDuringPrayer ?? this.silenceDuringPrayer,
+        prayerSilenceMinutes:
+            prayerSilenceMinutes ?? this.prayerSilenceMinutes,
       );
 }
 
@@ -236,11 +263,22 @@ class RollingWindowScheduler {
     required this.gateway,
     required this.prayerTimes,
     required this.clock,
+    this.nagPlans,
+    this.silence,
   });
 
   final NotificationGateway gateway;
   final PrayerTimesService prayerTimes;
   final DateTime Function() clock;
+
+  /// Where «فكّرني تاني» gets its plan. Null in the pure tests; the file
+  /// sink in `main()`. Fed from the **same** `planDay` results the task
+  /// alarms are armed from, so a nag and its alarm can never disagree.
+  final NagPlanSink? nagPlans;
+
+  /// Where the prayer silence is armed. Null in the pure tests. Fed from the
+  /// same prayer times and iqama offsets as the adhan and the iqama alarms.
+  final PrayerSilencePort? silence;
 
   static const _adhanSlots = {
     'fajr': NotificationSlot.adhanFajr,
@@ -291,15 +329,54 @@ class RollingWindowScheduler {
   /// Two passes over one list: cancel what the window no longer wants, then
   /// write what it does. Both are needed and neither may be skipped -- see
   /// [_apply] for why the cancel pass is much shorter than it used to be.
-  Future<void> rearm(SchedulingConfig cfg) async => _apply(_windowFor(cfg));
+  ///
+  /// Then the two things that ride on the same computation and are not
+  /// alarms in this window: the nag plan and the prayer silence. Both after
+  /// the alarms, both best-effort — neither may take the window down.
+  Future<void> rearm(SchedulingConfig cfg) async {
+    final w = _windowFor(cfg);
+    await _apply(w.notifications);
 
-  /// Every notification the window should be holding, computed in memory.
+    final now = clock();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (nagPlans != null) {
+      await nagPlans!.publish(
+        NagPlan.fromDayPlans(
+          plans: w.plans,
+          intervalMinutes: cfg.nagIntervalMinutes,
+          enabled: cfg.notifyTasks,
+        ),
+        today: today,
+        doneToday: cfg.completedTaskIds,
+      );
+    }
+
+    if (silence != null) {
+      if (cfg.silenceDuringPrayer) {
+        await silence!.schedule(silenceWindowsFor(
+          days: w.prayerDays.take(kSilenceWindowDays).toList(),
+          iqamaOffsets: cfg.iqamaOffsets,
+          prayerMinutes: cfg.prayerSilenceMinutes,
+          now: now,
+        ));
+      } else {
+        await silence!.cancelAll();
+      }
+    }
+  }
+
+  /// Every notification the window should be holding, computed in memory —
+  /// and, alongside, the day plans the task alarms came from and the prayer
+  /// times each day was built on, for the two riders in [rearm].
   ///
   /// Pure: it touches no platform channel and no clock beyond [clock]. That
   /// is what makes it possible to compare the whole intended window against
   /// what is pending *before* writing any of it.
-  List<ScheduledNotification> _windowFor(SchedulingConfig cfg) {
+  _Window _windowFor(SchedulingConfig cfg) {
     final out = <ScheduledNotification>[];
+    final plans = <DayPlan>[];
+    final prayerDays = <(DateTime, DailyPrayerTimes)>[];
     final now = clock();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -310,6 +387,7 @@ class RollingWindowScheduler {
       // of the fortnight, quietly losing a day of adhan once a year.
       final date = DateTime(today.year, today.month, today.day + i);
       final times = prayerTimes.forDate(date, cfg.geo);
+      prayerDays.add((date, times));
 
       for (final slot in times.ordered) {
         final name = _arabicNames[slot.name]!;
@@ -590,6 +668,7 @@ class RollingWindowScheduler {
             shift: ShiftPattern.forType(cfg.shift),
           ),
         );
+        plans.add(plan);
 
         for (final alert in taskAlertsFor(plan)) {
           // Already done. Nouri does not ring to demand something it can see
@@ -651,7 +730,7 @@ class RollingWindowScheduler {
       }
     }
 
-    return out;
+    return _Window(out, plans, prayerDays);
   }
 
   /// Writes [wanted] to the device, cancelling only what it does not contain.
@@ -756,4 +835,18 @@ class RollingWindowScheduler {
       payload: payload,
     ));
   }
+}
+
+/// What one pass computes: the alarms, and the two things that ride on them.
+class _Window {
+  const _Window(this.notifications, this.plans, this.prayerDays);
+
+  final List<ScheduledNotification> notifications;
+
+  /// The planned days the task alarms came from, in window order — the
+  /// first `kTaskAlarmWindowDays` only, since only those were planned.
+  final List<DayPlan> plans;
+
+  /// Every day's prayer times, in window order.
+  final List<(DateTime, DailyPrayerTimes)> prayerDays;
 }

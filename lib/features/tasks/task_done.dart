@@ -1,3 +1,4 @@
+import '../../core/notifications/nag_store.dart';
 import '../../core/notifications/notification_service.dart';
 import '../../core/notifications/task_alarm_ids.dart';
 import 'snooze_store.dart';
@@ -59,6 +60,17 @@ Future<void> silenceTaskAlarms(
     }
   } catch (_) {
     // A stale label until the next read, which drops it at day's end anyway.
+  }
+
+  // And tell the nag, which reads a file rather than the database: without
+  // this the next tick — minutes away — would ask «عملتها؟» about a task
+  // the log already answers. The re-arm on the next launch writes the same
+  // fact from the logs; this is the responsive half.
+  try {
+    final nags = await openNagStore();
+    await nags.markDone(date, taskIds);
+  } catch (_) {
+    // One extra question, at most.
   }
 }
 

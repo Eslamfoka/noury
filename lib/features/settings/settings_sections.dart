@@ -46,7 +46,8 @@ enum SettingsSection {
   /// One line under the title on the index, so a row says what is inside it
   /// rather than making the user open it to find out.
   String get summary => switch (this) {
-        SettingsSection.notifications => 'الأذان، الإقامة، الأذكار، المياه',
+        SettingsSection.notifications =>
+          'الأذان، الإقامة، الأذكار، فكّرني تاني، الصامت وقت الصلاة',
         SettingsSection.duty => 'ورديتك دلوقتي',
         SettingsSection.body => 'طول الخطوة والمشي',
         SettingsSection.prayerTimes => 'المدينة، طريقة الحساب، التاريخ الهجري',
@@ -145,6 +146,84 @@ List<Widget> settingsSectionChildren(
             child: Text(
               'كل مهمة في خطة يومك ليها تنبيه في وقتها، وصوت مختلف تعرفها '
               'منه من غير ما تفتح التطبيق. الأذان مالوش دعوة بالمفتاح ده.',
+              style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
+            ),
+          ),
+          // «فكّرني تاني» — 13 September 2026: «لو مش عملته تفضل تذكرني كل
+          // فترة مثلا كل ٥ دقايق او ١٠ دقايق زي ما انا اختار». Chips rather
+          // than a stepper: five choices, and «بلاش» has to be one of them.
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 6),
+            child: Text('فكّرني تاني لو معملتهاش',
+                style: cairo(size: 13, weight: FontWeight.w600)),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final entry in const {
+                0: 'بلاش',
+                5: 'كل ٥ د',
+                10: 'كل ١٠ د',
+                15: 'كل ١٥ د',
+                30: 'كل ٣٠ د',
+              }.entries)
+                _Chip(
+                  key: ValueKey('nag-${entry.key}'),
+                  label: entry.value,
+                  selected: s.nagIntervalMinutes == entry.key,
+                  onTap: () async {
+                    await controller.updateNagInterval(entry.key);
+                    ref.invalidate(settingsProvider);
+                  },
+                ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, right: 2, bottom: 4),
+            child: Text(
+              'بعد تنبيه المهمة، لو ما اتسجّلتش، نوري بيسأل تاني كل الفترة دي '
+              'لحد ما تيجي المهمة اللي بعدها — ولما تيجي بيقول لك إن اللي '
+              'قبلها فاتتك. الخمس دقايق بتشتغل والموبايل صاحي؛ وهو نايم في '
+              'الجيب أندرويد مش بيصحّي التطبيق أكتر من مرة كل ٩ دقايق.',
+              style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
+            ),
+          ),
+          // «الصامت وقت الصلاة» — same day: «من الاذان للأقامة ومثلا ١٠
+          // دقايق صلاه وبعدين يرجع تاني عام». Needs the same policy access
+          // the adhan's DND bypass needs; the panel on the index has the row.
+          SwitchRow(
+            key: const ValueKey('silence-during-prayer'),
+            label: 'الصامت وقت الصلاة',
+            value: s.silenceDuringPrayer,
+            onChanged: (v) async {
+              await controller.setSilenceDuringPrayer(v);
+              ref.invalidate(settingsProvider);
+            },
+          ),
+          StepperRow(
+            key: const ValueKey('prayer-silence-minutes'),
+            label: 'مدة الصلاة بعد الإقامة',
+            value: toArabicDigits('${s.prayerSilenceMinutes} د'),
+            onDecrement: () async {
+              await controller
+                  .updatePrayerSilenceMinutes(s.prayerSilenceMinutes - 5);
+              ref.invalidate(settingsProvider);
+            },
+            onIncrement: () async {
+              await controller
+                  .updatePrayerSilenceMinutes(s.prayerSilenceMinutes + 5);
+              ref.invalidate(settingsProvider);
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 2, bottom: 4),
+            child: Text(
+              'من الأذان لحد الإقامة زائد المدة دي، الموبايل بيبقى على '
+              '«المنبّهات بس»: المكالمات والإشعارات ساكتة، والأذان والإقامة '
+              'والتنبيهات بتوصل. وبعدها يرجع عادي. محتاج إذن «عدم الإزعاج» '
+              'من أول الصفحة، ولو الموبايل أصلًا على عدم الإزعاج نوري '
+              'مش بيلمسه.',
               style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
             ),
           ),
@@ -497,6 +576,41 @@ List<Widget> settingsSectionChildren(
           ),
         ],
     };
+
+/// A selectable chip, in the shape the shift picker already uses.
+class _Chip extends StatelessWidget {
+  const _Chip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? NouriColors.gold : NouriColors.surfaceActive,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: NouriColors.border),
+          ),
+          child: Text(
+            label,
+            style: cairo(
+              size: 12.5,
+              weight: selected ? FontWeight.w700 : FontWeight.w400,
+              color: selected ? NouriColors.background : NouriColors.text,
+            ),
+          ),
+        ),
+      );
+}
 
 /// One audition row: what it is, who made it where that matters, and «شغّل».
 ///

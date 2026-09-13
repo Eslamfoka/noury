@@ -19,6 +19,9 @@ class MainActivity : FlutterActivity() {
             it.activity = this
             it.register(flutterEngine.dartExecutor.binaryMessenger)
         }
+
+        PrayerSilencePlugin(applicationContext)
+            .register(flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onDestroy() {

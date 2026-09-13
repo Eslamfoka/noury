@@ -495,5 +495,82 @@ void main() {
         expect((await db.settingsDao.get()).notifyAdhan, isFalse);
       });
     });
+
+    /// 13 September 2026: «فكّرني تاني» and «الصامت وقت الصلاة», both in
+    /// الإشعارات, both persisted, both explained in a line underneath.
+    group('asking again, and the prayer silence', () {
+      Future<void> openNotifications(WidgetTester t) async {
+        db = inMemoryDatabase(t);
+        await pumpSettings(t);
+        await openSection(t, SettingsSection.notifications);
+      }
+
+      testWidgets('the nag interval is five chips, ten selected by default',
+          (t) async {
+        await withLargeSurface(t, () async {
+          await openNotifications(t);
+          for (final m in [0, 5, 10, 15, 30]) {
+            await scrollTo(t, find.byKey(ValueKey('nag-$m')));
+            expect(find.byKey(ValueKey('nag-$m')), findsOneWidget);
+          }
+          expect(find.text('بلاش'), findsOneWidget, reason: 'off is a choice');
+
+          await scrollTo(t, find.byKey(const ValueKey('nag-30')));
+          await t.tap(find.byKey(const ValueKey('nag-30')));
+          await t.pumpAndSettle();
+          expect((await db.settingsDao.get()).nagIntervalMinutes, 30);
+
+          await t.tap(find.byKey(const ValueKey('nag-0')));
+          await t.pumpAndSettle();
+          expect((await db.settingsDao.get()).nagIntervalMinutes, 0);
+        });
+      });
+
+      testWidgets('the nag line says what the platform can and cannot do',
+          (t) async {
+        await withLargeSurface(t, () async {
+          await openNotifications(t);
+          await scrollTo(t, find.byKey(const ValueKey('nag-0')));
+          // Five minutes only while the phone is awake; nine in the pocket.
+          expect(find.textContaining('٩ دقايق'), findsOneWidget);
+          expect(find.textContaining('فاتتك'), findsOneWidget,
+              reason: 'the second half of the request is named too');
+        });
+      });
+
+      testWidgets('the prayer silence switch and its minutes persist',
+          (t) async {
+        await withLargeSurface(t, () async {
+          await openNotifications(t);
+          final sw = find.byKey(const ValueKey('silence-during-prayer'));
+          await scrollTo(t, sw);
+          expect((await db.settingsDao.get()).silenceDuringPrayer, isTrue);
+
+          await t.tap(find.descendant(of: sw, matching: find.byType(Switch)));
+          await t.pumpAndSettle();
+          expect((await db.settingsDao.get()).silenceDuringPrayer, isFalse);
+
+          final stepper = find.byKey(const ValueKey('prayer-silence-minutes'));
+          await scrollTo(t, stepper);
+          await t.tap(find.descendant(
+            of: stepper,
+            matching: find.byIcon(Icons.add),
+          ));
+          await t.pumpAndSettle();
+          expect((await db.settingsDao.get()).prayerSilenceMinutes, 15);
+        });
+      });
+
+      testWidgets('the silence line names the access it needs and what it spares',
+          (t) async {
+        await withLargeSurface(t, () async {
+          await openNotifications(t);
+          await scrollTo(t, find.byKey(const ValueKey('prayer-silence-minutes')));
+          expect(find.textContaining('عدم الإزعاج'), findsWidgets);
+          expect(find.textContaining('المنبّهات بس'), findsOneWidget,
+              reason: 'alarms-only: the adhan still sounds');
+        });
+      });
+    });
   });
 }

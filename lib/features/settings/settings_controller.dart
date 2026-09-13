@@ -276,6 +276,38 @@ class SettingsController {
     _requestRearm();
   }
 
+  /// How often to ask again about an undone task. Zero turns it off.
+  ///
+  /// **Rearms**, though no alarm in the window carries this number: the
+  /// re-arm is what writes the plan the nag reads and starts or stops the
+  /// chain of ticks. Clamped to what the platform can actually deliver —
+  /// nothing under five, nothing over two hours.
+  Future<void> updateNagInterval(int minutes) async {
+    await db.settingsDao.update(SettingsRowsCompanion(
+      nagIntervalMinutes: Value(minutes == 0 ? 0 : minutes.clamp(5, 120)),
+    ));
+    _requestRearm();
+  }
+
+  /// Whether the phone goes silent from the adhan until after the prayer.
+  /// **Rearms**: the silence is a schedule, rebuilt with the window.
+  Future<void> setSilenceDuringPrayer(bool on) async {
+    await db.settingsDao.update(
+      SettingsRowsCompanion(silenceDuringPrayer: Value(on)),
+    );
+    _requestRearm();
+  }
+
+  /// How long the prayer is given after the iqama before the phone comes
+  /// back. **Rearms.** Five to thirty minutes: less is not a prayer, more is
+  /// a phone that stays silent through the next thing.
+  Future<void> updatePrayerSilenceMinutes(int minutes) async {
+    await db.settingsDao.update(SettingsRowsCompanion(
+      prayerSilenceMinutes: Value(minutes.clamp(5, 30)),
+    ));
+    _requestRearm();
+  }
+
   /// The daily cap on phone and social time.
   ///
   /// Clamped to 15 minutes–8 hours. A cap of zero would make every day read

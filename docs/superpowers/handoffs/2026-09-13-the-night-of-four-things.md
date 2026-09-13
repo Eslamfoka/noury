@@ -246,3 +246,107 @@ New files worth knowing: `tool/install_alert_recordings.py`,
 `lib/features/tasks/prayers_line.dart`, `lib/features/ai/` (seven files),
 `lib/features/planner/ai/build_plan.dart`, `lib/features/profile/plan_result_sheet.dart`.
 New dependency: `flutter_secure_storage ^11.1.1` (minSdk 24, ours is 26).
+
+---
+
+## The afternoon: installed, and two more
+
+You woke, said «install it on my phone», and it went on: release build,
+`adb install -r` (data kept), `lastUpdateTime=2026-09-13 16:45:48`, all 24
+sound resources and `INTERNET` confirmed in the installed package.
+
+Then a second photo, «do that»:
+
+5. «عايز اخلي المهام على حسب الشغل يعني مثلا لو في قراءة قران تبعت ليا اشعار
+   ان اقرأ القرآن ولو مش عملته تفضل تذكرني كل فترة مثلا كل ٥ دقايق او ١٠
+   دقايق زي ما انا اختار لحد معاد التاسك التاني ما ييجي ولما ييجي التاسك
+   التاني تفكرني ان معملتش التاسك اللي فاتني وكده»
+6. «عايزك تظبط الصامت من بعد الأذان لحد ميعاد بعد الصلاة يعني من الاذان
+   للأقامة ومثلا ١٠ دقايق صلاه وبعدين يرجع تاني عام مش صامت»
+
+Both built. Schema **v15**. Both in الإعدادات → الإشعارات.
+
+### 5. «فكّرني تاني لو معملتهاش»
+
+Chips: بلاش · كل ٥ د · كل ١٠ د · كل ١٥ د · كل ٣٠ د. **Ten by default**, not
+the five you named first — Android will not wake a dozing app more than once
+in nine minutes, so five holds only while the phone is awake. Said under the
+row.
+
+**How it works, because it is not what you might guess.** It is *not* a
+hundred extra alarms. A day is ~11 tasks over ~18 hours; at ten-minute steps
+that is ~100 alarms a day on top of the ~290 the window already holds,
+against Android's cap of 500 per app — and each would need cancelling at the
+write site. Instead: **one tick**, every N minutes, re-armed by its own
+handler (`android_alarm_manager_plus`, new dependency), that reads two small
+files and posts at most one notification:
+
+- `nag_plan.json` — today's tasks with their times, written by the window
+  on every re-arm **from the same `planDay` results the task alarms are armed
+  from**, so a nag and its alarm cannot disagree (a test holds this).
+- `nag_done.json` — what is done, written by the re-arm from the logs and
+  appended by every write site (`silenceTaskAlarms`) as you go.
+
+Files, not the database, for the reason `snooze_store.dart` gives: the tick
+is a background isolate and this project does not open a second SQLite
+connection from one.
+
+The decision (`decideNag`, pure, 24 tests):
+- nothing before the first task; nothing after the plan's bedtime;
+- **the first tick after a task starts does not nag about it** — its own
+  alarm just rang. That tick is for the other half of your request: if the
+  task *before* it is still open, one notification in *that* task's voice:
+  «فاتك ورد القرآن — لسه ينفع تعمله»;
+- every later tick while the task is open: «لسه معملتهاش — مشيت؟» on the
+  task's own channel (its own sound; tap opens its screen), with the
+  previous task in one clause if that is open too. **Only the previous** — a
+  list of everything undone since morning is the shape of blame;
+- done, or snoozed to later: quiet.
+
+One notification id for every nag, so a new one replaces the last in the
+shade rather than stacking.
+
+### 6. «الصامت وقت الصلاة»
+
+Switch, on by default; stepper «مدة الصلاة بعد الإقامة», 10 minutes, 5–30.
+
+Native (`PrayerSilencePlugin.kt` + `PrayerSilenceReceiver.kt`): two exact
+alarms per prayer, three days ahead, re-armed on every launch and on reboot
+from a stored list. Dart computes the windows from **the same prayer times
+and iqama offsets the adhan uses** (`prayer_silence.dart`; a test checks
+every silence edge has an adhan alarm at that minute).
+
+**What "silent" means here, and the one rule.** At the adhan the
+interruption filter goes to **alarms-only** — what Android itself does when
+you drag the ringer to silent: calls and notifications muted, alarms
+through. The adhan, the iqama and every task tone are on the alarm stream,
+so they still sound. At iqama + your minutes it goes back. **It only
+touches a phone that was ringing normally.** If DND is already on — you
+asleep after a night shift — nothing changes, either way. Restoring the
+ringer would have switched your DND off at fajr; this cannot.
+
+Needs the notification-policy access you already granted for the adhan's
+bypass. Without it the receiver does nothing and the row says where to
+grant it.
+
+### Yours to verify on the phone (the afternoon build is *not* installed)
+
+1. الإعدادات → الإشعارات: see the chips and the switch.
+2. Let a task alarm pass without logging it; the nag should come ~10 min
+   later in the task's own sound, and again every ~10. Log it; it stops.
+3. At the next adhan, watch the status bar: the DND icon should appear at
+   the adhan and go at iqama + 10. Take a call in between to hear it muted.
+4. If you sleep with DND on: nothing should change at fajr.
+
+### Things I could not check
+
+- The tick has run only in tests. The background engine, the plugin's
+  dispatcher, the `show()` from that isolate — all follow the snooze
+  handler's proven pattern, but none has fired on a device tonight.
+- `PrayerSilenceReceiver` compiled (release build) but has not fired.
+
+### The afternoon commits
+
+```
+(see git log — «فكّرني تاني» and «الصامت وقت الصلاة»)
+```
