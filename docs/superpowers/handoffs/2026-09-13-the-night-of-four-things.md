@@ -345,8 +345,91 @@ grant it.
   handler's proven pattern, but none has fired on a device tonight.
 - `PrayerSilenceReceiver` compiled (release build) but has not fired.
 
-### The afternoon commits
+### The afternoon commit
 
 ```
-(see git log — «فكّرني تاني» and «الصامت وقت الصلاة»)
+5120a78 feat: «فكّرني تاني» كل كام دقيقة، و«الصامت وقت الصلاة»
+```
+
+---
+
+## Evening: the first real plan, and what it taught
+
+**Installed twice more** — 17:49 (the Gemini fix) and 18:28 (the hours).
+Everything below is on the phone. Head `b53d98f`, 1365 tests.
+
+### The first real call came back cut off
+
+He connected a Gemini key and pressed «ابني خطتي». The call worked; the
+sheet said «مش قادر أقرا الخطة اللي رجعت». Gemini 2.5 Flash thinks before
+it answers and the thinking is billed against `maxOutputTokens`, so the
+4096 cap returned half a JSON object. Fixed three ways (`058e959`): the
+plan call asks for JSON where the service has a switch (`responseMimeType`
+on Gemini, `response_format` on OpenAI, nothing on a compatible server that
+might refuse it), tells Gemini 2.5 *Flash* not to think (Pro refuses a
+budget of zero; older families reject the field), and the cap is 8192. A
+reply the service says it cut off is now its own sentence — «الرد اتقطع
+قبل ما يكمل» — and when a reply still cannot be read as a plan, the sheet
+shows its first 400 characters, so the next screenshot says enough.
+
+### The plan ignored sleep and work — and the hours are his now (`b53d98f`)
+
+His words: «لاحظت ان الخطة لا بتحسب عدد ساعات النوم ولا عدد ساعات الدوام
+... وعايز اختار وقت الدوام بيبدأ امتا وينتهي امتا مثلا الصبح من 7 am الي
+2 pm وتحط ساعتين مواصلات ساعة قبل الدوام وساعة بعد».
+
+- **الإعدادات → الدوام** now shows, for the selected type, start and end
+  (system time picker) and the commute before/after (15-min steps, 60 each
+  by default), with a line reading the whole span. Each type keeps its own
+  hours (`shiftHoursJson`, schema **v16**). `ShiftPattern.custom` derives
+  leave/home/wake; `shiftPatternFromSettings` is the **one resolver** —
+  Home's plan, the alarm window, the knowledge card and the AI request all
+  go through it. `SchedulingConfig.shiftPattern` carries it to the window.
+- **The AI is told the hours and held to them.** `locked_windows.dart`:
+  per day, sleep and work are closed, the commute is light-only, and last
+  night's tail (midnight → wake) is locked too — the first real plan had
+  put a wird at 02:00, which no window covered. Stated in the prompt as
+  clock ranges; enforced on the reply in `buildPlan` — a task inside sleep
+  or work is removed, a heavy one in the commute is removed, and the sheet
+  says «٣ مهام اتشالت من اقتراح الموديل لأنها كانت وقت النوم أو الدوام».
+
+### Seen on the device
+
+- **Prayer silence, both edges.** `zen_mode` 0 → **3** at the maghrib
+  adhan (17:56), and back to **0** by 18:28 (restore was due 18:16).
+- **The nag chain** ran at 17:34, 17:44 … while the phone was unplugged,
+  re-armed itself each time, and survived three installs. No nag was seen
+  in the shade — I could not read the plan file on a release build to say
+  whether one was due.
+
+### Not seen
+
+- A nag notification actually posted. The tick runs; whether `show()` from
+  the background isolate works has not been observed. **Watch for one.**
+- The nag *stopping* when a task is logged (`nag_done.json`).
+- A plan from the new prompt — he has not pressed «ابني خطتي» since 18:28.
+
+### Open, still his
+
+- Propose or overwrite; how many days per call.
+- Whether **light** tasks may still land during work and the commute in the
+  deterministic plan (the brief says yes and `planDay` does it; the AI plan
+  now allows only the commute). He was told and has not answered.
+- The iqama lift and «فاتتني» counting nothing (morning, §1–2).
+- Normalising the recordings' loudness (morning, §1).
+
+### Tomorrow starts here
+
+1. Ask him: did a «لسه معملتهاش» nag arrive, in the task's own sound? Did
+   it stop after he logged the task?
+2. Ask him to press «ابني خطتي» and screenshot the sheet — the first plan
+   from the new prompt, and whether the removed-tasks line appears.
+3. Then the open questions above.
+
+### The evening commits
+
+```
+5120a78 feat: «فكّرني تاني» كل كام دقيقة، و«الصامت وقت الصلاة»
+058e959 fix: أول رد حقيقي — Gemini قطع الخطة في النص
+b53d98f feat: ساعات الدوام والمواصلات بتاعتك، والخطة مش بتحط حاجة في النوم ولا الدوام
 ```

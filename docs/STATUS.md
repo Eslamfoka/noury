@@ -1,26 +1,29 @@
 # Nouri — status
 
-Last updated **13 September 2026** — the night of four things.
+Last updated **13 September 2026, evening** — the night of four things, and the afternoon after.
 
-**Next session starts at** `docs/superpowers/handoffs/2026-09-13-the-night-of-four-things.md` → *What is yours to do*.
+**Next session starts at** `docs/superpowers/handoffs/2026-09-13-the-night-of-four-things.md` → *Tomorrow starts here* (the last section).
 
 | | |
 |---|---|
 | Branch | **`master`**, and only `master` |
-| Head | `master`, five commits past `a9ddffc` — see the handoff for the list |
-| Tests | **1284 passing**, `flutter analyze` clean |
-| On the phone | **the 10 Sep 12:43 build** (HONOR VNE-N41). Tonight's build is **not** installed — the user installs it and listens first |
-| On the emulator | not used tonight |
-| Schema | **v14** — the AI connection (provider, model, base URL, last verified; never the key) |
+| Head | `master` at `b53d98f`, pushed |
+| Tests | **1365 passing**, `flutter analyze` clean |
+| On the phone | **`b53d98f`, installed 13 Sep 18:28** (HONOR VNE-N41). Prayer silence seen working both edges; nag chain seen running |
+| On the emulator | not used |
+| Schema | **v16** — v14 the AI connection, v15 the nag interval + prayer silence, v16 the shift hours + commute |
 
 **Slice 1 is merged**, and the one call is built. On 13 September the user
 sent four requests and eleven recordings and went to sleep; all four are
 done — his recordings as the tones, the five prayers as one line in المهام at
 twenty percent each, the prayer sheet in his five words, and the CONNECT
 page that takes a key for Claude, OpenAI, Gemini or anything OpenAI-shaped.
-«ابني خطتي» makes the call and shows the plan. What is not decided is
-whether that plan *proposes* or *overwrites* the day — it proposes, until he
-says otherwise.
+«ابني خطتي» makes the call and shows the plan. The afternoon added, at his
+asking: «فكّرني تاني» (a nag every N minutes until the next task), «الصامت
+وقت الصلاة» (alarms-only DND from adhan to iqama+10), his own shift hours
+and commute, and the AI plan being told — and held to — the hours it may
+not use. What is not decided is whether that plan *proposes* or
+*overwrites* the day — it proposes, until he says otherwise.
 
 ---
 
@@ -151,6 +154,22 @@ says otherwise.
   was converted from WebM/Opus and lifted to a peak of 0.9.
 - **The five prayers are one line in المهام**, twenty percent a prayer.
   Prayed counts, «فاتتني» does not; the status follows the clock.
+- **«فكّرني تاني»** — one exact tick every N minutes (10 by default; off,
+  5, 15, 30), re-armed by its own handler through `android_alarm_manager_plus`,
+  reading `nag_plan.json` (written by the window from the same `planDay` the
+  alarms use) and `nag_done.json` (the re-arm from the logs; every write
+  site appends). Quiet in a task's first interval; then «لسه معملتهاش —
+  مشيت؟» on the task's own channel until done or the next task; at that
+  moment, once, «فاتك ورد القرآن — لسه ينفع». Seen ticking on the phone.
+- **«الصامت وقت الصلاة»** — native exact alarms at each adhan and at
+  iqama + N (10); the interruption filter goes to alarms-only and back,
+  and only on a phone that was not already in DND. Both edges seen on the
+  phone at maghrib 13 Sep.
+- **The shift hours and commute are the user's** (الإعدادات → الدوام),
+  through one resolver (`shift_settings.dart`) every caller uses.
+- **The AI plan is told the locked hours** — sleep, work, commute
+  light-only, last night's tail — and the reply is checked: anything inside
+  is removed and counted on the sheet.
 
 ## Known limits, stated plainly
 
@@ -316,6 +335,9 @@ itself tested both ways, so none can pass vacuously.
 | `plan_request_test` | A logged meal, expense, weight or prayer state reaching the payload sent to Claude |
 | `schema_test` (v13) | The shift *length* being confused with the shift *type*, which lives in settings |
 | `schema_test` (v14) | An API key column in the settings table — the key lives in the keystore, never in a file that can be copied off |
+| `window_riders_test` | A nag plan or a silence window disagreeing with the alarms — both come from the same pass |
+| `locked_windows_test` / `build_plan_test` | The AI plan keeping a task inside sleep or work, or a heavy one in the commute |
+| `notification_receivers_test` | The silence receiver or the alarm-manager components going missing from the manifest, or any receiver exported |
 
 ## Decisions already made (do not relitigate)
 
@@ -457,6 +479,13 @@ tool/install_alert_recordings.py
                               table of which file became which tone
 lib/features/ai/              the CONNECT part: provider, client (the one
                               socket), keystore, controller, panel
+lib/core/notifications/nag_*  «فكّرني تاني»: the plan file, the decision, the tick
+lib/core/notifications/prayer_silence.dart
+android/.../PrayerSilence*.kt the prayer silence, Dart half and native half
+lib/features/planner/shift_settings.dart
+                              the one resolver from settings to ShiftPattern
+lib/features/planner/ai/locked_windows.dart
+                              the hours the AI plan may not use, and the check
 docs/superpowers/specs/2026-09-09-profile-and-the-built-plan-design.md
                               الملف الشخصي → «ابني خطتي» → tasks; §3 is the
                               guard as it now stands, §4 the step not taken
