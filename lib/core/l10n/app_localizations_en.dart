@@ -63,16 +63,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelVirtue => 'Virtue';
 
   @override
-  String get stateMosque => 'In the mosque';
+  String get stateMosque => 'In the mosque, in congregation';
 
   @override
-  String get stateCongregation => 'In congregation';
+  String get stateCongregation => 'In congregation at home';
 
   @override
-  String get stateOnTime => 'On time';
+  String get stateOnTime => 'Alone at home';
 
   @override
-  String get stateLate => 'Late';
+  String get stateLate => 'Late, after its time';
 
   @override
   String get stateNotYet => 'Not yet';

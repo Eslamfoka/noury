@@ -31,7 +31,7 @@ void main() {
       await pumpRow(t, state: PrayerState.mosque);
       expect(find.text('العصر'), findsOneWidget);
       expect(find.text('٣:١٥'), findsOneWidget);
-      expect(find.text('في المسجد'), findsOneWidget);
+      expect(find.text('في المسجد جماعة'), findsOneWidget);
     });
 
     testWidgets('an unlogged prayer reads «لسه», not a failure', (t) async {
@@ -75,17 +75,18 @@ void main() {
       await t.pumpAndSettle();
     }
 
-    testWidgets('offers the four states and returns the tapped one',
+    testWidgets('offers the five states and returns the tapped one',
         (t) async {
       PrayerState? result;
       await pumpSheet(t, PrayerState.none, (r) => result = r);
 
-      expect(find.text('في المسجد'), findsOneWidget);
-      expect(find.text('جماعة'), findsOneWidget);
-      expect(find.text('في الوقت'), findsOneWidget);
-      expect(find.text('متأخرة'), findsOneWidget);
+      expect(find.text('في المسجد جماعة'), findsOneWidget);
+      expect(find.text('جماعة في البيت'), findsOneWidget);
+      expect(find.text('فردي في البيت'), findsOneWidget);
+      expect(find.text('متأخرة عن وقتها'), findsOneWidget);
+      expect(find.text('فاتتني الصلاة'), findsOneWidget);
 
-      await t.tap(find.text('في المسجد'));
+      await t.tap(find.text('في المسجد جماعة'));
       await t.pumpAndSettle();
       expect(result, PrayerState.mosque);
     });

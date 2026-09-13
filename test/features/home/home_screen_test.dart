@@ -185,7 +185,7 @@ void main() {
 
       await t.tap(find.byType(PrayerRow).first);
       await t.pumpAndSettle();
-      await t.tap(find.text('في المسجد').last);
+      await t.tap(find.text('في المسجد جماعة').last);
       await t.pumpAndSettle();
 
       expect(find.text('١/٩'), findsOneWidget,
@@ -199,13 +199,13 @@ void main() {
       await pumpHome(t);
       await t.tap(find.byType(PrayerRow).first);
       await t.pumpAndSettle();
-      await t.tap(find.text('جماعة').last);
+      await t.tap(find.text('جماعة في البيت').last);
       await t.pumpAndSettle();
 
       // Rebuild the whole screen from the same database.
       await pumpHome(t);
       expect(find.text('١/٩'), findsOneWidget);
-      expect(find.text('جماعة'), findsWidgets);
+      expect(find.text('جماعة في البيت'), findsWidgets);
     });
   });
 

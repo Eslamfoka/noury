@@ -63,16 +63,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get labelVirtue => 'الفضل';
 
   @override
-  String get stateMosque => 'في المسجد';
+  String get stateMosque => 'في المسجد جماعة';
 
   @override
-  String get stateCongregation => 'جماعة';
+  String get stateCongregation => 'جماعة في البيت';
 
   @override
-  String get stateOnTime => 'في الوقت';
+  String get stateOnTime => 'فردي في البيت';
 
   @override
-  String get stateLate => 'متأخرة';
+  String get stateLate => 'متأخرة عن وقتها';
 
   @override
   String get stateNotYet => 'لسه';

@@ -20,13 +20,22 @@ Color chipColorFor(PrayerState s) => switch (s) {
       PrayerState.none => NouriColors.muted,
     };
 
-/// Arabic label per state. Structural text, so MSA.
+/// Arabic label per state.
+///
+/// The five, as the user wrote them on 13 September 2026 — «اعدل ع تسجيل
+/// الصلوات تبقى: في المسجد جماعة، جماعة في البيت، فردي في البيت، متأخرة عن
+/// وقتها، فاتتني الصلاة». Each names *where and how* rather than only a grade,
+/// so the sheet reads as a description of what happened and not as marks.
+///
+/// Only the wording moved. The enum, its order and its scores are untouched:
+/// drift stores the state by index, so every prayer already logged keeps
+/// meaning what it meant.
 String chipLabelFor(PrayerState s) => switch (s) {
-      PrayerState.mosque => 'في المسجد',
-      PrayerState.congregation => 'جماعة',
-      PrayerState.onTime => 'في الوقت',
-      PrayerState.late_ => 'متأخرة',
-      PrayerState.missed => 'فاتتني',
+      PrayerState.mosque => 'في المسجد جماعة',
+      PrayerState.congregation => 'جماعة في البيت',
+      PrayerState.onTime => 'فردي في البيت',
+      PrayerState.late_ => 'متأخرة عن وقتها',
+      PrayerState.missed => 'فاتتني الصلاة',
       PrayerState.none => 'لسه',
     };
 

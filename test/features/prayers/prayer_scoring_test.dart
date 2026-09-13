@@ -26,10 +26,13 @@ void main() {
   });
 
   test('labels use the approved wording', () {
-    expect(chipLabelFor(PrayerState.mosque), 'في المسجد');
-    expect(chipLabelFor(PrayerState.congregation), 'جماعة');
-    expect(chipLabelFor(PrayerState.onTime), 'في الوقت');
-    expect(chipLabelFor(PrayerState.late_), 'متأخرة');
+    // The five, as the user wrote them on 13 September 2026: «في المسجد
+    // جماعة، جماعة في البيت، فردي في البيت، متأخرة عن وقتها، فاتتني الصلاة».
+    expect(chipLabelFor(PrayerState.mosque), 'في المسجد جماعة');
+    expect(chipLabelFor(PrayerState.congregation), 'جماعة في البيت');
+    expect(chipLabelFor(PrayerState.onTime), 'فردي في البيت');
+    expect(chipLabelFor(PrayerState.late_), 'متأخرة عن وقتها');
+    expect(chipLabelFor(PrayerState.missed), 'فاتتني الصلاة');
     expect(chipLabelFor(PrayerState.none), 'لسه');
   });
 

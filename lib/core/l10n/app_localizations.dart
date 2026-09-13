@@ -209,25 +209,25 @@ abstract class AppLocalizations {
   /// No description provided for @stateMosque.
   ///
   /// In ar, this message translates to:
-  /// **'في المسجد'**
+  /// **'في المسجد جماعة'**
   String get stateMosque;
 
   /// No description provided for @stateCongregation.
   ///
   /// In ar, this message translates to:
-  /// **'جماعة'**
+  /// **'جماعة في البيت'**
   String get stateCongregation;
 
   /// No description provided for @stateOnTime.
   ///
   /// In ar, this message translates to:
-  /// **'في الوقت'**
+  /// **'فردي في البيت'**
   String get stateOnTime;
 
   /// No description provided for @stateLate.
   ///
   /// In ar, this message translates to:
-  /// **'متأخرة'**
+  /// **'متأخرة عن وقتها'**
   String get stateLate;
 
   /// No description provided for @stateNotYet.

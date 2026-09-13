@@ -8,9 +8,10 @@ import 'prayer_scoring.dart';
 
 /// Asks how the prayer was performed.
 ///
-/// The four states are offered best-first as a positive challenge. Clearing an
-/// entry is possible but sits apart from the four, so it never reads as a
-/// fifth, worst grade. Nothing here scolds — the sheet asks a question.
+/// The five states are offered best-first as a positive challenge: in the
+/// mosque, in congregation at home, alone at home, late, missed. Clearing an
+/// entry is possible but sits apart from the five, so it never reads as a
+/// sixth, worst grade. Nothing here scolds — the sheet asks a question.
 Future<PrayerState?> showPrayerLogSheet(
   BuildContext context,
   String prayerSlot,

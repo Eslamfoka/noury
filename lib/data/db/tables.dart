@@ -6,6 +6,10 @@ import 'package:drift/drift.dart';
 /// has not been logged yet, and it is never counted against the user.
 /// Appended, never reordered: drift stores these by index, so inserting a
 /// value in the middle would silently rewrite every logged prayer.
+///
+/// What each one means, in the words the sheet shows:
+/// `mosque` في المسجد جماعة · `congregation` جماعة في البيت ·
+/// `onTime` فردي في البيت · `late_` متأخرة عن وقتها · `missed` فاتتني الصلاة.
 enum PrayerState { mosque, congregation, onTime, late_, none, missed }
 
 extension PrayerStateScore on PrayerState {
