@@ -146,6 +146,12 @@ class _Failed extends StatelessWidget {
 
   final BuildPlanOutcome outcome;
 
+  /// Enough to see the shape of what came back; never the whole thing.
+  static String _head(String s) {
+    final t = s.trim();
+    return t.length > 400 ? '${t.substring(0, 400)}…' : t;
+  }
+
   @override
   Widget build(BuildContext context) => Column(
         key: const ValueKey('plan-result-failed'),
@@ -164,6 +170,25 @@ class _Failed extends StatelessWidget {
             'يومك لسه زي ما هو، مفيش حاجة اتغيّرت.',
             style: cairo(size: 12.5, color: NouriColors.muted, height: 1.9),
           ),
+          if (outcome.rawReply != null) ...[
+            const SizedBox(height: 12),
+            Text('اللي رجع من الخدمة:',
+                style: cairo(size: 11, weight: FontWeight.w600, color: NouriColors.muted)),
+            const SizedBox(height: 4),
+            Container(
+              key: const ValueKey('plan-result-raw'),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: NouriColors.background,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                _head(outcome.rawReply!),
+                textDirection: TextDirection.ltr,
+                style: cairo(size: 10.5, color: NouriColors.muted, height: 1.6),
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

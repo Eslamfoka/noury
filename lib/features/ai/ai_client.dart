@@ -79,6 +79,12 @@ enum AiFailureKind {
 
   /// The service answered, but the reply had no text in it.
   emptyReply,
+
+  /// The service stopped mid-answer: it ran out of the tokens it was
+  /// allowed. On Gemini 2.5 the model's own thinking counts against that
+  /// cap, which is how a four-thousand-token plan came back cut off on
+  /// 13 September 2026.
+  truncated,
 }
 
 class AiFailure {
@@ -104,6 +110,8 @@ class AiFailure {
           'مش قادر أوصل للخدمة دلوقتي. اتأكد من الإنترنت وجرّب تاني.',
         AiFailureKind.service => 'الخدمة ردّت بخطأ من عندها. جرّب بعد شوية.',
         AiFailureKind.emptyReply => 'الخدمة ردّت بس من غير كلام.',
+        AiFailureKind.truncated =>
+          'الرد اتقطع قبل ما يكمل. جرّب تاني، أو اختار موديل تاني من «اختار».',
       };
 
   @override
@@ -140,5 +148,6 @@ abstract interface class AiClient {
     required String system,
     required String user,
     int maxTokens = 4096,
+    bool json = false,
   });
 }

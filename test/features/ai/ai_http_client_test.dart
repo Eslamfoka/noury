@@ -365,6 +365,98 @@ void main() {
     });
   });
 
+  group('the plan call, after the first real reply came back cut off', () {
+    // Gemini 2.5 Flash, 13 September 2026: it thought its way through the
+    // four-thousand-token cap and returned half a JSON object. Three
+    // answers: ask for JSON where the service has a switch, tell Flash not
+    // to think, and say plainly when a reply was cut off.
+    test('Gemini Flash is asked for JSON with thinking off', () async {
+      answer = json(200, {
+        'candidates': [
+          {'content': {'parts': [{'text': '{}'}]}, 'finishReason': 'STOP'},
+        ],
+      });
+      await client.complete(
+        conn(AiProvider.gemini, model: 'gemini-2.5-flash'),
+        system: 's', user: 'u', json: true,
+      );
+      final cfg = seen.single.body!['generationConfig'] as Map;
+      expect(cfg['responseMimeType'], 'application/json');
+      expect(cfg['thinkingConfig'], {'thinkingBudget': 0});
+    });
+
+    test('Gemini Pro and older families are not told about thinking', () async {
+      answer = json(200, {'candidates': [{'content': {'parts': [{'text': '{}'}]}}]});
+      for (final model in ['gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+        seen.clear();
+        await client.complete(conn(AiProvider.gemini, model: model), system: 's', user: 'u', json: true);
+        final cfg = seen.single.body!['generationConfig'] as Map;
+        expect(cfg.containsKey('thinkingConfig'), isFalse, reason: model);
+        expect(cfg['responseMimeType'], 'application/json', reason: model);
+      }
+    });
+
+    test('OpenAI is asked for a JSON object; a compatible server is not', () async {
+      answer = json(200, {'choices': [{'message': {'content': '{}'}}]});
+      await client.complete(conn(AiProvider.openai, model: 'gpt-4o-mini'), system: 's', user: 'u', json: true);
+      expect(seen.single.body!['response_format'], {'type': 'json_object'});
+
+      seen.clear();
+      await client.complete(conn(AiProvider.compatible, model: 'llama'), system: 's', user: 'u', json: true);
+      expect(seen.single.body!.containsKey('response_format'), isFalse,
+          reason: 'a server that does not know the field would refuse the call');
+    });
+
+    test('without json, nothing extra is sent', () async {
+      answer = json(200, {'candidates': [{'content': {'parts': [{'text': 'x'}]}}]});
+      await client.complete(conn(AiProvider.gemini, model: 'gemini-2.5-flash'), system: 's', user: 'u');
+      final cfg = seen.single.body!['generationConfig'] as Map;
+      expect(cfg.containsKey('responseMimeType'), isFalse);
+      expect(cfg.containsKey('thinkingConfig'), isFalse,
+          reason: 'a prose answer may think; only the structured one may not');
+    });
+
+    test('a reply Gemini cut off is said to be cut off, not unreadable', () async {
+      answer = json(200, {
+        'candidates': [
+          {'content': {'parts': [{'text': '{"days":[{"date":"2026-09-1'}]}, 'finishReason': 'MAX_TOKENS'},
+        ],
+      });
+      final result = await client.complete(conn(AiProvider.gemini), system: 's', user: 'u');
+      expect(result.failure!.kind, AiFailureKind.truncated);
+      expect(result.failure!.message, contains('اتقطع'));
+      expect(result.failure!.detail, contains('"days"'), reason: 'the head of what came back');
+    });
+
+    test('so is one OpenAI or Claude cut off', () async {
+      answer = json(200, {'choices': [{'message': {'content': '{"da'}, 'finish_reason': 'length'}]});
+      expect((await client.complete(conn(AiProvider.openai), system: 's', user: 'u')).failure!.kind,
+          AiFailureKind.truncated);
+
+      answer = json(200, {'content': [{'type': 'text', 'text': '{"da'}], 'stop_reason': 'max_tokens'});
+      expect((await client.complete(conn(AiProvider.anthropic), system: 's', user: 'u')).failure!.kind,
+          AiFailureKind.truncated);
+    });
+
+    test('Gemini thought parts are not the answer', () async {
+      answer = json(200, {
+        'candidates': [
+          {
+            'content': {
+              'parts': [
+                {'text': 'let me think', 'thought': true},
+                {'text': '{"days":[]}'},
+              ],
+            },
+            'finishReason': 'STOP',
+          },
+        ],
+      });
+      final result = await client.complete(conn(AiProvider.gemini), system: 's', user: 'u');
+      expect(result.value, '{"days":[]}');
+    });
+  });
+
   test('a trailing slash on the URL does not double up', () async {
     answer = json(200, {'data': []});
     await client.listModels(AiConnection(

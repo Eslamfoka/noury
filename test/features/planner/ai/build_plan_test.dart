@@ -132,11 +132,21 @@ void main() {
       expect(outcome.failure, contains('quota'));
     });
 
-    test('a reply that is not a plan is a sentence too', () async {
+    test('a reply that is not a plan is a sentence too, with the reply shown', () async {
       client.reply = 'أهلاً! أنا نوري وده مش JSON';
       final outcome = await press();
       expect(outcome.ok, isFalse);
       expect(outcome.failure, isNotEmpty);
+      expect(outcome.rawReply, contains('مش JSON'),
+          reason: 'the first failure on the phone gave nothing to go on');
+    });
+
+    test('asks for JSON with room to answer', () async {
+      client.reply = '{"days":[]}';
+      await press();
+      expect(client.json, isTrue);
+      expect(client.maxTokens, greaterThanOrEqualTo(8192),
+          reason: 'Gemini 2.5 spent four thousand on thinking and cut the plan off');
     });
   });
 }
@@ -147,6 +157,8 @@ class _FakeAiClient implements AiClient {
   String? system;
   String? user;
   AiConnection? connection;
+  bool? json;
+  int? maxTokens;
 
   @override
   Future<AiResult<List<AiModel>>> listModels(AiConnection connection) async =>
@@ -158,10 +170,13 @@ class _FakeAiClient implements AiClient {
     required String system,
     required String user,
     int maxTokens = 4096,
+    bool json = false,
   }) async {
     this.connection = connection;
     this.system = system;
     this.user = user;
+    this.json = json;
+    this.maxTokens = maxTokens;
     if (failure != null) return AiResult.failed(failure!);
     return AiResult.ok(reply);
   }

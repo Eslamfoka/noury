@@ -116,6 +116,7 @@ class _FakeAiClient implements AiClient {
     required String system,
     required String user,
     int maxTokens = 4096,
+    bool json = false,
   }) async {
     calls++;
     if (failure != null) return AiResult.failed(failure!);

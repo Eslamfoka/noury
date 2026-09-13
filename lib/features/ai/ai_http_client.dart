@@ -91,12 +91,17 @@ class HttpAiClient implements AiClient {
     return AiResult.ok(models);
   }
 
+  /// [json] asks the service, where it has a way to be asked, to answer in
+  /// JSON and nothing else. Gemini and OpenAI have a switch for it; a
+  /// compatible server may not, so it is not sent there; Claude has no
+  /// switch and follows the prompt, which already says so.
   @override
   Future<AiResult<String>> complete(
     AiConnection c, {
     required String system,
     required String user,
     int maxTokens = 4096,
+    bool json = false,
   }) async {
     final refused = _check(c);
     if (refused != null) return AiResult.failed(refused);
@@ -130,6 +135,8 @@ class HttpAiClient implements AiClient {
               'max_completion_tokens': maxTokens
             else
               'max_tokens': maxTokens,
+            if (json && c.provider == AiProvider.openai)
+              'response_format': {'type': 'json_object'},
           },
         ),
       AiProvider.gemini => (
@@ -149,7 +156,18 @@ class HttpAiClient implements AiClient {
                 ],
               },
             ],
-            'generationConfig': {'maxOutputTokens': maxTokens},
+            'generationConfig': {
+              'maxOutputTokens': maxTokens,
+              if (json) 'responseMimeType': 'application/json',
+              // Gemini 2.5 Flash thinks before it answers, and the thinking
+              // is billed against maxOutputTokens: the first real plan on
+              // 13 September came back cut off at four thousand tokens
+              // with the JSON half-written. Flash can be told not to;
+              // Pro cannot (it refuses a budget of zero), and older
+              // families reject the field, so it is sent to Flash only.
+              if (json && _geminiCanSkipThinking(c.model))
+                'thinkingConfig': {'thinkingBudget': 0},
+            },
           },
         ),
     };
@@ -157,16 +175,33 @@ class HttpAiClient implements AiClient {
     final reply = await _send('POST', uri, headers, body, completeTimeout);
     if (!reply.ok) return AiResult.failed(reply.failure!);
 
-    final text = switch (c.provider) {
+    final (text, cutOff) = switch (c.provider) {
       AiProvider.anthropic => _anthropicText(reply.value!),
       AiProvider.openai || AiProvider.compatible => _openAiText(reply.value!),
       AiProvider.gemini => _geminiText(reply.value!),
     };
 
+    if (cutOff) {
+      return AiResult.failed(AiFailure(
+        AiFailureKind.truncated,
+        detail: text == null ? null : _head(text),
+      ));
+    }
     if (text == null || text.trim().isEmpty) {
       return const AiResult.failed(AiFailure(AiFailureKind.emptyReply));
     }
     return AiResult.ok(text);
+  }
+
+  /// The Gemini families that accept a thinking budget of zero.
+  static bool _geminiCanSkipThinking(String model) {
+    final m = model.toLowerCase();
+    return m.contains('2.5') && m.contains('flash');
+  }
+
+  static String _head(String s) {
+    final t = s.trim();
+    return t.length > 120 ? '${t.substring(0, 120)}…' : t;
   }
 
   // ------------------------------------------------------------ the request
@@ -272,42 +307,58 @@ class HttpAiClient implements AiClient {
 
   // -------------------------------------------------------------- the reply
 
-  static String? _anthropicText(Map<String, Object?> body) {
+  // Each reader returns the text and whether the service says it stopped
+  // for want of tokens. The three say it three ways.
+
+  static (String?, bool) _anthropicText(Map<String, Object?> body) {
     final parts = <String>[
       for (final block in _listOf(body['content']))
         if (block is Map && block['type'] == 'text' && block['text'] is String)
           block['text'] as String,
     ];
-    return parts.isEmpty ? null : parts.join();
+    return (
+      parts.isEmpty ? null : parts.join(),
+      body['stop_reason'] == 'max_tokens',
+    );
   }
 
-  static String? _openAiText(Map<String, Object?> body) {
+  static (String?, bool) _openAiText(Map<String, Object?> body) {
     final choices = _listOf(body['choices']);
-    if (choices.isEmpty || choices.first is! Map) return null;
-    final message = (choices.first as Map)['message'];
-    if (message is! Map) return null;
+    if (choices.isEmpty || choices.first is! Map) return (null, false);
+    final choice = choices.first as Map;
+    final cutOff = choice['finish_reason'] == 'length';
+    final message = choice['message'];
+    if (message is! Map) return (null, cutOff);
     final content = message['content'];
-    if (content is String) return content;
+    if (content is String) return (content, cutOff);
     // Some servers answer with a list of parts rather than one string.
     if (content is List) {
-      return [
-        for (final part in content)
-          if (part is Map && part['text'] is String) part['text'] as String,
-      ].join();
+      return (
+        [
+          for (final part in content)
+            if (part is Map && part['text'] is String) part['text'] as String,
+        ].join(),
+        cutOff,
+      );
     }
-    return null;
+    return (null, cutOff);
   }
 
-  static String? _geminiText(Map<String, Object?> body) {
+  static (String?, bool) _geminiText(Map<String, Object?> body) {
     final candidates = _listOf(body['candidates']);
-    if (candidates.isEmpty || candidates.first is! Map) return null;
-    final content = (candidates.first as Map)['content'];
-    if (content is! Map) return null;
+    if (candidates.isEmpty || candidates.first is! Map) return (null, false);
+    final candidate = candidates.first as Map;
+    final cutOff = candidate['finishReason'] == 'MAX_TOKENS';
+    final content = candidate['content'];
+    if (content is! Map) return (null, cutOff);
     final parts = <String>[
       for (final part in _listOf(content['parts']))
-        if (part is Map && part['text'] is String) part['text'] as String,
+        // Thinking parts, where a model returns them, are marked and are not
+        // the answer.
+        if (part is Map && part['text'] is String && part['thought'] != true)
+          part['text'] as String,
     ];
-    return parts.isEmpty ? null : parts.join();
+    return (parts.isEmpty ? null : parts.join(), cutOff);
   }
 
   static List<Object?> _listOf(Object? value) =>

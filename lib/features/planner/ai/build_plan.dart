@@ -97,9 +97,12 @@ Future<BuildPlanOutcome> buildPlan({
     connection,
     system: PlanRequest.systemPrompt,
     user: request.toPrompt(allowedTaskIds: allowed),
-    // Three days of tasks, a few books and two lines is well under this;
-    // the cap is the cost ceiling, not the expected size.
-    maxTokens: 4096,
+    // Three days of tasks, a few books and two lines is two to three
+    // thousand tokens. Eight, not four: the first real reply — Gemini 2.5
+    // Flash, 13 September — spent the cap on its own thinking and came back
+    // with the JSON cut off. The cap is a ceiling on cost, not a size.
+    maxTokens: 8192,
+    json: true,
   );
 
   if (!reply.ok) {
@@ -110,7 +113,11 @@ Future<BuildPlanOutcome> buildPlan({
   }
 
   final parsed = PlanDocument.parse(reply.value!, allowedTaskIds: allowed.toSet());
-  if (!parsed.ok) return BuildPlanOutcome.failed(parsed.failure!);
+  if (!parsed.ok) {
+    // What actually came back, so a screenshot of the sheet says enough to
+    // fix the prompt — the first failure gave nothing to go on.
+    return BuildPlanOutcome.failed(parsed.failure!, rawReply: reply.value);
+  }
 
   // The titles المهام would show for each id, so the sheet reads «مشي» and
   // not «walk». Built for today with the current shift; titles do not vary
@@ -141,9 +148,10 @@ class BuildPlanOutcome {
         model = null,
         droppedTaskIds = const [],
         failure = null,
+        rawReply = null,
         needsConnection = true;
 
-  const BuildPlanOutcome.failed(String this.failure)
+  const BuildPlanOutcome.failed(String this.failure, {this.rawReply})
       : document = null,
         titles = const {},
         model = null,
@@ -156,6 +164,7 @@ class BuildPlanOutcome {
     required this.model,
     this.droppedTaskIds = const [],
   })  : failure = null,
+        rawReply = null,
         needsConnection = false;
 
   final PlanDocument? document;
@@ -172,6 +181,10 @@ class BuildPlanOutcome {
 
   /// In Arabic, ready to show.
   final String? failure;
+
+  /// The service's reply as it came, when it could not be read as a plan.
+  /// Shown in small print under the failure so the user can send it on.
+  final String? rawReply;
 
   /// No key: the sheet should point at الإعدادات rather than at the network.
   final bool needsConnection;
