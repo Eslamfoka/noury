@@ -418,14 +418,19 @@ List<Widget> settingsSectionChildren(
               style: cairo(size: 13, weight: FontWeight.w600)),
           const SizedBox(height: 2),
           Text(
-            'كل مهمة ليها نغمة لوحدها، عشان تعرفها من صوتها من غير ما تبص.',
+            'كل مهمة ليها نغمة لوحدها، عشان تعرفها من صوتها من غير ما تبص. '
+            'اللي مكتوب تحتها «تسجيلك» هي اللي انت بعتّها.',
             style: cairo(size: 11, color: NouriColors.muted, height: 1.7),
           ),
           for (final kind in TaskAlertKind.values)
             _SoundRow(
               key: ValueKey('preview-${kind.name}'),
               label: kind.soundName,
-              note: '',
+              // Says whose it is. Eleven are his own recordings since 13
+              // September 2026; the rest are still Nouri's, and a row that
+              // did not say which would leave him auditioning a tone to find
+              // out whether it was the one he sent.
+              note: kind.recorded ? 'تسجيلك' : '',
               channelId: kind.channelId,
               title: kind.title,
               body: kind.body,
@@ -478,7 +483,8 @@ List<Widget> settingsSectionChildren(
             ),
           const SizedBox(height: 6),
           Text(
-            'أصوات التنبيهات التانية من صنع نوري نفسه.',
+            'أصوات التنبيهات: إحدى عشر منها تسجيلات اخترتها انت، والباقي من '
+            'صنع نوري نفسه.',
             style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
           ),
         ],
@@ -501,8 +507,8 @@ class _SoundRow extends ConsumerWidget {
 
   final String label;
 
-  /// The licence credit, on the adhans. Empty on the generated tones, which
-  /// are Nouri's own.
+  /// The licence credit on the adhans, «تسجيلك» on the tones the user
+  /// recorded himself, empty on the ones Nouri synthesised.
   final String note;
 
   final String channelId;

@@ -33,6 +33,14 @@ and keeps playing the old sound, silently, on every device that already has the
 channel. Bump that kind's channel version in `lib/core/notifications/
 task_alert.dart` in the same commit.
 
+**Eleven of these are no longer used**, as of 13 September 2026. The user
+sent recordings of his own for them — see `install_alert_recordings.py` —
+and they are installed as MP3 under the same resource names. This script now
+skips those eleven (`REPLACED_BY_RECORDINGS` below), because writing a WAV
+beside his MP3 would be a duplicate-resource build error, and because the
+whole point of his sending them was that the synthesised ones should stop
+existing. The eight he did not send are still built here, byte-identical.
+
 Run:  python tool/make_alert_sounds.py
 """
 
@@ -400,6 +408,25 @@ SOUNDS = {
     "alert_iqama": s_iqama,
 }
 
+# The tones the user replaced with recordings of his own on 13 September 2026.
+# Their generators above are kept — they document what each sound was, and
+# they are one line away from being written again if he ever wants one back —
+# but nothing writes them. See install_alert_recordings.py for the files that
+# took their place.
+REPLACED_BY_RECORDINGS = {
+    "alert_water",
+    "alert_walk",
+    "alert_tasbeeh",
+    "alert_wird",
+    "alert_athkar_morning",
+    "alert_athkar_evening",
+    "alert_athkar_sleep",
+    "alert_qiyam",
+    "alert_knowledge",
+    "alert_phone",
+    "alert_iqama",
+}
+
 # Pairs that a first draft made too alike, and what now separates them. Written
 # down because the fix is invisible in the code — it lives in one constant each
 # — and because the next person to retune one of these needs to know what it is
@@ -457,10 +484,20 @@ if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     total = 0
     for name, build in sorted(SOUNDS.items()):
-        size = write(name, build())
+        # Built even when not written. The generators share one seeded RNG,
+        # so skipping a build would shift every noise draw after it and the
+        # workout — last in this order — would come out different bytes. The
+        # eight he did not send have to stay byte-identical, and a rerun of
+        # this script must not be the thing that quietly changes one.
+        buf = build()
+        if name in REPLACED_BY_RECORDINGS:
+            print(f"  {name}  skipped — the user's own recording is installed")
+            continue
+        size = write(name, buf)
         total += size
         print(f"  {name}.wav  {size // 1024} KB")
-    print(f"\n{len(SOUNDS)} sounds, {total // 1024} KB total, written to {OUT}")
+    written = len(SOUNDS) - len(REPLACED_BY_RECORDINGS)
+    print(f"\n{written} sounds, {total // 1024} KB total, written to {OUT}")
     print("\nRemember: a changed sound needs its channel version bumped in")
     print("lib/core/notifications/task_alert.dart, or devices that already have")
     print("the channel keep playing the old file. Android freezes it at creation.")

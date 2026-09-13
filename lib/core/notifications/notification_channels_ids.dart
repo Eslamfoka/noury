@@ -122,4 +122,19 @@ const retiredChannelIds = <String>[
   'adhan_asr_v2', 'adhan_asr_v2d',
   'adhan_maghrib_v2', 'adhan_maghrib_v2d',
   'adhan_isha_v2', 'adhan_isha_v2d',
+  // Eleven tones became the user's own recordings on 13 September 2026 —
+  // «الاشعارات اللي عايزها تتعدل». Same resource names, different audio, so
+  // each needed a fresh channel and each previous id belongs here. The eight
+  // he did not send keep their v2 channels and their synthesised tones.
+  'alert_water_v2',
+  'alert_walk_v2',
+  'alert_tasbeeh_v2',
+  'alert_wird_v3',
+  'alert_athkar_morning_v2',
+  'alert_athkar_evening_v2',
+  'alert_athkar_sleep_v2',
+  'alert_qiyam_v2',
+  'alert_knowledge_v2',
+  'alert_phone_v2',
+  'alert_iqama_v3',
 ];

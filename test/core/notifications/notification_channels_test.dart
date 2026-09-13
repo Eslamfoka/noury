@@ -382,5 +382,48 @@ void main() {
         reason: 'changing the adhan audio requires a new channel version',
       );
     });
+
+    test("the user's recordings each sit on a fresh channel", () {
+      // On 13 September 2026 eleven tones became recordings he chose. The
+      // audio changed under the same resource name, and Android freezes a
+      // channel's sound at creation — so every one of the eleven needs an id
+      // the phone has never seen, and the id it was on has to be retired or
+      // the phone keeps playing the synthesised tone and nothing says why.
+      //
+      // Pinned by name so a twelfth recording, or a re-recording of one of
+      // these, has to come through here and bump again.
+      const recorded = {
+        TaskAlertKind.water: ('alert_water_v3', 'alert_water_v2'),
+        TaskAlertKind.walk: ('alert_walk_v3', 'alert_walk_v2'),
+        TaskAlertKind.tasbeeh: ('alert_tasbeeh_v3', 'alert_tasbeeh_v2'),
+        TaskAlertKind.wird: ('alert_wird_v4', 'alert_wird_v3'),
+        TaskAlertKind.athkarMorning:
+            ('alert_athkar_morning_v3', 'alert_athkar_morning_v2'),
+        TaskAlertKind.athkarEvening:
+            ('alert_athkar_evening_v3', 'alert_athkar_evening_v2'),
+        TaskAlertKind.athkarSleep:
+            ('alert_athkar_sleep_v3', 'alert_athkar_sleep_v2'),
+        TaskAlertKind.qiyam: ('alert_qiyam_v3', 'alert_qiyam_v2'),
+        TaskAlertKind.knowledge: ('alert_knowledge_v3', 'alert_knowledge_v2'),
+        TaskAlertKind.phone: ('alert_phone_v3', 'alert_phone_v2'),
+        TaskAlertKind.iqama: ('alert_iqama_v4', 'alert_iqama_v3'),
+      };
+
+      for (final entry in recorded.entries) {
+        final (live, retired) = entry.value;
+        expect(entry.key.recorded, isTrue, reason: entry.key.name);
+        expect(entry.key.channelId, live, reason: entry.key.name);
+        expect(retiredChannelIds, contains(retired),
+            reason: '${entry.key.name}: $retired still plays the old tone');
+      }
+
+      // And the eight he did not send are exactly where they were — «اللي
+      // مش باعته سيبه زي ما هو».
+      for (final kind in TaskAlertKind.values) {
+        if (recorded.containsKey(kind)) continue;
+        expect(kind.recorded, isFalse, reason: kind.name);
+        expect(kind.channelId, endsWith('_v2'), reason: kind.name);
+      }
+    });
   });
 }

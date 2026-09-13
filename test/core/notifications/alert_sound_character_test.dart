@@ -2,8 +2,11 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/task_alert.dart';
+
+import '../../support/alert_sound_files.dart';
 
 /// Guards the *audio*, not the filenames.
 ///
@@ -17,7 +20,17 @@ import 'package:nouri/core/notifications/task_alert.dart';
 /// without looking at the screen** — his words: «من الصوت أعرف المهمة دي
 /// إيه». That is a claim about waveforms, so this reads the waveforms.
 ///
-/// Four cheap measures, no FFT, all computed straight off the PCM:
+/// **Two kinds of file since 13 September 2026.** Eleven of the nineteen are
+/// now recordings the user chose himself and sent as MP3; the other eight are
+/// still the tones `tool/make_alert_sounds.py` synthesises as WAV. The
+/// waveform measures below run on the WAVs, which are plain PCM. The
+/// recordings are his by choice — nothing here second-guesses what water
+/// should sound like to him — so for those the guard is the cheaper and
+/// more literal one: no two of them may be the same file, and each must be
+/// long enough to be a sound at all.
+///
+/// Four cheap measures on the synthesised set, no FFT, all computed straight
+/// off the PCM:
 ///
 /// - **duration**
 /// - **onsets** — how many separate hits the ear gets
@@ -28,13 +41,15 @@ import 'package:nouri/core/notifications/task_alert.dart';
 ///
 /// Retuning a tone into something already in the set fails this file.
 void main() {
+  final synthesised = TaskAlertKind.values.where((k) => !k.recorded).toList();
+  final recorded = TaskAlertKind.values.where((k) => k.recorded).toList();
+
   final tones = {
-    for (final kind in TaskAlertKind.values)
-      kind.sound: _measure(File('android/app/src/main/res/raw/${kind.sound}.wav')),
+    for (final kind in synthesised) kind.sound: _measure(alertSoundFile(kind)),
   };
 
   group('every tone is audibly its own thing', () {
-    test('no two tones measure alike', () {
+    test('no two synthesised tones measure alike', () {
       // 0.15 is set just under the closest legitimate pair rather than at a
       // round number, so the guard bites on the first genuine collision. When
       // it fails, the fix is to retune the newcomer in tool/make_alert_sounds.py
@@ -55,56 +70,64 @@ void main() {
           reason: 'these would be indistinguishable by ear:\n${collisions.join('\n')}');
     });
 
-    test('the iqama and the tasbeeh are nothing like each other', () {
-      // The most important pair in the set: they arrive minutes apart, and the
-      // whole point of giving the iqama its own sound was that it must not be
-      // mistaken for anything else. One is a firm low knock, the other three
-      // small bright beads.
-      final iqama = tones['alert_iqama']!;
-      final tasbeeh = tones['alert_tasbeeh']!;
+    test('no two recordings are the same file', () {
+      // The literal version of the same promise. He sent eleven files; if two
+      // of them were one recording under two names, two tasks would call in
+      // the same voice and nothing else here would notice.
+      final bytes = {
+        for (final kind in recorded)
+          kind.sound: alertSoundFile(kind).readAsBytesSync(),
+      };
+      final names = bytes.keys.toList();
+      for (var i = 0; i < names.length; i++) {
+        for (var j = i + 1; j < names.length; j++) {
+          expect(listEquals(bytes[names[i]], bytes[names[j]]), isFalse,
+              reason: '${names[i]} is byte-for-byte ${names[j]}');
+        }
+      }
+    });
 
-      expect(iqama.brightness, lessThan(tasbeeh.brightness / 2),
-          reason: 'the iqama must be the duller of the two');
-      expect(iqama.onsets, lessThan(tasbeeh.onsets),
-          reason: 'two knocks against three beads');
+    test('every recording is long enough to be heard', () {
+      // A truncated upload would still be a valid MP3. Half a second is
+      // shorter than anything he sent by a factor of seven.
+      for (final kind in recorded) {
+        expect(mp3Seconds(alertSoundFile(kind)), greaterThan(0.5),
+            reason: kind.sound);
+      }
+    });
+
+    test('the kinds marked as recordings are the ones with an MP3 on disk', () {
+      // `recorded` decides the extension the channel resolves and the credit
+      // the sound screen prints. If it drifts from the file, the build fails
+      // on a missing resource with a message that does not name the file —
+      // so it is caught here first.
+      for (final kind in TaskAlertKind.values) {
+        expect(alertSoundFile(kind).existsSync(), isTrue,
+            reason: '${kind.sound} says recorded=${kind.recorded} '
+                'but the matching file is not there');
+      }
     });
   });
 
   group('the tones that carry the shape of their task', () {
-    test('water runs rather than being struck', () {
-      // A stream is the one continuous sound in the set. If this drops it has
-      // become a beep again, and «مياه» stops meaning water.
-      expect(tones['alert_water']!.sustain, greaterThan(0.7));
-    });
-
-    test('walking lands as separate steps', () {
-      expect(tones['alert_walk']!.onsets, greaterThanOrEqualTo(3));
-      // And it is footfall, not a bell: a step does not ring on.
-      expect(tones['alert_walk']!.sustain, lessThan(0.3));
-    });
-
     test('the telephone rings in bursts rather than once', () {
       // The 20 Hz gating of a landline ring is the point; a single tone would
       // just be another chime.
       expect(tones['alert_calls']!.onsets, greaterThan(6));
     });
 
-    test('the night tones do not startle', () {
-      // قيام arrives around 01:30 and أذكار النوم at bedtime. Both must
-      // build rather than hit, so neither may open like a struck bell.
-      for (final name in ['alert_qiyam', 'alert_athkar_sleep']) {
-        expect(tones[name]!.attackFraction, greaterThan(0.01),
-            reason: '$name opens too abruptly for the hour it arrives at');
-      }
-    });
-
     test('the follow-up is the shortest thing here', () {
-      // «مشيت؟» is only asking. It must not nag, and length is nagging.
+      // «مشيت؟» is only asking. It must not nag, and length is nagging. The
+      // comparison runs across both kinds of file: his recordings are all
+      // several seconds long, and the follow-up has to stay under every one.
       final followUp = tones['alert_followup']!.seconds;
-      for (final entry in tones.entries) {
-        if (entry.key == 'alert_followup') continue;
-        expect(followUp, lessThanOrEqualTo(entry.value.seconds),
-            reason: 'alert_followup should be no longer than ${entry.key}');
+      for (final kind in TaskAlertKind.values) {
+        if (kind == TaskAlertKind.followUp) continue;
+        final seconds = kind.recorded
+            ? mp3Seconds(alertSoundFile(kind))
+            : tones[kind.sound]!.seconds;
+        expect(followUp, lessThanOrEqualTo(seconds),
+            reason: 'alert_followup should be no longer than ${kind.sound}');
       }
     });
   });
