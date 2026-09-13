@@ -10,6 +10,8 @@ import '../../core/theme/nouri_theme.dart';
 import '../../data/db/nouri_database.dart';
 import '../ai/ai_connection_panel.dart';
 import '../home/home_providers.dart';
+import '../planner/shift.dart';
+import '../planner/shift_settings.dart';
 import '../shared/nouri_avatar.dart';
 import 'settings_controller.dart';
 import 'settings_widgets.dart';
@@ -48,7 +50,7 @@ enum SettingsSection {
   String get summary => switch (this) {
         SettingsSection.notifications =>
           'الأذان، الإقامة، الأذكار، فكّرني تاني، الصامت وقت الصلاة',
-        SettingsSection.duty => 'ورديتك دلوقتي',
+        SettingsSection.duty => 'ورديتك دلوقتي، ساعاتها، والمواصلات',
         SettingsSection.body => 'طول الخطوة والمشي',
         SettingsSection.prayerTimes => 'المدينة، طريقة الحساب، التاريخ الهجري',
         SettingsSection.iqamaOffsets => 'كام دقيقة بين الأذان والإقامة',
@@ -304,6 +306,82 @@ List<Widget> settingsSectionChildren(
                 ),
             ],
           ),
+          // The hours and the commute, 13 September 2026: «عايز اختار وقت
+          // الدوام بيبدأ امتا وينتهي امتا مثلا الصبح من 7 am الي 2 pm وتحط
+          // ساعتين مواصلات ساعة قبل الدوام وساعة بعد». Shown for the type
+          // that is selected; each type keeps its own hours.
+          if (shiftTypeOf(s.shiftType) != ShiftType.off) ...[
+            const SizedBox(height: 14),
+            Text('ساعات ${shiftTypeOf(s.shiftType).arabicLabel}',
+                style: cairo(size: 13, weight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            _ShiftHourRow(
+              key: const ValueKey('shift-start'),
+              label: 'بداية الدوام',
+              value: ShiftHours.decode(s.shiftHoursJson)[shiftTypeOf(s.shiftType)]!.start,
+              onPicked: (picked) async {
+                final hours = ShiftHours.decode(s.shiftHoursJson)[shiftTypeOf(s.shiftType)]!;
+                await controller.updateShiftHours(
+                  shiftTypeOf(s.shiftType),
+                  start: picked,
+                  end: hours.end,
+                );
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            _ShiftHourRow(
+              key: const ValueKey('shift-end'),
+              label: 'نهاية الدوام',
+              value: ShiftHours.decode(s.shiftHoursJson)[shiftTypeOf(s.shiftType)]!.end,
+              onPicked: (picked) async {
+                final hours = ShiftHours.decode(s.shiftHoursJson)[shiftTypeOf(s.shiftType)]!;
+                await controller.updateShiftHours(
+                  shiftTypeOf(s.shiftType),
+                  start: hours.start,
+                  end: picked,
+                );
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            StepperRow(
+              key: const ValueKey('commute-before'),
+              label: 'مواصلات قبل الدوام',
+              value: toArabicDigits('${s.commuteBeforeMinutes} د'),
+              onDecrement: () async {
+                await controller.updateCommute(
+                    beforeMinutes: s.commuteBeforeMinutes - 15);
+                ref.invalidate(settingsProvider);
+              },
+              onIncrement: () async {
+                await controller.updateCommute(
+                    beforeMinutes: s.commuteBeforeMinutes + 15);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            StepperRow(
+              key: const ValueKey('commute-after'),
+              label: 'مواصلات بعد الدوام',
+              value: toArabicDigits('${s.commuteAfterMinutes} د'),
+              onDecrement: () async {
+                await controller.updateCommute(
+                    afterMinutes: s.commuteAfterMinutes - 15);
+                ref.invalidate(settingsProvider);
+              },
+              onIncrement: () async {
+                await controller.updateCommute(
+                    afterMinutes: s.commuteAfterMinutes + 15);
+                ref.invalidate(settingsProvider);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6, right: 2),
+              child: Text(
+                _dutyLine(s),
+                key: const ValueKey('duty-summary'),
+                style: cairo(size: 10.5, color: NouriColors.muted, height: 1.7),
+              ),
+            ),
+          ],
         ],
       SettingsSection.body => [
           ActionRow(
@@ -669,5 +747,55 @@ class _SoundRow extends ConsumerWidget {
             ),
           ],
         ),
+      );
+}
+
+
+/// «من ٦ لـ ٣»: the whole span the shift takes out of the day, in one line,
+/// so the user sees what the plan will treat as locked before he leaves the
+/// page.
+String _dutyLine(SettingsRow s) {
+  final pattern = shiftPatternFromSettings(s);
+  final leave = pattern.leaveHome;
+  final home = pattern.homeAgain;
+  if (pattern.workStart == null || pattern.workEnd == null) return '';
+  final span = leave != null && home != null
+      ? 'من ${_hhmm(leave)} لحد ${_hhmm(home)} بالمواصلات'
+      : 'من ${_hhmm(pattern.workStart!)} لحد ${_hhmm(pattern.workEnd!)}';
+  return toArabicDigits(
+    'اليوم بيتخطّط حوالين ده: $span — الخطة والتنبيهات مش بتحط حاجة تقيلة '
+    'فيهم، والنوم بيتحسب من ميعاد الصحيان اللي بعده.',
+  );
+}
+
+String _hhmm(Clock c) => c.toString();
+
+/// One row that opens the system time picker.
+class _ShiftHourRow extends StatelessWidget {
+  const _ShiftHourRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onPicked,
+  });
+
+  final String label;
+  final Clock value;
+  final Future<void> Function(Clock) onPicked;
+
+  @override
+  Widget build(BuildContext context) => ActionRow(
+        label: label,
+        value: toArabicDigits(value.toString()),
+        action: 'غيّر',
+        onTap: () async {
+          final picked = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: value.hour, minute: value.minute),
+            helpText: label,
+          );
+          if (picked == null) return;
+          await onPicked(Clock(picked.hour, picked.minute));
+        },
       );
 }

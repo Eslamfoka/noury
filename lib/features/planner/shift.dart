@@ -106,6 +106,67 @@ class ShiftPattern {
 
   static const dayOff = ShiftPattern(type: ShiftType.off);
 
+  /// A pattern from the user's own times.
+  ///
+  /// 13 September 2026: «عايز اختار وقت الدوام بيبدأ امتا وينتهي امتا مثلا
+  /// الصبح من 7 am الي 2 pm وتحط ساعتين مواصلات ساعة قبل الدوام وساعة بعد
+  /// يعني من 6 الي 3». Work from [workStart] to [workEnd]; the commute is
+  /// [commuteBefore] ahead of it and [commuteAfter] behind; and the wake is
+  /// an hour before leaving, which is what the brief's own numbers say
+  /// (05:00 wake, 06:00 bus) and what every morning needs — fajr, athkar,
+  /// breakfast, out of the door.
+  ///
+  /// The night shift keeps its shape: no fixed wake (sleep is sized from the
+  /// next duty), and it crosses midnight whenever the end is not after the
+  /// start. A day off ignores all of it.
+  factory ShiftPattern.custom({
+    required ShiftType type,
+    required Clock workStart,
+    required Clock workEnd,
+    Duration commuteBefore = const Duration(hours: 1),
+    Duration commuteAfter = const Duration(hours: 1),
+  }) {
+    if (type == ShiftType.off) return dayOff;
+
+    final crosses = workEnd.minutesFromMidnight <= workStart.minutesFromMidnight;
+    final leave = _shift(workStart, -commuteBefore.inMinutes);
+    final home = _shift(workEnd, commuteAfter.inMinutes);
+
+    if (type == ShiftType.night || crosses) {
+      return ShiftPattern(
+        type: ShiftType.night,
+        workStart: workStart,
+        workEnd: workEnd,
+        homeAgain: home,
+        crossesMidnight: true,
+      );
+    }
+
+    return ShiftPattern(
+      type: type,
+      wake: _shift(leave, -60),
+      leaveHome: leave,
+      workStart: workStart,
+      workEnd: workEnd,
+      homeAgain: home,
+    );
+  }
+
+  /// A clock moved by [minutes], wrapping within the day.
+  static Clock _shift(Clock c, int minutes) {
+    final total = ((c.minutesFromMidnight + minutes) % 1440 + 1440) % 1440;
+    return Clock(total ~/ 60, total % 60);
+  }
+
+  /// The brief's default hours for one type — what a fresh install has and
+  /// what the settings screen shows until the user changes them.
+  static (Clock, Clock)? defaultHours(ShiftType type) => switch (type) {
+        ShiftType.morning => (const Clock(7, 0), const Clock(14, 0)),
+        ShiftType.evening => (const Clock(14, 0), const Clock(21, 0)),
+        ShiftType.night => (const Clock(22, 0), const Clock(7, 0)),
+        ShiftType.off => null,
+      };
+
   /// Parses the stored settings value, falling back to the morning shift.
   ///
   /// Falls back rather than throwing: an unrecognised value should give the

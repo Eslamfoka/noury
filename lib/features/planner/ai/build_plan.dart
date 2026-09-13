@@ -6,7 +6,9 @@ import '../../ai/ai_client.dart';
 import '../../prayers/prayer_names.dart';
 import '../daily_tasks.dart';
 import '../day_planner.dart';
-import '../shift.dart';
+import '../day_plan.dart';
+import '../shift_settings.dart';
+import 'locked_windows.dart';
 import 'plan_document.dart';
 import 'plan_request.dart';
 
@@ -55,6 +57,11 @@ Future<PlanRequest> assemblePlanRequest({
     for (var i = 0; i < days; i++) DateTime(start.year, start.month, start.day + i),
   ];
 
+  // The same days `planDay` would build, so the hours the model is told are
+  // the hours the app itself keeps — the sleep it sized, the work block the
+  // user set. See locked_windows.dart.
+  final plans = _plansFor(dates, prayerTimes, settings);
+
   return PlanRequest(
     profile: profile,
     customFields: custom,
@@ -73,7 +80,40 @@ Future<PlanRequest> assemblePlanRequest({
     // its start is.
     eatingWindowHours: 8,
     waterTargetGlasses: settings.waterTargetGlasses,
+    lockedByDay: {
+      for (final e in plans.entries) e.key: lockedWindowsFor(e.value),
+    },
   );
+}
+
+/// The days as `planDay` builds them — what the request describes to the
+/// model and what the reply is checked against, from one function so the
+/// two cannot differ.
+Map<DateTime, DayPlan> _plansFor(
+  List<DateTime> dates,
+  PrayerTimesService prayerTimes,
+  SettingsRow settings,
+) {
+  final geo = GeoConfig(
+    latitude: settings.latitude,
+    longitude: settings.longitude,
+    method: settings.calculationMethod,
+    madhab: settings.madhab,
+  );
+  final shift = shiftPatternFromSettings(settings);
+  return {
+    for (final date in dates)
+      date: planDay(
+        date: date,
+        shift: shift,
+        prayers: prayerTimes.forDate(date, geo),
+        tasks: dailyTasksFor(
+          date: date,
+          shift: shift,
+          eatingWindowStartHour: settings.eatingWindowStartHour,
+        ),
+      ),
+  };
 }
 
 /// The whole thing, one press.
@@ -119,24 +159,50 @@ Future<BuildPlanOutcome> buildPlan({
     return BuildPlanOutcome.failed(parsed.failure!, rawReply: reply.value);
   }
 
-  // The titles المهام would show for each id, so the sheet reads «مشي» and
-  // not «walk». Built for today with the current shift; titles do not vary
-  // by date.
   final settings = await db.settingsDao.get();
-  final titles = {
-    for (final task in dailyTasksFor(
-      date: DateTime(now.year, now.month, now.day),
-      shift: ShiftPattern.fromName(settings.shiftType),
-      eatingWindowStartHour: settings.eatingWindowStartHour,
-    ))
-      task.id: task.title,
+  final plans = _plansFor(request.days, prayerTimes, settings);
+
+  // The titles المهام would show for each id, so the sheet reads «مشي» and
+  // not «walk» — and each task's weight, which decides whether it may ride
+  // the commute. Titles and weights do not vary by date.
+  final today = plans[DateTime(now.year, now.month, now.day)] ??
+      plans.values.first;
+  final byId = {
+    for (final s in today.allTasks) s.task.id: s.task,
   };
+  final titles = {for (final e in byId.entries) e.key: e.value.title};
+
+  // Telling the model was a courtesy; this is the guarantee. A task inside
+  // sleep or work is removed however sensible it looks, a heavy one in the
+  // commute too, and the sheet says how many — never silently.
+  final removed = <RemovedTask>[];
+  final kept = <PlannedDay>[];
+  for (final day in parsed.document!.days) {
+    final plan = plans[day.date];
+    final windows = plan == null ? const <LockedWindow>[] : lockedWindowsFor(plan);
+    final tasks = <PlannedEntry>[];
+    for (final t in day.tasks) {
+      final heavy = byId[t.id]?.weight == TaskWeight.heavy;
+      final why = violationFor(t.at, windows: windows, heavy: heavy);
+      if (why == null) {
+        tasks.add(t);
+      } else {
+        removed.add(RemovedTask(id: t.id, at: t.at, reason: why));
+      }
+    }
+    if (tasks.isNotEmpty) kept.add(PlannedDay(date: day.date, tasks: tasks));
+  }
 
   return BuildPlanOutcome.built(
-    parsed.document!,
+    PlanDocument(
+      days: kept,
+      books: parsed.document!.books,
+      note: parsed.document!.note,
+    ),
     titles: titles,
     model: connection.model,
     droppedTaskIds: parsed.droppedTaskIds,
+    removed: removed,
   );
 }
 
@@ -147,6 +213,7 @@ class BuildPlanOutcome {
         titles = const {},
         model = null,
         droppedTaskIds = const [],
+        removed = const [],
         failure = null,
         rawReply = null,
         needsConnection = true;
@@ -156,6 +223,7 @@ class BuildPlanOutcome {
         titles = const {},
         model = null,
         droppedTaskIds = const [],
+        removed = const [],
         needsConnection = false;
 
   const BuildPlanOutcome.built(
@@ -163,6 +231,7 @@ class BuildPlanOutcome {
     required this.titles,
     required this.model,
     this.droppedTaskIds = const [],
+    this.removed = const [],
   })  : failure = null,
         rawReply = null,
         needsConnection = false;
@@ -178,6 +247,11 @@ class BuildPlanOutcome {
   /// Ids the model invented and the parser dropped. Not shown to the user;
   /// kept so the handoff can say whether the prompt needs work.
   final List<String> droppedTaskIds;
+
+  /// Tasks the model placed in sleep, in work, or heavy in the commute —
+  /// removed, and **counted on the sheet**: «٣ مهام اتشالت لأنها كانت وقت
+  /// النوم أو الدوام». The day is always told what it dropped.
+  final List<RemovedTask> removed;
 
   /// In Arabic, ready to show.
   final String? failure;

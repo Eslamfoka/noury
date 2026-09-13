@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nouri/core/notifications/armed_window.dart';
@@ -493,6 +494,70 @@ void main() {
         await t.pumpAndSettle();
 
         expect((await db.settingsDao.get()).notifyAdhan, isFalse);
+      });
+    });
+
+    /// 13 September 2026: «عايز اختار وقت الدوام بيبدأ امتا وينتهي امتا ...
+    /// وتحط ساعتين مواصلات ساعة قبل الدوام وساعة بعد».
+    group('the shift hours and the commute', () {
+      testWidgets('the hours show for the selected type, and the commute steps',
+          (t) async {
+        await withLargeSurface(t, () async {
+          db = inMemoryDatabase(t);
+          await pumpSettings(t);
+          await openSection(t, SettingsSection.duty);
+
+          expect(find.byKey(const ValueKey('shift-start')), findsOneWidget);
+          expect(find.byKey(const ValueKey('shift-end')), findsOneWidget);
+          expect(find.text('٠٧:٠٠'), findsOneWidget);
+          expect(find.text('١٤:٠٠'), findsOneWidget);
+
+          final before = find.byKey(const ValueKey('commute-before'));
+          await scrollTo(t, before);
+          await t.tap(find.descendant(of: before, matching: find.byIcon(Icons.add)));
+          await t.pumpAndSettle();
+          expect((await db.settingsDao.get()).commuteBeforeMinutes, 75);
+
+          // The summary line reads the new edges: 05:45 → 15:00.
+          expect(find.textContaining('٠٥:٤٥'), findsOneWidget);
+        });
+      });
+
+      testWidgets('a day off has no hours to set', (t) async {
+        await withLargeSurface(t, () async {
+          db = inMemoryDatabase(t);
+          await db.settingsDao.update(const SettingsRowsCompanion(shiftType: Value('off')));
+          await pumpSettings(t);
+          await openSection(t, SettingsSection.duty);
+          expect(find.byKey(const ValueKey('shift-start')), findsNothing);
+          expect(find.byKey(const ValueKey('commute-before')), findsNothing);
+        });
+      });
+
+      testWidgets('picking a start time stores it for that type only', (t) async {
+        await withLargeSurface(t, () async {
+          db = inMemoryDatabase(t);
+          await pumpSettings(t);
+          await openSection(t, SettingsSection.duty);
+
+          await t.tap(find.descendant(
+            of: find.byKey(const ValueKey('shift-start')),
+            matching: find.text('غيّر'),
+          ));
+          await t.pumpAndSettle();
+          // The system picker, in the app's own locale: confirm whatever it
+          // opened with (07:00).
+          final ok = MaterialLocalizations.of(
+            t.element(find.byType(SettingsSectionScreen)),
+          ).okButtonLabel;
+          await t.tap(find.text(ok).last);
+          await t.pumpAndSettle();
+
+          final s = await db.settingsDao.get();
+          expect(s.shiftHoursJson, contains('"morning":{"start":"07:00","end":"14:00"}'));
+          expect(s.shiftHoursJson, contains('"evening":{"start":"14:00"'),
+              reason: 'the other types keep theirs');
+        });
       });
     });
 

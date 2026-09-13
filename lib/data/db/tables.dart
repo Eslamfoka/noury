@@ -181,6 +181,22 @@ class SettingsRows extends Table {
   IntColumn get prayerSilenceMinutes =>
       integer().withDefault(const Constant(10))();
 
+  /// When each shift starts and ends, as the user set it — «عايز اختار وقت
+  /// الدوام بيبدأ امتا وينتهي امتا مثلا الصبح من 7 am الي 2 pm». JSON keyed
+  /// by type; missing entries fall back to the brief's hours. See
+  /// `shift_settings.dart`, the one place this is read.
+  TextColumn get shiftHoursJson => text().withDefault(const Constant(
+      '{"morning":{"start":"07:00","end":"14:00"},'
+      '"evening":{"start":"14:00","end":"21:00"},'
+      '"night":{"start":"22:00","end":"07:00"}}'))();
+
+  /// The commute either side of the shift, in minutes. «ساعة قبل الدوام
+  /// وساعة بعد» — an hour each by default.
+  IntColumn get commuteBeforeMinutes =>
+      integer().withDefault(const Constant(60))();
+  IntColumn get commuteAfterMinutes =>
+      integer().withDefault(const Constant(60))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

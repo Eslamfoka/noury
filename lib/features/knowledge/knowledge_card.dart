@@ -9,6 +9,7 @@ import '../../app.dart';
 import '../home/home_providers.dart';
 import '../planner/daily_tasks.dart';
 import '../planner/shift.dart';
+import '../planner/shift_settings.dart';
 import '../tasks/task_done.dart';
 
 /// The minimum the brief asks for: ten minutes a day.
@@ -50,7 +51,9 @@ class KnowledgeCard extends ConsumerWidget {
     // plan cannot disagree about which face today wears.
     final suggested = knowledgeTaskFor(
       DateTime.now(),
-      ShiftPattern.fromName(settings?.shiftType ?? 'morning'),
+      settings == null
+          ? ShiftPattern.morning
+          : shiftPatternFromSettings(settings),
     );
 
     return Container(

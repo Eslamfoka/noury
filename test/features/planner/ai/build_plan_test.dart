@@ -7,6 +7,7 @@ import 'package:nouri/data/db/nouri_database.dart';
 import 'package:nouri/features/ai/ai_client.dart';
 import 'package:nouri/features/ai/ai_provider.dart';
 import 'package:nouri/features/planner/ai/build_plan.dart';
+import 'package:nouri/features/planner/ai/locked_windows.dart';
 import 'package:nouri/features/planner/ai/plan_request.dart';
 
 /// «ابني خطتي», from press to outcome, with a service that answers what it
@@ -76,6 +77,36 @@ void main() {
       expect(request.targetSleepHours, 7);
     });
 
+    test('tells the model the hours, not just the shift\'s name', () async {
+      // «لاحظت ان الخطة لا بتحسب عدد ساعات النوم ولا عدد ساعات الدوام».
+      final request = await assemblePlanRequest(
+        db: db,
+        prayerTimes: prayerTimes,
+        from: now,
+      );
+      expect(request.lockedByDay.keys, request.days);
+      final today = request.lockedByDay[DateTime(2026, 9, 13)]!;
+      expect(today.map((w) => w.label), containsAll(['النوم', 'الدوام', 'المواصلات']));
+
+      final prompt = request.toPrompt(allowedTaskIds: alarmableTaskIds);
+      expect(prompt, contains('الأوقات المقفولة'));
+      expect(prompt, contains('الدوام 07:00–14:00'));
+      expect(prompt, contains('المواصلات 06:00–07:00 [خفيف بس]'));
+      expect(prompt, contains('النوم '));
+      expect(PlanRequest.systemPrompt, contains('ممنوع أي مهمة'));
+    });
+
+    test('and the hours are the user\'s own', () async {
+      await db.settingsDao.update(const SettingsRowsCompanion(
+        shiftHoursJson: Value('{"morning":{"start":"08:30","end":"17:00"}}'),
+        commuteBeforeMinutes: Value(30),
+      ));
+      final request = await assemblePlanRequest(db: db, prayerTimes: prayerTimes, from: now);
+      final prompt = request.toPrompt(allowedTaskIds: alarmableTaskIds);
+      expect(prompt, contains('الدوام 08:30–17:00'));
+      expect(prompt, contains('المواصلات 08:00–08:30'));
+    });
+
     test('is sent with Nouri\'s system prompt and every alarmable id', () async {
       client.reply = '{"days":[]}';
       await press();
@@ -121,6 +152,42 @@ void main() {
       expect(outcome.document!.books.single.title, 'كتاب');
       expect(outcome.document!.note, 'يوم هادي.');
       expect(outcome.model, 'claude-haiku-4-5');
+    });
+
+    test('a task the model puts in sleep or work is removed, and counted', () async {
+      // Telling the model is a courtesy; this is the guarantee. Morning
+      // shift 07:00–14:00, bed after isha: the walk at 10:00 is at work, the
+      // wird at 02:00 is asleep, the athkar at 06:30 rides the bus (light),
+      // the walk at 06:40 does not (heavy). The 17:00 walk stands.
+      client.reply = '''
+{"days":[{"date":"2026-09-13","tasks":[
+  {"id":"walk","at":"10:00","minutes":30},
+  {"id":"quran-wird","at":"02:00","minutes":15},
+  {"id":"morning-athkar","at":"06:30","minutes":10},
+  {"id":"walk","at":"06:40","minutes":30},
+  {"id":"walk","at":"17:00","minutes":30}
+]}],"note":"."}''';
+
+      final outcome = await press();
+
+      expect(outcome.ok, isTrue, reason: outcome.failure);
+      final kept = outcome.document!.days.single.tasks;
+      expect(kept.map((t) => t.id), ['morning-athkar', 'walk']);
+      expect(kept.map((t) => t.at.hour), [6, 17]);
+      // In time order, which is how the parser hands the day back.
+      expect(outcome.removed.map((r) => r.reason), [
+        RemovedReason.inSleep,
+        RemovedReason.heavyInCommute,
+        RemovedReason.inWork,
+      ]);
+    });
+
+    test('a day whose every task was removed is not a day', () async {
+      client.reply = '{"days":[{"date":"2026-09-13","tasks":[{"id":"walk","at":"09:00","minutes":30}]}]}';
+      final outcome = await press();
+      expect(outcome.ok, isTrue);
+      expect(outcome.document!.days, isEmpty);
+      expect(outcome.removed, hasLength(1));
     });
 
     test('a service failure is a sentence, with the service\'s words', () async {

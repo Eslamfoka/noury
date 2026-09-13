@@ -2,7 +2,7 @@ import '../../data/db/nouri_database.dart';
 import '../../features/finance/budget_categories.dart';
 import '../../features/finance/budget_nudge.dart';
 import '../../features/finance/financial_month.dart';
-import '../../features/planner/shift.dart';
+import '../../features/planner/shift_settings.dart';
 import '../time/geo_config.dart';
 import 'completed_tasks.dart';
 import 'dnd_bypass.dart';
@@ -71,12 +71,10 @@ Future<SchedulingConfig> schedulingConfigFromDb(
     adhanBypassesDnd: bypasses,
     // Only قيام reads this: on a night shift the whole last third is duty
     // time, so there is nothing to offer.
-    shift: switch (s.shiftType) {
-      'evening' => ShiftType.evening,
-      'night' => ShiftType.night,
-      'off' => ShiftType.off,
-      _ => ShiftType.morning,
-    },
+    shift: shiftTypeOf(s.shiftType),
+    // The user's own hours, so the alarms are planned around the day he
+    // actually has — see shift_settings.dart.
+    shiftPattern: shiftPatternFromSettings(s),
     budgetNote: await _budgetNote(db, today, s.financialMonthStartDay),
     // Derived from the logs the user already keeps, so Nouri stops ringing
     // about something it can see happened.

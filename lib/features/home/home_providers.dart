@@ -10,7 +10,7 @@ import '../../data/tips/daily_tip.dart';
 import '../planner/daily_tasks.dart';
 import '../planner/day_plan.dart';
 import '../planner/day_planner.dart';
-import '../planner/shift.dart';
+import '../planner/shift_settings.dart';
 
 /// The app database. Overridden in tests with an in-memory instance.
 final databaseProvider = Provider<NouriDatabase>((ref) {
@@ -160,7 +160,7 @@ final todayPlanProvider = Provider<AsyncValue<DayPlan>>((ref) {
   }
 
   final s = settings.requireValue;
-  final shift = ShiftPattern.fromName(s.shiftType);
+  final shift = shiftPatternFromSettings(s);
 
   return AsyncValue.data(planDay(
     date: today,

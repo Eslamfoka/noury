@@ -97,7 +97,8 @@ class SchedulingConfig {
     this.nagIntervalMinutes = 0,
     this.silenceDuringPrayer = false,
     this.prayerSilenceMinutes = 10,
-  });
+    ShiftPattern? shiftPattern,
+  }) : _shiftPattern = shiftPattern; // ignore: prefer_initializing_formals
 
   final GeoConfig geo;
   final Map<String, int> iqamaOffsets;
@@ -197,6 +198,16 @@ class SchedulingConfig {
   /// How long after the iqama the silence lifts.
   final int prayerSilenceMinutes;
 
+  final ShiftPattern? _shiftPattern;
+
+  /// The day's shape the task alarms are planned around.
+  ///
+  /// The user's own hours when the config was built from settings; the
+  /// brief's constants for [shift] otherwise, which is what every test that
+  /// names only a type gets. The type and the pattern must agree, and they
+  /// do: `schedulingConfigFromDb` derives both from the same row.
+  ShiftPattern get shiftPattern => _shiftPattern ?? ShiftPattern.forType(shift);
+
   SchedulingConfig copyWith({
     GeoConfig? geo,
     Map<String, int>? iqamaOffsets,
@@ -222,6 +233,7 @@ class SchedulingConfig {
     int? nagIntervalMinutes,
     bool? silenceDuringPrayer,
     int? prayerSilenceMinutes,
+    ShiftPattern? shiftPattern,
   }) =>
       SchedulingConfig(
         geo: geo ?? this.geo,
@@ -249,6 +261,7 @@ class SchedulingConfig {
         silenceDuringPrayer: silenceDuringPrayer ?? this.silenceDuringPrayer,
         prayerSilenceMinutes:
             prayerSilenceMinutes ?? this.prayerSilenceMinutes,
+        shiftPattern: shiftPattern ?? _shiftPattern,
       );
 }
 
@@ -661,11 +674,11 @@ class RollingWindowScheduler {
       if (cfg.notifyTasks && i < kTaskAlarmWindowDays) {
         final plan = planDay(
           date: date,
-          shift: ShiftPattern.forType(cfg.shift),
+          shift: cfg.shiftPattern,
           prayers: times,
           tasks: dailyTasksFor(
             date: date,
-            shift: ShiftPattern.forType(cfg.shift),
+            shift: cfg.shiftPattern,
           ),
         );
         plans.add(plan);

@@ -51,7 +51,7 @@ class NouriDatabase extends _$NouriDatabase {
   NouriDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -165,6 +165,14 @@ class NouriDatabase extends _$NouriDatabase {
             await m.addColumn(settingsRows, settingsRows.silenceDuringPrayer);
             await m.addColumn(
                 settingsRows, settingsRows.prayerSilenceMinutes);
+          }
+
+          // v16: the shift hours and the commute are the user's, not the
+          // brief's constants.
+          if (from < 16) {
+            await m.addColumn(settingsRows, settingsRows.shiftHoursJson);
+            await m.addColumn(settingsRows, settingsRows.commuteBeforeMinutes);
+            await m.addColumn(settingsRows, settingsRows.commuteAfterMinutes);
           }
         },
       );

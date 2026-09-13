@@ -4,6 +4,8 @@ import '../../core/notifications/rolling_window_scheduler.dart';
 import '../../core/notifications/scheduling_config_from_db.dart';
 import '../../core/time/location_service.dart';
 import '../../data/db/nouri_database.dart';
+import '../planner/shift.dart';
+import '../planner/shift_settings.dart';
 
 /// Anything that can rebuild the alarm window.
 ///
@@ -376,6 +378,43 @@ class SettingsController {
     await db.settingsDao.update(
       SettingsRowsCompanion(shiftType: Value(shiftType)),
     );
+    _requestRearm();
+  }
+
+  /// Sets one shift type's hours, and **rearms**: the task alarms are
+  /// planned around the work block, so moving it moves them.
+  ///
+  /// «عايز اختار وقت الدوام بيبدأ امتا وينتهي امتا». Each type keeps its
+  /// own hours, so switching between them does not lose either.
+  Future<void> updateShiftHours(
+    ShiftType type, {
+    required Clock start,
+    required Clock end,
+  }) async {
+    if (type == ShiftType.off) return;
+    await _serialised(() async {
+      final s = await db.settingsDao.get();
+      final hours = ShiftHours.decode(s.shiftHoursJson)
+        ..[type] = ShiftHours(start, end);
+      await db.settingsDao.update(
+        SettingsRowsCompanion(shiftHoursJson: Value(ShiftHours.encode(hours))),
+      );
+    });
+    _requestRearm();
+  }
+
+  /// The commute either side of the shift, and **rearms** for the same
+  /// reason. Zero to three hours: a commute of zero is a workplace at home,
+  /// which is real; more than three is a different life.
+  Future<void> updateCommute({int? beforeMinutes, int? afterMinutes}) async {
+    await db.settingsDao.update(SettingsRowsCompanion(
+      commuteBeforeMinutes: beforeMinutes == null
+          ? const Value.absent()
+          : Value(beforeMinutes.clamp(0, 180)),
+      commuteAfterMinutes: afterMinutes == null
+          ? const Value.absent()
+          : Value(afterMinutes.clamp(0, 180)),
+    ));
     _requestRearm();
   }
 

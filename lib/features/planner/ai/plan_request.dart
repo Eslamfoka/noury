@@ -1,4 +1,5 @@
 import '../../../data/db/nouri_database.dart';
+import 'locked_windows.dart';
 
 /// What Nouri sends to Claude when the user presses «ابني خطتي».
 ///
@@ -26,6 +27,7 @@ class PlanRequest {
     required this.eatingWindowStartHour,
     required this.eatingWindowHours,
     required this.waterTargetGlasses,
+    this.lockedByDay = const {},
   });
 
   final ProfileRow profile;
@@ -44,6 +46,11 @@ class PlanRequest {
   final int eatingWindowHours;
   final int waterTargetGlasses;
 
+  /// Per day, the hours no task may go in — sleep and work — and the hours
+  /// only a light one may: the commute. Stated to the model as times, not
+  /// as a shift name, after the first real plan put tasks in the night.
+  final Map<DateTime, List<LockedWindow>> lockedByDay;
+
   /// How Nouri describes itself to Claude.
   ///
   /// The voice rules are not decoration. §1 of the brief forbids guilt, forbids
@@ -55,6 +62,8 @@ class PlanRequest {
 
 قواعد لازمة:
 - الصلاة والنوم ثابتين. متحركش وقت صلاة، ومتقصّرش النوم عشان تزوّد مهام.
+- كل يوم فيه «أوقات مقفولة» مكتوبة بالساعة: النوم والدوام. ممنوع أي مهمة
+  جواهم، خالص. المواصلات مكتوبة كمان، والمسموح فيها المهام الخفيفة بس.
 - لو اليوم مزحوم، أجّل الأخف — النوم آخر حاجة تتمس.
 - المهام التقيلة (تمرين، قراءة كتاب) في البيت أو وقت فاضي حقيقي.
   المهام الخفيفة (أذكار، تسبيح، سماع محاضرة) تنفع في المواصلات أو بريك الشغل.
@@ -123,6 +132,21 @@ class PlanRequest {
       b.writeln('- ${_iso(day)}: $parts');
     }
 
+    if (lockedByDay.isNotEmpty) {
+      b.writeln();
+      b.writeln('# الأوقات المقفولة (ممنوع أي مهمة فيها) والمواصلات (خفيف بس)');
+      for (final day in days) {
+        final windows = lockedByDay[day];
+        if (windows == null || windows.isEmpty) continue;
+        final parts = windows
+            .map((w) => '${w.label} ${_hhmm(w.start)}–${_hhmm(w.end)}'
+                '${w.end.day != day.day ? ' (لليوم اللي بعده)' : ''}'
+                '${w.lightOnly ? ' [خفيف بس]' : ''}')
+            .join(' · ');
+        b.writeln('- ${_iso(day)}: $parts');
+      }
+    }
+
     b.writeln();
     b.writeln('# المهام المسموح بيها (استخدم المعرّفات دي بس)');
     b.writeln(allowedTaskIds.join(', '));
@@ -148,6 +172,9 @@ class PlanRequest {
     if (value == null || value.trim().isEmpty) return;
     b.writeln('- $label: ${value.trim()}');
   }
+
+  static String _hhmm(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   static String _iso(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'

@@ -12,9 +12,9 @@ import 'package:nouri/data/db/nouri_database.dart';
 /// «ابني خطتي» is assembled from; v13 the length of a shift; v14 the AI
 /// connection — provider, model, base URL, last verified — with the key
 /// itself kept out of the database; v15 the nag interval and the prayer
-/// silence. Every migration is additive, so the most important test here is
-/// the last one — that nothing from the religious core was disturbed on the
-/// way.
+/// silence; v16 the shift hours and the commute. Every migration is
+/// additive, so the most important test here is the last one — that
+/// nothing from the religious core was disturbed on the way.
 void main() {
   NouriDatabase open(void Function(NouriDatabase) _) {
     final db = NouriDatabase.forTesting(NativeDatabase.memory());
@@ -24,9 +24,17 @@ void main() {
 
   NouriDatabase fresh() => open((_) {});
 
-  test('schema is at v15', () {
+  test('schema is at v16', () {
     // Pinned deliberately: an accidental bump means a migration nobody wrote.
-    expect(fresh().schemaVersion, 15);
+    expect(fresh().schemaVersion, 16);
+  });
+
+  test('the shift hours arrive as the brief\'s, with an hour of commute each way',
+      () async {
+    final s = await fresh().settingsDao.get();
+    expect(s.shiftHoursJson, contains('"morning":{"start":"07:00","end":"14:00"}'));
+    expect(s.commuteBeforeMinutes, 60);
+    expect(s.commuteAfterMinutes, 60);
   });
 
   test('the nag and the prayer silence arrive as he asked for them', () async {

@@ -41,8 +41,12 @@ void main() {
       (t) async {
     await withLargeSurface(t, size: tall, () async {
       await pump(t, storedKey: 'sk-test');
+      // Dated today, so the day survives the locked-window check; 16:30 is
+      // after work on the default morning shift and before any bedtime.
+      final today = DateTime.now();
+      final iso = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       client.reply = '''
-{"days":[{"date":"2026-09-13","tasks":[{"id":"walk","at":"16:30","minutes":30}]}],
+{"days":[{"date":"$iso","tasks":[{"id":"walk","at":"16:30","minutes":30}]}],
  "books":[{"title":"كتاب الأسبوع","why":"قريب من اهتماماتك"}],
  "note":"يوم هادي، مشي بعد العصر."}''';
 

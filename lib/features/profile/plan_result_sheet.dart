@@ -45,6 +45,18 @@ class _Built extends StatelessWidget {
 
   final BuildPlanOutcome outcome;
 
+  /// «مهمة اتشالت» / «٣ مهام اتشالت» — what the model put in sleep, in
+  /// work, or heavy in the commute, and Nouri would not keep. Attention
+  /// orange: something to know, not something that went wrong.
+  static String _removedLine(int n) {
+    final head = n == 1
+        ? 'مهمة واحدة اتشالت'
+        : n == 2
+            ? 'مهمتين اتشالوا'
+            : toArabicDigits('$n مهام اتشالت');
+    return '$head من اقتراح الموديل لأنها كانت وقت النوم أو الدوام.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final doc = outcome.document!;
@@ -121,6 +133,14 @@ class _Built extends StatelessWidget {
                 ],
               ),
             ),
+        ],
+        if (outcome.removed.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            _removedLine(outcome.removed.length),
+            key: const ValueKey('plan-result-removed'),
+            style: cairo(size: 11.5, color: NouriColors.attention, height: 1.7),
+          ),
         ],
         const Divider(color: NouriColors.border, height: 28),
         Text(
