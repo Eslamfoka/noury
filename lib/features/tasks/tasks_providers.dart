@@ -6,6 +6,7 @@ import '../home/home_providers.dart';
 import '../shell/app_shell.dart';
 import '../steps/walk_screen.dart';
 import '../workouts/workout_screen.dart';
+import 'prayers_line.dart';
 import 'snooze_store.dart';
 import 'task_status.dart';
 
@@ -63,6 +64,22 @@ final todayTaskLinesProvider = FutureProvider<List<TaskLine>>((ref) async {
     done: done,
     snoozedUntil: snoozed,
   );
+});
+
+/// Today's five prayers as one line of المهام.
+///
+/// Null until the prayer times are known. A plain provider over the same
+/// three things Home reads — the times, the log, the coarse clock — so the
+/// percentage moves the moment a prayer is logged anywhere, and the status
+/// re-decides itself as each prayer enters.
+final todayPrayersLineProvider = Provider<PrayersLine?>((ref) {
+  final times = ref.watch(todayPrayerTimesProvider).value;
+  if (times == null) return null;
+
+  final logs = ref.watch(todayPrayerLogsProvider).value ?? const {};
+  final now = ref.watch(coarseClockProvider).value ?? DateTime.now();
+
+  return prayersLineFor(times: times, logs: logs, now: now);
 });
 
 /// Opens the screen where a task is actually done.
